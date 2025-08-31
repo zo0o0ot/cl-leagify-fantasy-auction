@@ -18,6 +18,7 @@ School
 Auction
 ├── AuctionId (PK, int, identity)
 ├── JoinCode (nvarchar(10), unique)
+├── MasterRecoveryCode (nvarchar(20), unique) // For Auction Master reconnection
 ├── Name (nvarchar(100))
 ├── Status (nvarchar(20)) // Draft, InProgress, Complete, Archived
 ├── CreatedByUserId (int, FK to User)
@@ -239,6 +240,10 @@ UNIQUE (AuctionId, DisplayName)
 -- Unique join codes
 ALTER TABLE Auction ADD CONSTRAINT UQ_Auction_JoinCode 
 UNIQUE (JoinCode)
+
+-- Unique master recovery codes
+ALTER TABLE Auction ADD CONSTRAINT UQ_Auction_MasterRecoveryCode 
+UNIQUE (MasterRecoveryCode)
 
 -- One school assignment per roster position per team
 ALTER TABLE DraftPick ADD CONSTRAINT UQ_DraftPick_Team_Position_School 

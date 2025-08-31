@@ -71,10 +71,17 @@ A real-time auction draft web application for fantasy sports, specifically desig
 
 ### CSV Import Process
 1. **Parse Upload:** Read CSV draft template
-2. **School Matching:** Fuzzy match school names to existing SchoolId records
-3. **Confirmation:** Prompt Auction Master to confirm fuzzy matches before proceeding
-4. **Create Missing:** Create new School entities for unrecognized schools
-5. **Link Data:** Create AuctionSchool records linking SchoolId to auction-specific stats
+2. **Data Validation:** Check for duplicate schools, negative values, missing required columns
+3. **School Matching:** Fuzzy match school names to existing SchoolId records
+4. **Confirmation:** Prompt Auction Master to confirm fuzzy matches before proceeding
+5. **Create Missing:** Create new School entities for unrecognized schools
+6. **Link Data:** Create AuctionSchool records linking SchoolId to auction-specific stats
+
+**Validation Strategy:**
+- **Clear Error Messages:** Specific row/column identification for validation failures
+- **Manual Fix Expected:** User updates CSV and re-uploads rather than auto-correction
+- **Common Issues:** Duplicate school names, negative ProjectedPoints, missing LeagifyPosition values
+- **Validation Preview:** Show all detected issues before requiring CSV fix
 
 ### Logo Management Strategy
 **Priority Order:**
@@ -195,6 +202,12 @@ Auction Management Dashboard:
 - Audit trail of admin actions
 - Bulk cleanup actions for testing data
 
+**Test Data Management:**
+- **Naming Convention:** Test auctions use "TEST-" prefix (e.g., "TEST-ABC123")
+- **Production Testing:** Single environment used for both development and real auctions
+- **Admin Cleanup Tools:** Bulk delete all TEST- prefixed auctions after development cycles
+- **Data Isolation:** Test auctions clearly marked in admin interface for easy identification
+
 ### Logo Management Admin
 - Add/edit school logos and basic information
 - Bulk import school data from master lists
@@ -213,6 +226,12 @@ Auction Management Dashboard:
 - **Clear Status:** Always show whose turn, current bid, remaining budget with FluentBadge and FluentCard
 - **Error Prevention:** Disable invalid actions, show constraints clearly with FluentMessageBar
 - **Reconnection UX:** Smooth re-entry flow with loading states using FluentProgressRing
+
+### Auction Master Recovery
+- **Master Recovery Code:** Separate from join code, allows Auction Master reconnection to any in-progress auction
+- **Recovery Process:** Master enters recovery code + auction join code to resume control
+- **State Restoration:** Reload current auction state from database (current bidder, high bid, roster states)
+- **Admin Override:** Master can correct any inconsistencies found after reconnection
 
 ### Position Color Coding
 - 8-color sensible palette for position differentiation
