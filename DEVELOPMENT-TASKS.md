@@ -13,12 +13,14 @@ Based on the requirement: **School Management → Auction Creation → Join Auct
 **Estimated Effort:** 4-6 hours  
 **Dependencies:** None
 
-- [ ] Create Blazor WebAssembly project with Azure Static Web Apps template
+- [ ] Install Microsoft Fluent UI Blazor templates: `dotnet new install Microsoft.FluentUI.AspNetCore.Templates`
+- [ ] Create Blazor WebAssembly project with Fluent UI template
 - [ ] Set up Azure SQL Database with connection strings
 - [ ] Configure Azure SignalR Service (basic setup)
-- [ ] Implement basic project structure (Models, Services, Pages)
+- [ ] Implement basic project structure (Models, Services, Pages) following C# 13/.NET 8+ patterns
+- [ ] Add Microsoft.Extensions.Logging for structured logging
 - [ ] Create deployment workflow for Azure Static Web Apps
-- [ ] Verify deployed app loads correctly
+- [ ] Verify deployed app loads correctly with Fluent UI components
 
 **Deliverables:**
 - Working Blazor app deployed to Azure
@@ -32,10 +34,12 @@ Based on the requirement: **School Management → Auction Creation → Join Auct
 
 - [ ] Create School entity and database schema
 - [ ] Implement School repository with CRUD operations
-- [ ] Build basic admin interface for school management
-- [ ] Add logo URL validation and display
+- [ ] Build admin interface using FluentDataGrid for school management
+- [ ] Add logo URL validation and display with FluentTextField
 - [ ] Create school search and fuzzy matching logic
 - [ ] Implement school creation from unmatched names
+- [ ] Add comprehensive XML documentation for all public school management APIs
+- [ ] Implement unit tests using xUnit with AAA pattern for school services
 
 **Deliverables:**
 - School database table with sample data
@@ -83,12 +87,13 @@ Based on the requirement: **School Management → Auction Creation → Join Auct
 **Estimated Effort:** 10-12 hours  
 **Dependencies:** Task 2.1
 
-- [ ] Create CSV parsing service for draft templates
-- [ ] Implement AuctionSchool entity and mapping
-- [ ] Build school matching interface with confirmation prompts
-- [ ] Add validation for required CSV columns
-- [ ] Create import error handling and user feedback
-- [ ] Implement data preview before final import
+- [ ] Create CSV parsing service for draft templates with comprehensive XML documentation
+- [ ] Implement AuctionSchool entity and mapping using primary constructor syntax
+- [ ] Build school matching interface using FluentDialog for confirmation prompts
+- [ ] Add validation for required CSV columns with FluentValidation or DataAnnotations
+- [ ] Create import error handling with structured logging and user feedback
+- [ ] Implement data preview using FluentDataGrid before final import
+- [ ] Add unit tests for CSV parsing and validation logic
 
 **Deliverables:**
 - CSV upload and parsing functionality
@@ -100,12 +105,13 @@ Based on the requirement: **School Management → Auction Creation → Join Auct
 **Estimated Effort:** 8-10 hours  
 **Dependencies:** Task 2.2
 
-- [ ] Create RosterPosition entity and database schema
-- [ ] Build roster design UI with add/remove positions
-- [ ] Implement position validation against available schools
-- [ ] Add color picker for position coding
-- [ ] Create roster preview and team slot calculation
-- [ ] Implement validation warnings for impossible rosters
+- [ ] Create RosterPosition entity using primary constructor syntax with XML documentation
+- [ ] Build roster design UI using FluentTextField, FluentSelect, and FluentButton components
+- [ ] Implement position validation against available schools with structured logging
+- [ ] Add color picker using FluentColorPicker for position coding
+- [ ] Create roster preview using FluentDataGrid and team slot calculation
+- [ ] Implement validation warnings with FluentMessageBar for impossible rosters
+- [ ] Add unit tests for roster validation business logic
 
 **Deliverables:**
 - Roster design interface for Auction Masters
@@ -211,11 +217,12 @@ Based on the requirement: **School Management → Auction Creation → Join Auct
 **Dependencies:** Task 4.1
 
 - [ ] Create Auction Master admin panel (separate tab)
-- [ ] Implement real-time connection status display
-- [ ] Add proxy coach assignment visualization
-- [ ] Create reconnection approval interface
-- [ ] Build admin-only SignalR broadcasts
-- [ ] Add auction control buttons (pause, end, etc.)
+- [ ] Implement real-time connection status display using FluentDataGrid
+- [ ] Add proxy coach assignment visualization with FluentCard components
+- [ ] Create reconnection approval interface using FluentDialog
+- [ ] Build admin-only SignalR broadcasts with structured logging
+- [ ] Add auction control buttons using FluentButton (pause, end, etc.)
+- [ ] Implement comprehensive unit tests for SignalR hub methods
 
 **Deliverables:**
 - Auction Master admin panel with real-time updates
@@ -250,10 +257,11 @@ Based on the requirement: **School Management → Auction Creation → Join Auct
 
 - [ ] Create BidHistory entity and tracking
 - [ ] Implement bid placement with validation
-- [ ] Build bidding interface with current high bid display
-- [ ] Add budget constraint enforcement
-- [ ] Create pass functionality for all users
-- [ ] Implement Auction Master end-bidding controls
+- [ ] Build bidding interface with current high bid display using FluentTextField and FluentButton
+- [ ] Add budget constraint enforcement with FluentValidation and user feedback
+- [ ] Create pass functionality using FluentButton for all users
+- [ ] Implement Auction Master end-bidding controls with FluentDialog confirmations
+- [ ] Add comprehensive unit tests for bidding validation logic
 
 **Deliverables:**
 - Complete bidding system with validation

@@ -7,6 +7,7 @@ A real-time auction draft web application for fantasy sports, specifically desig
 
 ### Core Technologies
 - **Frontend:** Blazor WebAssembly (WASM) for client-side UI and logic
+- **UI Framework:** Microsoft Fluent UI Blazor components for professional business interface
 - **Real-time Communication:** Azure SignalR Service for live bidding updates
 - **Backend:** Azure Functions (within Static Web Apps) for API endpoints
 - **Database:** Azure SQL Database for persistent data storage
@@ -198,10 +199,11 @@ Auction Management Dashboard:
 - **Context:** Users participate via video call, auction display is supplementary
 
 ### Interface Principles
-- **Real-time Updates:** Immediate visual feedback for all auction events
-- **Clear Status:** Always show whose turn, current bid, remaining budget
-- **Error Prevention:** Disable invalid actions, show constraints clearly
-- **Reconnection UX:** Smooth re-entry flow with loading states
+- **Fluent Design Standards:** Follow Microsoft Fluent UI design patterns for professional appearance
+- **Real-time Updates:** Immediate visual feedback for all auction events using FluentDataGrid
+- **Clear Status:** Always show whose turn, current bid, remaining budget with FluentBadge and FluentCard
+- **Error Prevention:** Disable invalid actions, show constraints clearly with FluentMessageBar
+- **Reconnection UX:** Smooth re-entry flow with loading states using FluentProgressRing
 
 ### Position Color Coding
 - 8-color sensible palette for position differentiation
