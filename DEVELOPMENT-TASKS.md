@@ -35,7 +35,7 @@ Based on the requirement: **School Management → Auction Creation → Join Auct
 - [ ] Create School entity and database schema
 - [ ] Implement School repository with CRUD operations
 - [ ] Build admin interface using FluentDataGrid for school management
-- [ ] Add logo URL validation and display with FluentTextField
+- [ ] Add external logo URL loading with fallback to internal files using FluentTextField
 - [ ] Create school search and fuzzy matching logic
 - [ ] Implement school creation from unmatched names
 - [ ] Add comprehensive XML documentation for all public school management APIs
@@ -327,11 +327,11 @@ Based on the requirement: **School Management → Auction Creation → Join Auct
 **Estimated Effort:** 4-6 hours  
 **Dependencies:** Task 1.2
 
-- [ ] Enhance school admin interface for logo management
-- [ ] Add logo URL validation and preview
-- [ ] Implement bulk school data import
-- [ ] Create school merging functionality
-- [ ] Add school statistics and usage tracking
+- [ ] Implement logo loading strategy: External URL → Internal file → Placeholder fallback
+- [ ] Add logo URL testing and validation with preview
+- [ ] Create individual logo upload interface for broken external URLs
+- [ ] Implement bulk ZIP logo upload as last resort option
+- [ ] Add school statistics and logo availability tracking
 
 **Deliverables:**
 - Enhanced school management with logo features

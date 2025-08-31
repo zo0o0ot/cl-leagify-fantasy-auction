@@ -60,7 +60,8 @@ A real-time auction draft web application for fantasy sports, specifically desig
 **Persistent School Data:**
 - SchoolId (unique identifier)
 - School Name (e.g., "Ohio State")
-- SchoolURL (SVG logo URL)
+- LogoURL (External SVG URL from CSV - primary source)
+- LogoFileName (Internal fallback file if external URL fails)
 - Stored once, referenced by multiple auctions
 
 **Auction-Specific School Data:**
@@ -75,10 +76,18 @@ A real-time auction draft web application for fantasy sports, specifically desig
 4. **Create Missing:** Create new School entities for unrecognized schools
 5. **Link Data:** Create AuctionSchool records linking SchoolId to auction-specific stats
 
-### Logo Management
-- Admin interface for adding/editing school logos
-- SchoolURL field stores SVG logo URLs
-- New schools default to placeholder logo until updated
+### Logo Management Strategy
+**Priority Order:**
+1. **External URL (Primary):** Load SVG from LogoURL provided in CSV import
+2. **Individual Upload:** Admin can upload replacement SVG for specific schools
+3. **Bulk ZIP Upload:** Last resort for replacing multiple logos at once
+
+**Implementation:**
+- LogoURL attempted first for all logo displays
+- On load failure, fallback to internal LogoFileName if available
+- Final fallback to placeholder.svg for missing/broken logos
+- Admin interface allows testing external URLs and uploading replacements
+- Internal files stored in wwwroot/images/schools/ as static assets
 
 ## Auction Flow Design
 

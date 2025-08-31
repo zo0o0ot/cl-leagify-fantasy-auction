@@ -7,7 +7,8 @@
 School
 ├── SchoolId (PK, int, identity)
 ├── Name (nvarchar(100), unique)
-├── SchoolURL (nvarchar(500), nullable) // SVG logo URL
+├── LogoURL (nvarchar(500), nullable) // External SVG URL (primary source)
+├── LogoFileName (nvarchar(100), nullable) // Fallback internal file name
 ├── CreatedDate (datetime2)
 └── ModifiedDate (datetime2)
 ```
