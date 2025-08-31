@@ -5,6 +5,7 @@ This is a real-time auction draft web application for fantasy sports, specifical
 
 ## Architecture Summary
 - **Frontend:** Blazor WebAssembly (WASM) for client-side UI and logic
+- **UI Framework:** Microsoft Fluent UI Blazor components for professional business interface
 - **Real-time:** Azure SignalR Service for live bidding updates  
 - **Backend:** Azure Functions (within Static Web Apps) for API endpoints
 - **Database:** Azure SQL Database for persistent data storage
@@ -96,11 +97,52 @@ This is a real-time auction draft web application for fantasy sports, specifical
 - **Feature flags** for incomplete functionality during development
 
 ### Code Conventions
-- Follow existing patterns in the codebase
-- Check for library availability before using (look at package.json, neighboring files)
+
+#### Blazor & .NET Standards
+- Use C# 13 features and .NET 8+ optimizations
+- Follow PascalCase for components, methods, public members; camelCase for private fields
+- Prefix interfaces with "I" (e.g., IUserService)
+- Use primary constructor syntax for dependency injection: `public class MyClass(IDependency dependency)`
+- Implement comprehensive XML documentation for all public APIs
+
+#### Component Architecture  
+- Utilize Blazor component lifecycle methods (OnInitializedAsync, OnParametersSetAsync)
+- Use @bind for data binding, EventCallbacks for user interactions
+- Minimize renders with ShouldRender() and efficient StateHasChanged() usage
+- Implement ErrorBoundary for UI-level error handling
+- Separate complex logic into code-behind or service classes
+
+#### UI Framework Standards
+- Use **Microsoft Fluent UI Blazor** components for all UI elements
+- Install templates: `dotnet new install Microsoft.FluentUI.AspNetCore.Templates`
+- Leverage FluentDataGrid for real-time auction tables and admin interfaces
+- Use FluentDialog, FluentTextField, FluentSelect for consistent user interactions
+- Follow Fluent Design principles for professional business application appearance
+
+#### State Management & Performance
+- Use Cascading Parameters and EventCallbacks for basic state sharing
+- Implement IMemoryCache for server-side caching
+- Use localStorage/sessionStorage for client-side state persistence
+- Optimize component render tree to avoid unnecessary re-renders
+
+#### Error Handling & Validation
+- Use structured logging with Microsoft.Extensions.Logging
+- Implement FluentValidation or DataAnnotations for forms
+- Use async/await with ConfigureAwait(false) for I/O operations
+- Handle async exceptions properly with try-catch blocks
+
+#### Testing Requirements
+- Unit tests with xUnit/MSTest using AAA pattern (Arrange, Act, Assert)
+- Use Moq or NSubstitute for mocking dependencies  
+- FluentAssertions for readable test assertions
+- Test both success and failure scenarios including null validation
+
+#### Security & Dependencies
 - Server-side validation for all critical business logic
+- Check for library availability before using (look at project files, neighboring code)
 - Never commit secrets or keys to repository
-- No comments in code unless explicitly requested
+- Use HTTPS and proper CORS policies
+- Implement parameterized queries for database operations
 
 ### Deployment Approach
 - **Azure Static Web Apps** with CI/CD from repository
@@ -176,10 +218,13 @@ This is a real-time auction draft web application for fantasy sports, specifical
 
 When implementing this system:
 
-1. **Run tests and validation** - Use `npm run lint`, `npm run typecheck`, or equivalent validation commands before committing
-2. **Deploy frequently** - Push to Azure Static Web Apps for any real-time feature testing  
-3. **Multi-user testing** - Open multiple browser windows/tabs to test auction scenarios
-4. **Admin interface testing** - Verify admin controls work correctly in deployed environment
+1. **UI Framework setup** - Install Microsoft Fluent UI templates: `dotnet new install Microsoft.FluentUI.AspNetCore.Templates`
+2. **Run tests and validation** - Use `dotnet test`, `dotnet build --verify-no-warnings`, and any configured lint/format commands before committing
+3. **Code quality checks** - Ensure all public APIs have XML documentation, follow SOLID principles
+4. **Performance testing** - Profile component renders and optimize using Visual Studio diagnostics tools  
+5. **Deploy frequently** - Push to Azure Static Web Apps for any real-time feature testing  
+6. **Multi-user testing** - Open multiple browser windows/tabs to test auction scenarios
+7. **Admin interface testing** - Verify admin controls work correctly in deployed environment
 
 ## Next Steps
 
