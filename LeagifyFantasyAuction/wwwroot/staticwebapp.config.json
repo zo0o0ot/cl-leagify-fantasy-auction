@@ -1,0 +1,38 @@
+{
+  "routes": [
+    {
+      "route": "/admin/*",
+      "allowedRoles": ["admin"]
+    },
+    {
+      "route": "/api/*",
+      "allowedRoles": ["anonymous", "authenticated", "admin"]
+    }
+  ],
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": ["/api/*"]
+  },
+  "mimeTypes": {
+    ".json": "application/json",
+    ".csv": "text/csv"
+  },
+  "auth": {
+    "rolesSource": "/api/GetRoles",
+    "identityProviders": {
+      "customOpenIdConnectProviders": {
+        "auctionMaster": {
+          "registration": {
+            "clientIdSettingName": "AUCTION_MASTER_CLIENT_ID",
+            "clientCredential": {
+              "clientSecretSettingName": "AUCTION_MASTER_CLIENT_SECRET"
+            },
+            "openIdConnectConfiguration": {
+              "wellKnownOpenIdConfiguration": "/api/.auth/openid_configuration"
+            }
+          }
+        }
+      }
+    }
+  }
+}
