@@ -16,7 +16,7 @@ public class AdminTestFunction
 
     [Function("AdminTest")]
     public async Task<HttpResponseData> AdminTest(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "admin/test")] HttpRequestData req)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "management/test")] HttpRequestData req)
     {
         _logger.LogInformation("Admin test function executed");
 
