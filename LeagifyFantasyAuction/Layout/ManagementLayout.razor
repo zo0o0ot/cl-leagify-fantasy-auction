@@ -1,0 +1,52 @@
+@inherits LayoutComponentBase
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+
+<FluentLayout>
+    <FluentHeader>
+        <FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.SpaceBetween" Width="100%">
+            <FluentLabel Typo="Typography.H4">Leagify Management</FluentLabel>
+            <FluentButton Appearance="Appearance.Lightweight" 
+                         IconStart="@(new Icons.Regular.Size20.SignOut())"
+                         OnClick="LogoutAsync">
+                Logout
+            </FluentButton>
+        </FluentStack>
+    </FluentHeader>
+    <FluentStack Class="main" Orientation="Orientation.Horizontal" Width="100%">
+        <ManagementNavMenu />
+        <FluentBodyContent Class="body-content">
+            <ErrorBoundary>
+                <ChildContent>
+                    <div class="content">
+                        @Body
+                    </div>
+                </ChildContent>
+                <ErrorContent Context="ex">
+                    <div class="alert alert-danger" role="alert">
+                        @ex.Message
+                    </div>
+                </ErrorContent>
+            </ErrorBoundary>
+        </FluentBodyContent>
+    </FluentStack>
+    <FluentFooter>
+        <FluentLabel Typo="Typography.Body">Management Interface - Token expires at @GetTokenExpiration()</FluentLabel>
+    </FluentFooter>
+</FluentLayout>
+
+@code {
+    private async Task LogoutAsync()
+    {
+        await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "managementToken");
+        await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "tokenExpiration");
+        
+        Navigation.NavigateTo("/management/login", true);
+    }
+
+    private string GetTokenExpiration()
+    {
+        // This would get the expiration from localStorage in a real implementation
+        return "Not implemented";
+    }
+}

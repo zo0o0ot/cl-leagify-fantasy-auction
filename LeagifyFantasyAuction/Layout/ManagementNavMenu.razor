@@ -1,0 +1,13 @@
+@using Microsoft.AspNetCore.Components.Routing
+
+<FluentNavMenu Id="main-menu" Width="250" CollapsedWidth="50" Title="Management" SubTitle="System Administration">
+    <FluentNavLink Href="/management" Match="NavLinkMatch.All" Icon="@(new Icons.Regular.Size20.Home())" IconColor="Color.Accent">
+        Dashboard
+    </FluentNavLink>
+    <FluentNavLink Href="/management/schools" Icon="@(new Icons.Regular.Size20.Building())" IconColor="Color.Accent">
+        Schools
+    </FluentNavLink>
+    <FluentNavLink Href="/management/auctions" Icon="@(new Icons.Regular.Size20.CalendarAgenda())" IconColor="Color.Accent">
+        Auctions
+    </FluentNavLink>
+</FluentNavMenu>

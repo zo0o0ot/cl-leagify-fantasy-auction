@@ -1,0 +1,97 @@
+@page "/management/login"
+@layout EmptyLayout
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+
+<FluentStack Orientation="Orientation.Vertical" HorizontalAlignment="HorizontalAlignment.Center" VerticalAlignment="VerticalAlignment.Center" Style="height: 100vh;">
+    <FluentCard Width="400px">
+        <FluentStack Orientation="Orientation.Vertical" VerticalGap="20">
+            <FluentLabel Typo="Typography.H3" Alignment="HorizontalAlignment.Center">Management Login</FluentLabel>
+            
+            <EditForm Model="@loginModel" OnValidSubmit="@LoginAsync">
+                <FluentStack Orientation="Orientation.Vertical" VerticalGap="15">
+                    <FluentTextField @bind-Value="loginModel.Password" 
+                                   Type="TextFieldType.Password" 
+                                   Label="Master Password" 
+                                   Required="true"
+                                   Style="width: 100%;" />
+                    
+                    <FluentButton Type="ButtonType.Submit" 
+                                Appearance="Appearance.Accent" 
+                                Style="width: 100%;"
+                                Loading="@isLoading">
+                        Login
+                    </FluentButton>
+                </FluentStack>
+            </EditForm>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger" role="alert">
+                    @errorMessage
+                </div>
+            }
+        </FluentStack>
+    </FluentCard>
+</FluentStack>
+
+@code {
+    private LoginModel loginModel = new();
+    private bool isLoading;
+    private string? errorMessage;
+
+    private async Task LoginAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("/api/management/auth", loginModel);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<AuthResponse>();
+                if (result?.Success == true && !string.IsNullOrEmpty(result.Token))
+                {
+                    await JSRuntime.InvokeVoidAsync("localStorage.setItem", "managementToken", result.Token);
+                    await JSRuntime.InvokeVoidAsync("localStorage.setItem", "tokenExpiration", result.ExpiresAt?.ToString("O"));
+                    
+                    Navigation.NavigateTo("/management", true);
+                }
+                else
+                {
+                    errorMessage = result?.Message ?? "Login failed";
+                }
+            }
+            else
+            {
+                errorMessage = "Invalid credentials";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Login error: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    public class LoginModel
+    {
+        public string Password { get; set; } = "";
+    }
+
+    public class AuthResponse
+    {
+        public bool Success { get; set; }
+        public string? Token { get; set; }
+        public string? Message { get; set; }
+        public DateTime? ExpiresAt { get; set; }
+    }
+}

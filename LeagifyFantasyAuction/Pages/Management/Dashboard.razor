@@ -1,0 +1,49 @@
+@page "/management"
+@layout ManagementLayout
+
+<PageTitle>Management Dashboard</PageTitle>
+
+<FluentStack Orientation="Orientation.Vertical" VerticalGap="20">
+    <FluentLabel Typo="Typography.H2">Management Dashboard</FluentLabel>
+    
+    <FluentGrid Spacing="3" Justify="JustifyContent.FlexStart">
+        <FluentGridItem xs="12" sm="6" md="4">
+            <FluentCard>
+                <FluentStack Orientation="Orientation.Vertical" VerticalGap="10">
+                    <FluentIcon Value="@(new Icons.Regular.Size24.Building())" Color="Color.Accent" />
+                    <FluentLabel Typo="Typography.H4">Schools</FluentLabel>
+                    <FluentLabel Typo="Typography.Body">Manage school database and logos</FluentLabel>
+                    <FluentButton Href="/management/schools" Appearance="Appearance.Accent">
+                        Manage Schools
+                    </FluentButton>
+                </FluentStack>
+            </FluentCard>
+        </FluentGridItem>
+        
+        <FluentGridItem xs="12" sm="6" md="4">
+            <FluentCard>
+                <FluentStack Orientation="Orientation.Vertical" VerticalGap="10">
+                    <FluentIcon Value="@(new Icons.Regular.Size24.CalendarAgenda())" Color="Color.Accent" />
+                    <FluentLabel Typo="Typography.H4">Auctions</FluentLabel>
+                    <FluentLabel Typo="Typography.Body">View and manage all auctions</FluentLabel>
+                    <FluentButton Href="/management/auctions" Appearance="Appearance.Accent">
+                        Manage Auctions
+                    </FluentButton>
+                </FluentStack>
+            </FluentCard>
+        </FluentGridItem>
+
+        <FluentGridItem xs="12" sm="6" md="4">
+            <FluentCard>
+                <FluentStack Orientation="Orientation.Vertical" VerticalGap="10">
+                    <FluentIcon Value="@(new Icons.Regular.Size24.DataBarVertical())" Color="Color.Accent" />
+                    <FluentLabel Typo="Typography.H4">System Status</FluentLabel>
+                    <FluentLabel Typo="Typography.Body">Monitor system health</FluentLabel>
+                    <FluentButton Appearance="Appearance.Neutral" Disabled="true">
+                        Coming Soon
+                    </FluentButton>
+                </FluentStack>
+            </FluentCard>
+        </FluentGridItem>
+    </FluentGrid>
+</FluentStack>
