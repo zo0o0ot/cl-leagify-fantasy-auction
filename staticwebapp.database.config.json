@@ -1,0 +1,58 @@
+{
+  "$schema": "https://github.com/Azure/data-api-builder/releases/latest/download/dab.draft.schema.json",
+  "data-source": {
+    "database-type": "mssql",
+    "connection-string": "@env('AZURE_SQL_CONNECTION_STRING')",
+    "options": {
+      "set-session-context": false 
+    }
+  },
+  "runtime": {
+    "rest": {
+      "enabled": true,
+      "path": "/data-api/rest"
+    },
+    "graphql": {
+      "enabled": true,
+      "path": "/data-api/graphql",
+      "allow-introspection": true
+    },
+    "host": {
+      "cors": {
+        "origins": ["https://jolly-meadow-0b4450210.2.azurestaticapps.net"],
+        "allow-credentials": false
+      },
+      "authentication": {
+        "provider": "StaticWebApps"
+      }
+    }
+  },
+  "entities": {
+    "School": {
+      "source": "dbo.Schools",
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": ["read"]
+        },
+        {
+          "role": "admin", 
+          "actions": ["create", "read", "update", "delete"]
+        }
+      ]
+    },
+    "Auction": {
+      "source": "dbo.Auctions",
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": ["read"]
+        },
+        {
+          "role": "admin",
+          "actions": ["create", "read", "update", "delete"]
+        }
+      ]
+    }
+  }
+}
