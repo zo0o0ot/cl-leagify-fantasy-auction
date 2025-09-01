@@ -3,9 +3,6 @@ An auction draft webapp for Leagify, specifically the NFL Draft League
 The goal is for this repository will be a Blazor WASM (Webassembly) C# SignalR web application.
 
 
-
-
-
 ## General design:
 + When a user creates a new auction, they become the "Auction Master" for that event.
 + The application will generate a unique "Join Code" for each auction.
