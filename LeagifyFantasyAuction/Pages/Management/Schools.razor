@@ -39,6 +39,20 @@
                              Loading="@seedingSchools">
                     Seed All 143 Schools from Template
                 </FluentButton>
+                
+                @if (!string.IsNullOrEmpty(seedingMessage))
+                {
+                    <div class="alert alert-success" role="alert">
+                        @seedingMessage
+                    </div>
+                }
+                
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger" role="alert">
+                        @errorMessage
+                    </div>
+                }
             </FluentStack>
         }
         else
@@ -165,6 +179,7 @@
     private bool testingLogo;
     private bool seedingSchools;
     private string? errorMessage;
+    private string? seedingMessage;
     private LogoTestResult? logoTestResult;
 
     protected override async Task OnInitializedAsync()
@@ -343,15 +358,21 @@
     private async Task SeedSampleSchoolsAsync()
     {
         seedingSchools = true;
+        errorMessage = null;
+        seedingMessage = null;
         StateHasChanged();
 
         try
         {
             var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
-            if (!string.IsNullOrEmpty(token))
+            if (string.IsNullOrEmpty(token))
             {
-                Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                errorMessage = "Authentication token not found. Please refresh and try again.";
+                return;
             }
+            
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            seedingMessage = "Starting to seed schools...";
 
             // All schools from SampleDraftTemplate.csv
             var sampleSchools = new[]
@@ -501,10 +522,21 @@
             };
 
             int created = 0;
-            foreach (var school in sampleSchools)
+            int skipped = 0;
+            int errors = 0;
+            
+            for (int i = 0; i < sampleSchools.Length; i++)
             {
+                var school = sampleSchools[i];
                 try
                 {
+                    // Update progress every 10 schools
+                    if (i % 10 == 0)
+                    {
+                        seedingMessage = $"Seeding school {i + 1} of {sampleSchools.Length}: {school.Name}";
+                        StateHasChanged();
+                    }
+                    
                     var createDto = new
                     {
                         Name = school.Name,
@@ -513,23 +545,45 @@
                     };
 
                     var response = await Http.PostAsJsonAsync("/api/management/schools", createDto);
+                    
                     if (response.IsSuccessStatusCode)
                     {
                         created++;
                     }
-                    // Ignore conflicts (duplicates)
+                    else if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
+                    {
+                        skipped++; // School already exists
+                    }
+                    else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                    {
+                        errorMessage = "Authentication failed. Please refresh the page and try again.";
+                        return;
+                    }
+                    else
+                    {
+                        var errorContent = await response.Content.ReadAsStringAsync();
+                        Console.WriteLine($"Failed to create {school.Name}: {response.StatusCode} - {errorContent}");
+                        errors++;
+                    }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error creating {school.Name}: {ex.Message}");
+                    Console.WriteLine($"Exception creating {school.Name}: {ex.Message}");
+                    errors++;
                 }
             }
 
             await LoadSchoolsAsync();
-            Console.WriteLine($"Created {created} of 143 schools from template");
+            seedingMessage = $"Seeding complete: {created} created, {skipped} already existed, {errors} errors";
+            
+            if (errors > 0)
+            {
+                errorMessage = $"Some errors occurred during seeding. Check browser console for details.";
+            }
         }
         catch (Exception ex)
         {
+            errorMessage = $"Error during seeding: {ex.Message}";
             Console.WriteLine($"Error seeding schools: {ex.Message}");
         }
         finally
