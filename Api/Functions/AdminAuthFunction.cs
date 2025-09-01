@@ -3,6 +3,7 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace LeagifyFantasyAuction.Api.Functions;
 
@@ -25,7 +26,21 @@ public class AdminAuthFunction
         {
             // Read request body
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            var authRequest = JsonSerializer.Deserialize<AdminAuthRequest>(requestBody);
+            _logger.LogInformation($"Request body: '{requestBody}'");
+            
+            if (string.IsNullOrWhiteSpace(requestBody))
+            {
+                var emptyResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await emptyResponse.WriteStringAsync("Request body is empty");
+                return emptyResponse;
+            }
+
+            var jsonOptions = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
+            var authRequest = JsonSerializer.Deserialize<AdminAuthRequest>(requestBody, jsonOptions);
+            _logger.LogInformation($"Parsed password: '{authRequest?.Password}'");
 
             if (authRequest?.Password == null)
             {
@@ -85,7 +100,11 @@ public class AdminAuthFunction
         try
         {
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            var validateRequest = JsonSerializer.Deserialize<ValidateTokenRequest>(requestBody);
+            var jsonOptions = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
+            var validateRequest = JsonSerializer.Deserialize<ValidateTokenRequest>(requestBody, jsonOptions);
 
             if (validateRequest?.Token == null)
             {
@@ -145,6 +164,7 @@ public class AdminAuthFunction
 
 public class AdminAuthRequest
 {
+    [JsonPropertyName("password")]
     public string? Password { get; set; }
 }
 
@@ -158,6 +178,7 @@ public class AdminAuthResponse
 
 public class ValidateTokenRequest
 {
+    [JsonPropertyName("token")]
     public string? Token { get; set; }
 }
 
