@@ -17,7 +17,7 @@ public class AdminAuthFunction
 
     [Function("AdminAuth")]
     public async Task<HttpResponseData> AdminAuth(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = "admin/auth")] HttpRequestData req)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = "management/auth")] HttpRequestData req)
     {
         _logger.LogInformation("Admin authentication request received");
 
@@ -78,7 +78,7 @@ public class AdminAuthFunction
 
     [Function("AdminValidateToken")]
     public async Task<HttpResponseData> ValidateToken(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "admin/validate")] HttpRequestData req)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "management/validate")] HttpRequestData req)
     {
         _logger.LogInformation("Admin token validation request received");
 

@@ -17,7 +17,7 @@ public class AdminDashboardFunction
 
     [Function("GetAuctions")]
     public async Task<HttpResponseData> GetAuctions(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = "admin/auctions")] HttpRequestData req)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = "management/auctions")] HttpRequestData req)
     {
         _logger.LogInformation("Admin get auctions request received");
 
@@ -74,7 +74,7 @@ public class AdminDashboardFunction
 
     [Function("DeleteAuction")]
     public async Task<HttpResponseData> DeleteAuction(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "admin/auctions/{auctionId:int}")] HttpRequestData req,
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "management/auctions/{auctionId:int}")] HttpRequestData req,
         int auctionId)
     {
         _logger.LogInformation($"Admin delete auction {auctionId} request received");
@@ -110,7 +110,7 @@ public class AdminDashboardFunction
 
     [Function("ArchiveCompletedAuctions")]
     public async Task<HttpResponseData> ArchiveCompletedAuctions(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "admin/archive-completed")] HttpRequestData req)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "management/archive-completed")] HttpRequestData req)
     {
         _logger.LogInformation("Admin archive completed auctions request received");
 
