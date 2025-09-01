@@ -31,13 +31,13 @@
         {
             <FluentStack Orientation="Orientation.Vertical" VerticalGap="15">
                 <div class="alert alert-info" role="alert">
-                    No schools found. You can either add schools manually or seed sample schools from the draft template.
+                    No schools found. You can either add schools manually or seed all schools from the draft template.
                 </div>
                 <FluentButton Appearance="Appearance.Accent" 
                              IconStart="@(new Icons.Regular.Size20.Database())"
                              OnClick="SeedSampleSchoolsAsync"
                              Loading="@seedingSchools">
-                    Seed Sample Schools from Template
+                    Seed All 143 Schools from Template
                 </FluentButton>
             </FluentStack>
         }
@@ -353,7 +353,7 @@
                 Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
             }
 
-            // Sample schools from the template
+            // All schools from SampleDraftTemplate.csv
             var sampleSchools = new[]
             {
                 new { Name = "Ohio State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/ohio_st.svg" },
@@ -365,7 +365,139 @@
                 new { Name = "LSU", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/lsu.svg" },
                 new { Name = "Penn State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/penn_st.svg" },
                 new { Name = "Alabama", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/alabama.svg" },
-                new { Name = "Notre Dame", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/notre_dame.svg" }
+                new { Name = "South Carolina", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/south_carolina.svg" },
+                new { Name = "Miami (FL)", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/miami.svg" },
+                new { Name = "Colorado", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/colorado.svg" },
+                new { Name = "Notre Dame", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/notre_dame.svg" },
+                new { Name = "Missouri", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/missouri.svg" },
+                new { Name = "Tennessee", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/tennessee.svg" },
+                new { Name = "Texas A&M", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/texas_a&m.svg" },
+                new { Name = "Arizona", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/arizona.svg" },
+                new { Name = "Iowa", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/iowa.svg" },
+                new { Name = "Iowa State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/iowa_st.svg" },
+                new { Name = "Kentucky", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/kentucky.svg" },
+                new { Name = "North Carolina", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/north_carolina.svg" },
+                new { Name = "Florida State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/florida_st.svg" },
+                new { Name = "Minnesota", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/minnesota.svg" },
+                new { Name = "Boston College", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/boston_college.svg" },
+                new { Name = "Boise State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/boise_st.svg" },
+                new { Name = "Virginia Tech", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/virginia_tech.svg" },
+                new { Name = "Florida", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/florida.svg" },
+                new { Name = "UCLA", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/ucla.svg" },
+                new { Name = "Arkansas", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/arkansas.svg" },
+                new { Name = "Louisville", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/louisville.svg" },
+                new { Name = "Syracuse", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/syracuse.svg" },
+                new { Name = "Kansas", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/kansas.svg" },
+                new { Name = "Marshall", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/marshall.svg" },
+                new { Name = "Maryland", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/maryland.svg" },
+                new { Name = "TCU", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/tcu.svg" },
+                new { Name = "North Dakota State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/north_dakota_st.svg" },
+                new { Name = "Nebraska", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/nebraska.svg" },
+                new { Name = "Kansas State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/kansas_st.svg" },
+                new { Name = "Clemson", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/clemson.svg" },
+                new { Name = "Toledo", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/toledo.svg" },
+                new { Name = "Rutgers", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/rutgers.svg" },
+                new { Name = "UCF", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/ucf.svg" },
+                new { Name = "West Virginia", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/west_virginia.svg" },
+                new { Name = "Oklahoma State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/oklahoma_st.svg" },
+                new { Name = "Stanford", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/stanford.svg" },
+                new { Name = "Oklahoma", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/oklahoma.svg" },
+                new { Name = "California", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/california.svg" },
+                new { Name = "Indiana", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/indiana.svg" },
+                new { Name = "Texas Tech", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/texas_tech.svg" },
+                new { Name = "East Carolina", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/east_carolina.svg" },
+                new { Name = "Auburn", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/auburn.svg" },
+                new { Name = "Arizona State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/arizona_st.svg" },
+                new { Name = "USC", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/usc.svg" },
+                new { Name = "Purdue", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/purdue.svg" },
+                new { Name = "NC State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/nc_st.svg" },
+                new { Name = "SMU", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/smu.svg" },
+                new { Name = "Utah", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/utah.svg" },
+                new { Name = "Virginia", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/virginia.svg" },
+                new { Name = "Georgia Tech", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/georgia_tech.svg" },
+                new { Name = "Wisconsin", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/wisconsin.svg" },
+                new { Name = "Colorado State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/colorado_st.svg" },
+                new { Name = "Bowling Green", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/bowling_green.svg" },
+                new { Name = "BYU", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/byu.svg" },
+                new { Name = "Utah State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/utah_st.svg" },
+                new { Name = "Cincinnati", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/cincinnati.svg" },
+                new { Name = "Washington State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/washington_st.svg" },
+                new { Name = "William & Mary", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/william&mary.svg" },
+                new { Name = "Tulane", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/tulane.svg" },
+                new { Name = "Illinois", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/illinois.svg" },
+                new { Name = "UTSA", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/utsa.svg" },
+                new { Name = "Memphis", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/memphis.svg" },
+                new { Name = "UConn", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/uconn.svg" },
+                new { Name = "Central Arkansas", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/central_arkansas.svg" },
+                new { Name = "Oregon State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/oregon_st.svg" },
+                new { Name = "Sacramento State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/sacramento_st.svg" },
+                new { Name = "Pitt", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/pittsburgh.svg" },
+                new { Name = "UNLV", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/unlv.svg" },
+                new { Name = "Western Michigan", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/western_michigan.svg" },
+                new { Name = "Jacksonville State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/jacksonville_st.svg" },
+                new { Name = "Fresno State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/fresno_st.svg" },
+                new { Name = "Delaware", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/delaware.svg" },
+                new { Name = "San Jose State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/san_jose_st.svg" },
+                new { Name = "Baylor", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/baylor.svg" },
+                new { Name = "Michigan State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/michigan_st.svg" },
+                new { Name = "Washington", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/washington.svg" },
+                new { Name = "Western Kentucky", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/western_kentucky.svg" },
+                new { Name = "Eastern Washington", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/eastern_washington.svg" },
+                new { Name = "Alabama A&M", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/alabama_a&m.svg" },
+                new { Name = "Texas State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/texas_st.svg" },
+                new { Name = "Arkansas State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/arkansas_st.svg" },
+                new { Name = "North Texas", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/north_texas.svg" },
+                new { Name = "Miami (OH)", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/miami_oh.svg" },
+                new { Name = "Montana State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/montana_st.svg" },
+                new { Name = "Vanderbilt", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/vanderbilt.svg" },
+                new { Name = "Navy", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/navy.svg" },
+                new { Name = "Wake Forest", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/wake_forest.svg" },
+                new { Name = "Florida A&M", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/florida_a&m.svg" },
+                new { Name = "Houston", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/houston.svg" },
+                new { Name = "Northern Illinois", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/northern_illinois.svg" },
+                new { Name = "Mississippi State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/mississippi_st.svg" },
+                new { Name = "Nevada", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/nevada.svg" },
+                new { Name = "Buffalo", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/buffalo.svg" },
+                new { Name = "South Carolina State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/south_carolina_st.svg" },
+                new { Name = "Jackson State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/jackson_st.svg" },
+                new { Name = "Middlebury", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/middlebury.svg" },
+                new { Name = "Cal Poly", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/cal_poly.svg" },
+                new { Name = "South Alabama", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/south_alabama.svg" },
+                new { Name = "Lindenwood", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/lindenwood.svg" },
+                new { Name = "Southern Arkansas", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/southern_arkansas.svg" },
+                new { Name = "Villanova", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/villanova.svg" },
+                new { Name = "Wilfrid Laurier", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/laurier.png" },
+                new { Name = "Towson", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/towson.svg" },
+                new { Name = "Illinois State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/illinois_st.svg" },
+                new { Name = "Northern Iowa", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/northern_iowa.svg" },
+                new { Name = "Minnesota Duluth", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/minnesota_duluth.svg" },
+                new { Name = "Howard", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/howard.svg" },
+                new { Name = "Tulsa", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/tulsa.svg" },
+                new { Name = "UC Davis", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/uc_davis.svg" },
+                new { Name = "Morgan State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/morgan_st.svg" },
+                new { Name = "South Dakota State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/south_dakota_st.svg" },
+                new { Name = "Liberty", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/liberty.svg" },
+                new { Name = "Wyoming", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/wyoming.svg" },
+                new { Name = "South Florida", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/south_florida.svg" },
+                new { Name = "Louisiana-Monroe", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/louisiana_monroe.svg" },
+                new { Name = "Lenoir?Rhyne", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/lenoir_rhyne.png" },
+                new { Name = "Georgia State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/georgia_st.svg" },
+                new { Name = "Florida International", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/florida_international.svg" },
+                new { Name = "Coastal Carolina", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/coastal_carolina.svg" },
+                new { Name = "Northwestern", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/northwestern.svg" },
+                new { Name = "Georgia Southern", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/georgia_southern.svg" },
+                new { Name = "Central Michigan", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/central_michigan.svg" },
+                new { Name = "Duke", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/duke.svg" },
+                new { Name = "North Carolina A&T", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/north_carolina_a&t.svg" },
+                new { Name = "Massachusetts", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/umass.svg" },
+                new { Name = "Hawaii", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/hawaii.svg" },
+                new { Name = "Holy Cross", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/holy_cross.svg" },
+                new { Name = "Louisiana Tech", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/la_tech.svg" },
+                new { Name = "Charlotte", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/charlotte.svg" },
+                new { Name = "James Madison", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/james_madison.svg" },
+                new { Name = "New Mexico", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/new_mexico.svg" },
+                new { Name = "Abilene Christian", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/abilene_christian.svg" },
+                new { Name = "Eastern Kentucky", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/eastern_kentucky.svg" }
             };
 
             int created = 0;
@@ -394,7 +526,7 @@
             }
 
             await LoadSchoolsAsync();
-            Console.WriteLine($"Created {created} sample schools");
+            Console.WriteLine($"Created {created} of 143 schools from template");
         }
         catch (Exception ex)
         {
