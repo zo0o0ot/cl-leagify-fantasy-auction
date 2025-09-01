@@ -9,7 +9,8 @@ var host = new HostBuilder()
     .ConfigureServices(services =>
     {
         // Add Entity Framework
-        var connectionString = Environment.GetEnvironmentVariable("DefaultConnection") ?? 
+        var connectionString = Environment.GetEnvironmentVariable("SQLAZURECONNSTR_DefaultConnection") ?? 
+                              Environment.GetEnvironmentVariable("DefaultConnection") ?? 
                               "Server=(localdb)\\mssqllocaldb;Database=LeagifyFantasyAuction;Trusted_Connection=true;MultipleActiveResultSets=true";
         
         services.AddDbContext<LeagifyAuctionDbContext>(options =>
