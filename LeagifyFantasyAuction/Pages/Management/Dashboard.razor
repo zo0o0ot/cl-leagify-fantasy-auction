@@ -1,5 +1,6 @@
 @page "/management"
 @layout ManagementLayout
+@inject NavigationManager Navigation
 
 <PageTitle>Management Dashboard</PageTitle>
 
@@ -13,7 +14,7 @@
                     <FluentIcon Value="@(new Icons.Regular.Size24.Building())" Color="Color.Accent" />
                     <FluentLabel Typo="Typography.H4">Schools</FluentLabel>
                     <FluentLabel Typo="Typography.Body">Manage school database and logos</FluentLabel>
-                    <FluentButton Href="/management/schools" Appearance="Appearance.Accent">
+                    <FluentButton OnClick="@(() => Navigation.NavigateTo("/management/schools"))" Appearance="Appearance.Accent">
                         Manage Schools
                     </FluentButton>
                 </FluentStack>
@@ -26,7 +27,7 @@
                     <FluentIcon Value="@(new Icons.Regular.Size24.CalendarAgenda())" Color="Color.Accent" />
                     <FluentLabel Typo="Typography.H4">Auctions</FluentLabel>
                     <FluentLabel Typo="Typography.Body">View and manage all auctions</FluentLabel>
-                    <FluentButton Href="/management/auctions" Appearance="Appearance.Accent">
+                    <FluentButton OnClick="@(() => Navigation.NavigateTo("/management/auctions"))" Appearance="Appearance.Accent">
                         Manage Auctions
                     </FluentButton>
                 </FluentStack>

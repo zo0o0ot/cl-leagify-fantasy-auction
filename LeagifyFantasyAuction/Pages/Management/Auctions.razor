@@ -1,0 +1,61 @@
+@page "/management/auctions"
+@layout ManagementLayout
+
+<PageTitle>Auction Management</PageTitle>
+
+<FluentStack Orientation="Orientation.Vertical" VerticalGap="20">
+    <FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.SpaceBetween">
+        <FluentLabel Typo="Typography.H2">Auction Management</FluentLabel>
+        <FluentButton Appearance="Appearance.Accent" 
+                     IconStart="@(new Icons.Regular.Size20.Add())"
+                     Disabled="true">
+            Create Auction (Coming Soon)
+        </FluentButton>
+    </FluentStack>
+
+    <FluentCard>
+        <FluentStack Orientation="Orientation.Vertical" VerticalGap="20">
+            <div class="alert alert-info" role="alert">
+                <FluentIcon Value="@(new Icons.Regular.Size20.Info())" />
+                <strong>Auction Management Coming Soon</strong>
+                <br />
+                This will allow you to:
+                <ul style="margin-top: 10px;">
+                    <li>View all auctions with status, participants, and last activity</li>
+                    <li>Create new auctions by uploading CSV draft templates</li>
+                    <li>Configure roster positions and team budgets</li>
+                    <li>Archive completed auctions</li>
+                    <li>Delete test auctions</li>
+                </ul>
+            </div>
+
+            <FluentLabel Typo="Typography.H4">Current System Status</FluentLabel>
+            <FluentStack Orientation="Orientation.Vertical" VerticalGap="10">
+                <FluentBadge Appearance="Appearance.Accent" BackgroundColor="var(--accent-fill-rest)">
+                    ✅ Authentication System - Complete
+                </FluentBadge>
+                <FluentBadge Appearance="Appearance.Accent" BackgroundColor="var(--accent-fill-rest)">
+                    ✅ School Management - Complete
+                </FluentBadge>
+                <FluentBadge Appearance="Appearance.Neutral" BackgroundColor="var(--neutral-fill-secondary-rest)">
+                    🚧 Auction Creation - In Development
+                </FluentBadge>
+                <FluentBadge Appearance="Appearance.Neutral" BackgroundColor="var(--neutral-fill-secondary-rest)">
+                    📋 Join Auction Flow - Planned
+                </FluentBadge>
+                <FluentBadge Appearance="Appearance.Neutral" BackgroundColor="var(--neutral-fill-secondary-rest)">
+                    ⚡ Real-time Bidding - Planned
+                </FluentBadge>
+            </FluentStack>
+
+            <FluentLabel Typo="Typography.H4">Next Steps</FluentLabel>
+            <FluentStack Orientation="Orientation.Vertical" VerticalGap="5">
+                <FluentLabel>1. Implement CSV draft template upload and school matching</FluentLabel>
+                <FluentLabel>2. Create roster position configuration interface</FluentLabel>
+                <FluentLabel>3. Add auction validation and budget settings</FluentLabel>
+                <FluentLabel>4. Build user join code system</FluentLabel>
+                <FluentLabel>5. Implement real-time bidding with SignalR</FluentLabel>
+            </FluentStack>
+        </FluentStack>
+    </FluentCard>
+</FluentStack>

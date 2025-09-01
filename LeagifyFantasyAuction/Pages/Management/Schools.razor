@@ -8,11 +8,18 @@
 <FluentStack Orientation="Orientation.Vertical" VerticalGap="20">
     <FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.SpaceBetween">
         <FluentLabel Typo="Typography.H2">School Management</FluentLabel>
-        <FluentButton Appearance="Appearance.Accent" 
-                     IconStart="@(new Icons.Regular.Size20.Add())"
-                     OnClick="OpenAddSchoolDialog">
-            Add School
-        </FluentButton>
+        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="10">
+            <FluentButton Appearance="Appearance.Accent" 
+                         IconStart="@(new Icons.Regular.Size20.Add())"
+                         Disabled="true">
+                Import CSV (Coming Soon)
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Outline" 
+                         IconStart="@(new Icons.Regular.Size20.Add())"
+                         OnClick="OpenAddSchoolDialog">
+                Add School
+            </FluentButton>
+        </FluentStack>
     </FluentStack>
 
     <FluentCard>
@@ -138,6 +145,7 @@
         </FluentButton>
     </FluentDialogFooter>
 </FluentDialog>
+
 
 @code {
     private List<SchoolDto>? schools;
@@ -322,6 +330,7 @@
             StateHasChanged();
         }
     }
+
 
     public class SchoolDto
     {
