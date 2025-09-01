@@ -29,9 +29,17 @@
         }
         else if (schools.Count == 0)
         {
-            <div class="alert alert-info" role="alert">
-                No schools found. Add your first school to get started.
-            </div>
+            <FluentStack Orientation="Orientation.Vertical" VerticalGap="15">
+                <div class="alert alert-info" role="alert">
+                    No schools found. You can either add schools manually or seed sample schools from the draft template.
+                </div>
+                <FluentButton Appearance="Appearance.Accent" 
+                             IconStart="@(new Icons.Regular.Size20.Database())"
+                             OnClick="SeedSampleSchoolsAsync"
+                             Loading="@seedingSchools">
+                    Seed Sample Schools from Template
+                </FluentButton>
+            </FluentStack>
         }
         else
         {
@@ -155,6 +163,7 @@
     private SchoolDto? editingSchool;
     private bool savingSchool;
     private bool testingLogo;
+    private bool seedingSchools;
     private string? errorMessage;
     private LogoTestResult? logoTestResult;
 
@@ -331,6 +340,72 @@
         }
     }
 
+    private async Task SeedSampleSchoolsAsync()
+    {
+        seedingSchools = true;
+        StateHasChanged();
+
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (!string.IsNullOrEmpty(token))
+            {
+                Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            }
+
+            // Sample schools from the template
+            var sampleSchools = new[]
+            {
+                new { Name = "Ohio State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/ohio_st.svg" },
+                new { Name = "Texas", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/texas.svg" },
+                new { Name = "Georgia", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/georgia.svg" },
+                new { Name = "Michigan", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/michigan.svg" },
+                new { Name = "Ole Miss", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/mississippi.svg" },
+                new { Name = "Oregon", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/oregon.svg" },
+                new { Name = "LSU", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/lsu.svg" },
+                new { Name = "Penn State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/penn_st.svg" },
+                new { Name = "Alabama", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/alabama.svg" },
+                new { Name = "Notre Dame", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/notre_dame.svg" }
+            };
+
+            int created = 0;
+            foreach (var school in sampleSchools)
+            {
+                try
+                {
+                    var createDto = new
+                    {
+                        Name = school.Name,
+                        LogoURL = school.LogoURL,
+                        LogoFileName = (string?)null
+                    };
+
+                    var response = await Http.PostAsJsonAsync("/api/management/schools", createDto);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        created++;
+                    }
+                    // Ignore conflicts (duplicates)
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error creating {school.Name}: {ex.Message}");
+                }
+            }
+
+            await LoadSchoolsAsync();
+            Console.WriteLine($"Created {created} sample schools");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error seeding schools: {ex.Message}");
+        }
+        finally
+        {
+            seedingSchools = false;
+            StateHasChanged();
+        }
+    }
 
     public class SchoolDto
     {
