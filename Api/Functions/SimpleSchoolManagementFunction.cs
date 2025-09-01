@@ -81,11 +81,19 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
                 return conflictResponse;
             }
 
+            // Replace broken CloudFront URLs with working alternatives
+            var logoUrl = schoolDto.LogoURL;
+            if (!string.IsNullOrEmpty(logoUrl) && logoUrl.Contains("d9ioojyvhqpok.cloudfront.net"))
+            {
+                // Use a placeholder or alternative source for logos
+                logoUrl = GetAlternativeLogoUrl(schoolDto.Name);
+            }
+
             var school = new SchoolData
             {
                 SchoolId = _nextId++,
                 Name = schoolDto.Name,
-                LogoURL = schoolDto.LogoURL,
+                LogoURL = logoUrl,
                 LogoFileName = schoolDto.LogoFileName,
                 CreatedDate = DateTime.UtcNow,
                 ModifiedDate = DateTime.UtcNow
@@ -115,6 +123,32 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
             await response.WriteStringAsync($"Error creating school: {ex.Message}");
             return response;
         }
+    }
+
+    private static string? GetAlternativeLogoUrl(string schoolName)
+    {
+        // For major schools, try to find working logo URLs from reliable sources
+        var schoolMappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Ohio State"] = "https://logos-world.net/wp-content/uploads/2023/08/Ohio-State-Buckeyes-Logo.png",
+            ["Texas"] = "https://logos-world.net/wp-content/uploads/2023/08/Texas-Longhorns-Logo.png", 
+            ["Georgia"] = "https://logos-world.net/wp-content/uploads/2023/08/Georgia-Bulldogs-Logo.png",
+            ["Michigan"] = "https://logos-world.net/wp-content/uploads/2023/08/Michigan-Wolverines-Logo.png",
+            ["Alabama"] = "https://logos-world.net/wp-content/uploads/2023/08/Alabama-Crimson-Tide-Logo.png",
+            ["Notre Dame"] = "https://logos-world.net/wp-content/uploads/2023/08/Notre-Dame-Fighting-Irish-Logo.png",
+            ["LSU"] = "https://logos-world.net/wp-content/uploads/2023/08/LSU-Tigers-Logo.png",
+            ["Florida"] = "https://logos-world.net/wp-content/uploads/2023/08/Florida-Gators-Logo.png",
+            ["Auburn"] = "https://logos-world.net/wp-content/uploads/2023/08/Auburn-Tigers-Logo.png",
+            ["Tennessee"] = "https://logos-world.net/wp-content/uploads/2023/08/Tennessee-Volunteers-Logo.png"
+        };
+
+        if (schoolMappings.TryGetValue(schoolName, out var logoUrl))
+        {
+            return logoUrl;
+        }
+
+        // Return null for schools without mapped logos - UI will show placeholder
+        return null;
     }
 }
 
