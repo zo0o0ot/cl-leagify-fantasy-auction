@@ -34,7 +34,7 @@ Based on the requirement: **School Management → Auction Creation → Join Auct
 
 - [ ] Create School entity and database schema
 - [ ] Implement School repository with CRUD operations
-- [ ] Build admin interface using FluentDataGrid for school management
+- [ ] Build management interface using FluentDataGrid for school management
 - [ ] Add external logo URL loading with fallback to internal files using FluentTextField
 - [ ] Create school search and fuzzy matching logic
 - [ ] Implement school creation from unmatched names
@@ -46,21 +46,22 @@ Based on the requirement: **School Management → Auction Creation → Join Auct
 - Admin interface for managing schools
 - Fuzzy matching algorithm for school names
 
-### Task 1.3: System Admin Authentication
+### Task 1.3: System Management Authentication
 **Priority:** High  
 **Estimated Effort:** 4-6 hours  
 **Dependencies:** Task 1.1
 
-- [ ] Implement admin authentication with master password
-- [ ] Create `/admin` route and basic admin layout
-- [ ] Add session management for admin users
-- [ ] Create admin navigation and basic dashboard
-- [ ] Implement logout and security features
+- [ ] Implement management authentication with master password
+- [ ] Create `/api/management/*` API routes (due to Azure Static Web Apps `/admin` restrictions)
+- [ ] Add token-based authentication for management operations
+- [ ] Create management interface and basic dashboard
+- [ ] Implement logout and token cleanup
+- [ ] Note: Separate from auction join code system
 
 **Deliverables:**
-- Secure admin area with password protection
-- Admin session management
-- Basic admin dashboard structure
+- Secure management API with password protection
+- Token-based authentication system
+- Basic management dashboard structure
 
 ---
 
@@ -216,16 +217,16 @@ Based on the requirement: **School Management → Auction Creation → Join Auct
 **Estimated Effort:** 6-8 hours  
 **Dependencies:** Task 4.1
 
-- [ ] Create Auction Master admin panel (separate tab)
+- [ ] Create Auction Master management panel (separate tab)
 - [ ] Implement real-time connection status display using FluentDataGrid
 - [ ] Add proxy coach assignment visualization with FluentCard components
 - [ ] Create reconnection approval interface using FluentDialog
-- [ ] Build admin-only SignalR broadcasts with structured logging
+- [ ] Build management-only SignalR broadcasts with structured logging
 - [ ] Add auction control buttons using FluentButton (pause, end, etc.)
 - [ ] Implement comprehensive unit tests for SignalR hub methods
 
 **Deliverables:**
-- Auction Master admin panel with real-time updates
+- Auction Master management panel with real-time updates
 - Connection status monitoring
 - Administrative controls for auction management
 
@@ -310,15 +311,15 @@ Based on the requirement: **School Management → Auction Creation → Join Auct
 **Estimated Effort:** 6-8 hours  
 **Dependencies:** Task 4.2
 
-- [ ] Build comprehensive auction list for admin
+- [ ] Build comprehensive auction list for management interface
 - [ ] Add auction status filtering and search
 - [ ] Implement auction deletion with confirmations
 - [ ] Create bulk cleanup operations
 - [ ] Add auction archiving functionality
-- [ ] Build auction details view for admin
+- [ ] Build auction details view for management interface
 
 **Deliverables:**
-- Complete admin auction management interface
+- Complete management auction interface
 - Bulk operations for cleanup
 - Safe deletion with confirmations
 

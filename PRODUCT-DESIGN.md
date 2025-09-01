@@ -178,11 +178,12 @@ A real-time auction draft web application for fantasy sports, specifically desig
 
 ## Administrative Features
 
-### System Admin Interface
+### System Management Interface
 **Access Control:**
 - Protected by master password/key in configuration
-- Separate route `/admin` not linked from main UI
-- Session-based authentication for convenience
+- Separate API routes `/api/management/*` (due to Azure Static Web Apps restrictions on `/admin`)
+- Token-based authentication for management operations
+- Completely separate from auction join code system
 
 **Cleanup Features:**
 ```
