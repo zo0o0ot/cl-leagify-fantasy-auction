@@ -17,7 +17,7 @@ public class AdminAuthFunction
 
     [Function("AdminAuth")]
     public async Task<HttpResponseData> AdminAuth(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "admin/auth")] HttpRequestData req)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = "admin/auth")] HttpRequestData req)
     {
         _logger.LogInformation("Admin authentication request received");
 

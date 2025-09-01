@@ -17,7 +17,7 @@ public class AdminDashboardFunction
 
     [Function("GetAuctions")]
     public async Task<HttpResponseData> GetAuctions(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "admin/auctions")] HttpRequestData req)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = "admin/auctions")] HttpRequestData req)
     {
         _logger.LogInformation("Admin get auctions request received");
 
