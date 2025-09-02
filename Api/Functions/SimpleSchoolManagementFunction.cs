@@ -85,8 +85,8 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
             {
                 SchoolId = _nextId++,
                 Name = schoolDto.Name,
-                LogoURL = schoolDto.LogoURL, // Use whatever URL user provided
-                LogoFileName = schoolDto.LogoFileName,
+                LogoURL = null, // Images will be uploaded separately
+                LogoFileName = null,
                 CreatedDate = DateTime.UtcNow,
                 ModifiedDate = DateTime.UtcNow
             };
@@ -132,6 +132,4 @@ public class SchoolData
 public class CreateSchoolDto
 {
     public string Name { get; set; } = "";
-    public string? LogoURL { get; set; }
-    public string? LogoFileName { get; set; }
 }
