@@ -117,28 +117,13 @@
                                Style="width: 100%;" />
 
                 <FluentTextField @bind-Value="schoolForm.LogoURL" 
-                               Label="Logo URL (External)" 
-                               Placeholder="https://example.com/logo.svg"
+                               Label="Logo URL (Optional)" 
+                               Placeholder="https://example.com/logo.png"
                                Style="width: 100%;" />
-
-                @if (!string.IsNullOrEmpty(schoolForm.LogoURL))
-                {
-                    <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="10">
-                        <FluentButton Appearance="Appearance.Lightweight" 
-                                     OnClick="TestLogoUrlAsync"
-                                     Loading="@testingLogo">
-                            Test Logo URL
-                        </FluentButton>
-                        @if (logoTestResult != null)
-                        {
-                            <FluentBadge Appearance="@(logoTestResult.IsValid ? Appearance.Accent : Appearance.Lightweight)"
-                                        BackgroundColor="@(logoTestResult.IsValid ? "var(--accent-fill-rest)" : "var(--neutral-fill-secondary-rest)")"
-                                        Color="@(logoTestResult.IsValid ? "var(--accent-foreground-rest)" : "var(--neutral-foreground-rest)")">
-                                @logoTestResult.Message
-                            </FluentBadge>
-                        }
-                    </FluentStack>
-                }
+                
+                <div class="alert alert-info" role="alert" style="font-size: 0.9em;">
+                    <strong>Logo URL:</strong> Provide a direct link to the school's logo image. Leave blank if no logo is available.
+                </div>
 
                 <FluentTextField @bind-Value="schoolForm.LogoFileName" 
                                Label="Logo File Name (Internal Fallback)" 
@@ -176,11 +161,9 @@
     private SchoolFormModel schoolForm = new();
     private SchoolDto? editingSchool;
     private bool savingSchool;
-    private bool testingLogo;
     private bool seedingSchools;
     private string? errorMessage;
     private string? seedingMessage;
-    private LogoTestResult? logoTestResult;
 
     protected override async Task OnInitializedAsync()
     {
@@ -211,7 +194,6 @@
         editingSchool = null;
         schoolForm = new SchoolFormModel();
         errorMessage = null;
-        logoTestResult = null;
         schoolDialog?.Show();
     }
 
@@ -225,7 +207,6 @@
             LogoFileName = school.LogoFileName
         };
         errorMessage = null;
-        logoTestResult = null;
         schoolDialog?.Show();
     }
 
@@ -313,47 +294,6 @@
         }
     }
 
-    private async Task TestLogoUrlAsync()
-    {
-        if (string.IsNullOrEmpty(schoolForm.LogoURL))
-        {
-            return;
-        }
-
-        testingLogo = true;
-        logoTestResult = null;
-        StateHasChanged();
-
-        try
-        {
-            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
-            if (!string.IsNullOrEmpty(token))
-            {
-                Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-            }
-
-            var testRequest = new { LogoURL = schoolForm.LogoURL };
-            var response = await Http.PostAsJsonAsync("/api/management/schools/test-logo", testRequest);
-            
-            if (response.IsSuccessStatusCode)
-            {
-                logoTestResult = await response.Content.ReadFromJsonAsync<LogoTestResult>();
-            }
-            else
-            {
-                logoTestResult = new LogoTestResult { IsValid = false, Message = "Test failed" };
-            }
-        }
-        catch (Exception ex)
-        {
-            logoTestResult = new LogoTestResult { IsValid = false, Message = $"Error: {ex.Message}" };
-        }
-        finally
-        {
-            testingLogo = false;
-            StateHasChanged();
-        }
-    }
 
     private async Task SeedSampleSchoolsAsync()
     {
@@ -374,7 +314,7 @@
             Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
             seedingMessage = "Starting to seed schools...";
 
-            // All schools from SampleDraftTemplate.csv
+            // All schools from SampleDraftTemplate.csv with original URLs
             var sampleSchools = new[]
             {
                 new { Name = "Ohio State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/ohio_st.svg" },
@@ -392,7 +332,7 @@
                 new { Name = "Notre Dame", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/notre_dame.svg" },
                 new { Name = "Missouri", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/missouri.svg" },
                 new { Name = "Tennessee", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/tennessee.svg" },
-                new { Name = "Texas A&M", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/texas_a&m.svg" },
+                new { Name = "Texas A&M", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/texas_a&amp;m.svg" },
                 new { Name = "Arizona", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/arizona.svg" },
                 new { Name = "Iowa", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/iowa.svg" },
                 new { Name = "Iowa State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/iowa_st.svg" },
@@ -443,7 +383,7 @@
                 new { Name = "Utah State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/utah_st.svg" },
                 new { Name = "Cincinnati", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/cincinnati.svg" },
                 new { Name = "Washington State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/washington_st.svg" },
-                new { Name = "William & Mary", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/william&mary.svg" },
+                new { Name = "William & Mary", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/william&amp;mary.svg" },
                 new { Name = "Tulane", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/tulane.svg" },
                 new { Name = "Illinois", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/illinois.svg" },
                 new { Name = "UTSA", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/utsa.svg" },
@@ -464,7 +404,7 @@
                 new { Name = "Washington", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/washington.svg" },
                 new { Name = "Western Kentucky", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/western_kentucky.svg" },
                 new { Name = "Eastern Washington", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/eastern_washington.svg" },
-                new { Name = "Alabama A&M", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/alabama_a&m.svg" },
+                new { Name = "Alabama A&M", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/alabama_a&amp;m.svg" },
                 new { Name = "Texas State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/texas_st.svg" },
                 new { Name = "Arkansas State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/arkansas_st.svg" },
                 new { Name = "North Texas", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/north_texas.svg" },
@@ -473,7 +413,7 @@
                 new { Name = "Vanderbilt", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/vanderbilt.svg" },
                 new { Name = "Navy", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/navy.svg" },
                 new { Name = "Wake Forest", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/wake_forest.svg" },
-                new { Name = "Florida A&M", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/florida_a&m.svg" },
+                new { Name = "Florida A&M", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/florida_a&amp;m.svg" },
                 new { Name = "Houston", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/houston.svg" },
                 new { Name = "Northern Illinois", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/northern_illinois.svg" },
                 new { Name = "Mississippi State", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/mississippi_st.svg" },
@@ -509,7 +449,7 @@
                 new { Name = "Georgia Southern", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/georgia_southern.svg" },
                 new { Name = "Central Michigan", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/central_michigan.svg" },
                 new { Name = "Duke", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/duke.svg" },
-                new { Name = "North Carolina A&T", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/north_carolina_a&t.svg" },
+                new { Name = "North Carolina A&T", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/north_carolina_a&amp;t.svg" },
                 new { Name = "Massachusetts", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/umass.svg" },
                 new { Name = "Hawaii", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/hawaii.svg" },
                 new { Name = "Holy Cross", LogoURL = "https://d9ioojyvhqpok.cloudfront.net/assets/logos/_colleges/holy_cross.svg" },
@@ -624,11 +564,4 @@
         }
     }
 
-    public class LogoTestResult
-    {
-        public bool IsValid { get; set; }
-        public int StatusCode { get; set; }
-        public string? ContentType { get; set; }
-        public string Message { get; set; } = "";
-    }
 }
