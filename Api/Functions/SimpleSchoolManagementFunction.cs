@@ -4,12 +4,14 @@ using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Text.Json;
 using System.Collections.Concurrent;
+using LeagifyFantasyAuction.Api.Services;
 
 namespace LeagifyFantasyAuction.Api.Functions;
 
-public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFunction> logger)
+public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFunction> logger, ICsvImportService csvImportService)
 {
     private readonly ILogger<SimpleSchoolManagementFunction> _logger = logger;
+    private readonly ICsvImportService _csvImportService = csvImportService;
     
     // In-memory storage for now (this will be lost on restart, but works for testing)
     private static readonly ConcurrentDictionary<int, SchoolData> _schools = new();
@@ -113,6 +115,73 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
             _logger.LogError(ex, "Error creating school");
             var response = req.CreateResponse(HttpStatusCode.InternalServerError);
             await response.WriteStringAsync($"Error creating school: {ex.Message}");
+            return response;
+        }
+    }
+
+    [Function("ImportSchoolsCsvSimple")]
+    public async Task<HttpResponseData> ImportSchoolsCsv(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "management/schools/import")] HttpRequestData req)
+    {
+        try
+        {
+            // TODO: Add token validation
+
+            _logger.LogInformation("Starting CSV import with logo download");
+
+            // Get the CSV file from the request
+            using var stream = req.Body;
+            var importResult = await _csvImportService.ImportCsvAsync(stream, downloadLogos: true);
+
+            if (!importResult.IsSuccess)
+            {
+                var errorResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await errorResponse.WriteAsJsonAsync(new
+                {
+                    success = false,
+                    errors = importResult.Errors
+                });
+                return errorResponse;
+            }
+
+            // Clear existing schools and add imported ones
+            _schools.Clear();
+            _nextId = 1;
+
+            foreach (var importedSchool in importResult.Schools)
+            {
+                var school = new SchoolData
+                {
+                    SchoolId = _nextId++,
+                    Name = importedSchool.Name,
+                    LogoURL = importedSchool.SchoolURL,
+                    LogoFileName = importedSchool.LogoFileName,
+                    CreatedDate = DateTime.UtcNow,
+                    ModifiedDate = DateTime.UtcNow
+                };
+
+                _schools.TryAdd(school.SchoolId, school);
+            }
+
+            _logger.LogInformation("CSV import completed. Imported {SchoolCount} schools", importResult.TotalSchools);
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(new
+            {
+                success = true,
+                totalSchools = importResult.TotalSchools,
+                successfulDownloads = importResult.SuccessfulDownloads.Count,
+                failedDownloads = importResult.FailedDownloads.Count,
+                errors = importResult.Errors,
+                failedDownloadDetails = importResult.FailedDownloads
+            });
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error importing schools from CSV");
+            var response = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await response.WriteStringAsync($"Error importing schools: {ex.Message}");
             return response;
         }
     }
