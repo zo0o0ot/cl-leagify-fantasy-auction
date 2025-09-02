@@ -61,12 +61,31 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
             // TODO: Add token validation
 
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            _logger.LogInformation($"Received request body: {requestBody}");
+            _logger.LogInformation($"Received request body length: {requestBody.Length} characters");
             
-            var schoolDto = JsonSerializer.Deserialize<CreateSchoolDto>(requestBody, new JsonSerializerOptions
+            if (string.IsNullOrWhiteSpace(requestBody))
             {
-                PropertyNameCaseInsensitive = true
-            });
+                _logger.LogWarning("Empty request body received");
+                var emptyResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await emptyResponse.WriteStringAsync("Empty request body");
+                return emptyResponse;
+            }
+            
+            CreateSchoolDto? schoolDto;
+            try
+            {
+                schoolDto = JsonSerializer.Deserialize<CreateSchoolDto>(requestBody, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError(ex, "Failed to deserialize JSON: {RequestBody}", requestBody);
+                var jsonErrorResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await jsonErrorResponse.WriteStringAsync($"Invalid JSON format: {ex.Message}");
+                return jsonErrorResponse;
+            }
 
             if (schoolDto == null || string.IsNullOrEmpty(schoolDto.Name))
             {

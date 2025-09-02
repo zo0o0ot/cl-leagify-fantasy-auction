@@ -10,9 +10,9 @@
         <FluentLabel Typo="Typography.H2">School Management</FluentLabel>
         <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="10">
             <FluentButton Appearance="Appearance.Accent" 
-                         IconStart="@(new Icons.Regular.Size20.Add())"
-                         Disabled="true">
-                Import CSV (Coming Soon)
+                         IconStart="@(new Icons.Regular.Size20.DocumentAdd())"
+                         OnClick="OpenCsvImportDialog">
+                Import CSV with Logos
             </FluentButton>
             <FluentButton Appearance="Appearance.Outline" 
                          IconStart="@(new Icons.Regular.Size20.Add())"
@@ -37,7 +37,7 @@
                              IconStart="@(new Icons.Regular.Size20.Database())"
                              OnClick="SeedSampleSchoolsAsync"
                              Loading="@seedingSchools">
-                    Seed All 143 Schools from Template
+                    Seed All 130 Schools from Template
                 </FluentButton>
                 
                 @if (!string.IsNullOrEmpty(seedingMessage))
@@ -143,17 +143,122 @@
     </FluentDialogFooter>
 </FluentDialog>
 
+<FluentDialog @ref="csvImportDialog" Modal="true" TrapFocus="true" AriaLabel="CSV Import">
+    <FluentDialogHeader ShowDismiss="true">
+        <FluentStack VerticalAlignment="VerticalAlignment.Center">
+            <FluentIcon Value="@(new Icons.Regular.Size24.DocumentAdd())" />
+            <FluentLabel Typo="Typography.PaneHeader">Import Schools from CSV</FluentLabel>
+        </FluentStack>
+    </FluentDialogHeader>
+
+    <FluentDialogBody>
+        @if (!importingCsv)
+        {
+            <FluentStack Orientation="Orientation.Vertical" VerticalGap="15">
+                <div class="alert alert-info" role="alert">
+                    <strong>CSV Import with Logo Downloads:</strong><br/>
+                    Upload your CSV file and school logos will be automatically downloaded and stored locally.
+                    The CSV should have columns: School, Conference, ProjectedPoints, NumberOfProspects, SchoolURL, etc.
+                </div>
+                
+                <FluentInputFile @ref="csvFileInput" 
+                               AnchorId="csv-upload-anchor"
+                               Accept=".csv"
+                               Multiple="false"
+                               OnCompleted="@OnCsvFileSelected"
+                               MaximumFileCount="1"
+                               MaximumFileSize="@(10 * 1024 * 1024)">
+                    <ChildContent>
+                        <FluentLabel>
+                            <FluentButton Id="csv-upload-anchor" Appearance="Appearance.Outline">
+                                <FluentIcon Value="@(new Icons.Regular.Size20.Folder())" />
+                                &nbsp; Choose CSV File
+                            </FluentButton>
+                        </FluentLabel>
+                    </ChildContent>
+                </FluentInputFile>
+
+                @if (selectedCsvFile != null)
+                {
+                    <div class="alert alert-success" role="alert">
+                        Selected: <strong>@selectedCsvFile.Name</strong> (@selectedCsvFile.Size.ToString("N0") bytes)
+                    </div>
+                }
+            </FluentStack>
+        }
+        else
+        {
+            <FluentStack Orientation="Orientation.Vertical" VerticalGap="15">
+                <FluentProgressRing>Importing CSV and downloading logos...</FluentProgressRing>
+                
+                @if (!string.IsNullOrEmpty(csvImportStatus))
+                {
+                    <div class="alert alert-info" role="alert">
+                        @csvImportStatus
+                    </div>
+                }
+            </FluentStack>
+        }
+
+        @if (!string.IsNullOrEmpty(csvErrorMessage))
+        {
+            <div class="alert alert-danger" role="alert">
+                @csvErrorMessage
+            </div>
+        }
+
+        @if (csvImportResult != null)
+        {
+            <div class="alert alert-success" role="alert">
+                <strong>Import Complete:</strong><br/>
+                • Schools processed: @csvImportResult.TotalSchools<br/>
+                • Logo downloads successful: @csvImportResult.SuccessfulDownloads<br/>
+                • Logo downloads failed: @csvImportResult.FailedDownloads<br/>
+                @if (csvImportResult.Errors.Any())
+                {
+                    <br/><strong>Errors:</strong><br/>
+                    @foreach (var error in csvImportResult.Errors)
+                    {
+                        <div>• @error</div>
+                    }
+                }
+            </div>
+        }
+    </FluentDialogBody>
+
+    <FluentDialogFooter>
+        @if (!importingCsv)
+        {
+            <FluentButton Appearance="Appearance.Accent" 
+                         Disabled="@(selectedCsvFile == null)"
+                         OnClick="ImportCsvAsync">
+                Import CSV & Download Logos
+            </FluentButton>
+        }
+        <FluentButton Appearance="Appearance.Neutral" 
+                     OnClick="@(() => csvImportDialog?.Hide())">
+            @(importingCsv ? "Close" : "Cancel")
+        </FluentButton>
+    </FluentDialogFooter>
+</FluentDialog>
 
 @code {
     private List<SchoolDto>? schools;
     private PaginationState pagination = new() { ItemsPerPage = 20 };
     private FluentDialog? schoolDialog;
+    private FluentDialog? csvImportDialog;
+    private FluentInputFile? csvFileInput;
     private SchoolFormModel schoolForm = new();
     private SchoolDto? editingSchool;
     private bool savingSchool;
     private bool seedingSchools;
+    private bool importingCsv;
     private string? errorMessage;
     private string? seedingMessage;
+    private string? csvErrorMessage;
+    private string? csvImportStatus;
+    private FluentInputFileEventArgs? selectedCsvFile;
+    private CsvImportResultDto? csvImportResult;
 
     protected override async Task OnInitializedAsync()
     {
@@ -282,6 +387,89 @@
         }
     }
 
+    private void OpenCsvImportDialog()
+    {
+        selectedCsvFile = null;
+        csvErrorMessage = null;
+        csvImportStatus = null;
+        csvImportResult = null;
+        importingCsv = false;
+        csvImportDialog?.Show();
+    }
+
+    private void OnCsvFileSelected(IEnumerable<FluentInputFileEventArgs> files)
+    {
+        var file = files.FirstOrDefault();
+        if (file != null)
+        {
+            selectedCsvFile = file;
+            csvErrorMessage = null;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ImportCsvAsync()
+    {
+        if (selectedCsvFile?.Stream == null)
+        {
+            csvErrorMessage = "Please select a CSV file first.";
+            return;
+        }
+
+        importingCsv = true;
+        csvErrorMessage = null;
+        csvImportStatus = "Starting CSV import and logo downloads...";
+        StateHasChanged();
+
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                csvErrorMessage = "Authentication token not found. Please refresh and try again.";
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            // Read the CSV file content
+            selectedCsvFile.Stream.Position = 0; // Reset to beginning
+            using var content = new StreamContent(selectedCsvFile.Stream);
+            content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/csv");
+
+            csvImportStatus = "Uploading CSV file and processing schools...";
+            StateHasChanged();
+
+            // Send to the import endpoint
+            var response = await Http.PostAsync("/api/management/schools/import", content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var resultJson = await response.Content.ReadAsStringAsync();
+                csvImportResult = System.Text.Json.JsonSerializer.Deserialize<CsvImportResultDto>(resultJson, new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                csvImportStatus = "Import completed successfully!";
+                await LoadSchoolsAsync(); // Refresh the school list
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                csvErrorMessage = $"Import failed: {response.StatusCode} - {errorContent}";
+            }
+        }
+        catch (Exception ex)
+        {
+            csvErrorMessage = $"Error during CSV import: {ex.Message}";
+        }
+        finally
+        {
+            importingCsv = false;
+            StateHasChanged();
+        }
+    }
 
     private async Task SeedSampleSchoolsAsync()
     {
@@ -302,151 +490,139 @@
             Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
             seedingMessage = "Starting to seed schools...";
 
-            // All schools from SampleDraftTemplate.csv - images will be uploaded separately
+            // All schools from current SampleDraftTemplate.csv
             var sampleSchools = new[]
             {
-                new { Name = "Ohio State" },
-                new { Name = "Texas" },
-                new { Name = "Georgia" },
-                new { Name = "Michigan" },
-                new { Name = "Ole Miss" },
-                new { Name = "Oregon" },
-                new { Name = "LSU" },
-                new { Name = "Penn State" },
+                new { Name = "Abilene Christian" },
+                new { Name = "Air Force" },
+                new { Name = "Akron" },
                 new { Name = "Alabama" },
-                new { Name = "South Carolina" },
-                new { Name = "Miami (FL)" },
-                new { Name = "Colorado" },
-                new { Name = "Notre Dame" },
-                new { Name = "Missouri" },
-                new { Name = "Tennessee" },
-                new { Name = "Texas A&M" },
+                new { Name = "Appalachian State" },
                 new { Name = "Arizona" },
+                new { Name = "Arizona State" },
+                new { Name = "Arkansas" },
+                new { Name = "Arkansas State" },
+                new { Name = "Auburn" },
+                new { Name = "BYU" },
+                new { Name = "Baylor" },
+                new { Name = "Boise State" },
+                new { Name = "Boston College" },
+                new { Name = "Bowling Green" },
+                new { Name = "Buffalo" },
+                new { Name = "Cal Poly" },
+                new { Name = "California" },
+                new { Name = "Charlotte" },
+                new { Name = "Cincinnati" },
+                new { Name = "Clemson" },
+                new { Name = "Coastal Carolina" },
+                new { Name = "Colorado" },
+                new { Name = "Duke" },
+                new { Name = "East Carolina" },
+                new { Name = "East Tennessee State" },
+                new { Name = "Florida" },
+                new { Name = "Florida A&M" },
+                new { Name = "Florida Atlantic" },
+                new { Name = "Florida International" },
+                new { Name = "Florida State" },
+                new { Name = "Fresno State" },
+                new { Name = "Georgia" },
+                new { Name = "Georgia Southern" },
+                new { Name = "Georgia Tech" },
+                new { Name = "Harvard" },
+                new { Name = "Houston" },
+                new { Name = "Illinois" },
+                new { Name = "Indiana" },
                 new { Name = "Iowa" },
                 new { Name = "Iowa State" },
-                new { Name = "Kentucky" },
-                new { Name = "North Carolina" },
-                new { Name = "Florida State" },
-                new { Name = "Minnesota" },
-                new { Name = "Boston College" },
-                new { Name = "Boise State" },
-                new { Name = "Virginia Tech" },
-                new { Name = "Florida" },
-                new { Name = "UCLA" },
-                new { Name = "Arkansas" },
-                new { Name = "Louisville" },
-                new { Name = "Syracuse" },
+                new { Name = "Jacksonville State" },
+                new { Name = "James Madison" },
                 new { Name = "Kansas" },
+                new { Name = "Kansas State" },
+                new { Name = "Kentucky" },
+                new { Name = "LSU" },
+                new { Name = "Lafayette" },
+                new { Name = "Louisiana-Lafayette" },
+                new { Name = "Louisville" },
                 new { Name = "Marshall" },
                 new { Name = "Maryland" },
-                new { Name = "TCU" },
-                new { Name = "North Dakota State" },
-                new { Name = "Nebraska" },
-                new { Name = "Kansas State" },
-                new { Name = "Clemson" },
-                new { Name = "Toledo" },
-                new { Name = "Rutgers" },
-                new { Name = "UCF" },
-                new { Name = "West Virginia" },
-                new { Name = "Oklahoma State" },
-                new { Name = "Stanford" },
-                new { Name = "Oklahoma" },
-                new { Name = "California" },
-                new { Name = "Indiana" },
-                new { Name = "Texas Tech" },
-                new { Name = "East Carolina" },
-                new { Name = "Auburn" },
-                new { Name = "Arizona State" },
-                new { Name = "USC" },
-                new { Name = "Purdue" },
-                new { Name = "NC State" },
-                new { Name = "SMU" },
-                new { Name = "Utah" },
-                new { Name = "Virginia" },
-                new { Name = "Georgia Tech" },
-                new { Name = "Wisconsin" },
-                new { Name = "Colorado State" },
-                new { Name = "Bowling Green" },
-                new { Name = "BYU" },
-                new { Name = "Utah State" },
-                new { Name = "Cincinnati" },
-                new { Name = "Washington State" },
-                new { Name = "William & Mary" },
-                new { Name = "Tulane" },
-                new { Name = "Illinois" },
-                new { Name = "UTSA" },
-                new { Name = "Memphis" },
-                new { Name = "UConn" },
-                new { Name = "Central Arkansas" },
-                new { Name = "Oregon State" },
-                new { Name = "Sacramento State" },
-                new { Name = "Pitt" },
-                new { Name = "UNLV" },
-                new { Name = "Western Michigan" },
-                new { Name = "Jacksonville State" },
-                new { Name = "Fresno State" },
-                new { Name = "Delaware" },
-                new { Name = "San Jose State" },
-                new { Name = "Baylor" },
-                new { Name = "Michigan State" },
-                new { Name = "Washington" },
-                new { Name = "Western Kentucky" },
-                new { Name = "Eastern Washington" },
-                new { Name = "Alabama A&M" },
-                new { Name = "Texas State" },
-                new { Name = "Arkansas State" },
-                new { Name = "North Texas" },
-                new { Name = "Miami (OH)" },
-                new { Name = "Montana State" },
-                new { Name = "Vanderbilt" },
-                new { Name = "Navy" },
-                new { Name = "Wake Forest" },
-                new { Name = "Florida A&M" },
-                new { Name = "Houston" },
-                new { Name = "Northern Illinois" },
-                new { Name = "Mississippi State" },
-                new { Name = "Nevada" },
-                new { Name = "Buffalo" },
-                new { Name = "South Carolina State" },
-                new { Name = "Jackson State" },
-                new { Name = "Middlebury" },
-                new { Name = "Cal Poly" },
-                new { Name = "South Alabama" },
-                new { Name = "Lindenwood" },
-                new { Name = "Southern Arkansas" },
-                new { Name = "Villanova" },
-                new { Name = "Wilfrid Laurier" },
-                new { Name = "Towson" },
-                new { Name = "Illinois State" },
-                new { Name = "Northern Iowa" },
-                new { Name = "Minnesota Duluth" },
-                new { Name = "Howard" },
-                new { Name = "Tulsa" },
-                new { Name = "UC Davis" },
-                new { Name = "Morgan State" },
-                new { Name = "South Dakota State" },
-                new { Name = "Liberty" },
-                new { Name = "Wyoming" },
-                new { Name = "South Florida" },
-                new { Name = "Louisiana-Monroe" },
-                new { Name = "Lenoir?Rhyne" },
-                new { Name = "Georgia State" },
-                new { Name = "Florida International" },
-                new { Name = "Coastal Carolina" },
-                new { Name = "Northwestern" },
-                new { Name = "Georgia Southern" },
-                new { Name = "Central Michigan" },
-                new { Name = "Duke" },
-                new { Name = "North Carolina A&T" },
                 new { Name = "Massachusetts" },
-                new { Name = "Hawaii" },
-                new { Name = "Holy Cross" },
-                new { Name = "Louisiana Tech" },
-                new { Name = "Charlotte" },
-                new { Name = "James Madison" },
-                new { Name = "New Mexico" },
-                new { Name = "Abilene Christian" },
-                new { Name = "Eastern Kentucky" }
+                new { Name = "McNeese State" },
+                new { Name = "Memphis" },
+                new { Name = "Miami (FL)" },
+                new { Name = "Miami (OH)" },
+                new { Name = "Michigan" },
+                new { Name = "Michigan State" },
+                new { Name = "Minnesota" },
+                new { Name = "Mississippi State" },
+                new { Name = "Missouri" },
+                new { Name = "NC State" },
+                new { Name = "Nebraska" },
+                new { Name = "Nevada" },
+                new { Name = "North Carolina" },
+                new { Name = "North Dakota" },
+                new { Name = "North Dakota State" },
+                new { Name = "Northern Illinois" },
+                new { Name = "Northwestern" },
+                new { Name = "Notre Dame" },
+                new { Name = "Ohio State" },
+                new { Name = "Oklahoma" },
+                new { Name = "Oklahoma State" },
+                new { Name = "Old Dominion" },
+                new { Name = "Ole Miss" },
+                new { Name = "Oregon" },
+                new { Name = "Oregon State" },
+                new { Name = "Penn State" },
+                new { Name = "Pitt" },
+                new { Name = "Portland State" },
+                new { Name = "Purdue" },
+                new { Name = "Rice" },
+                new { Name = "Rutgers" },
+                new { Name = "SMU" },
+                new { Name = "Sacramento State" },
+                new { Name = "Sam Houston State" },
+                new { Name = "San Diego State" },
+                new { Name = "San Jose State" },
+                new { Name = "South Carolina" },
+                new { Name = "South Dakota State" },
+                new { Name = "South Florida" },
+                new { Name = "Southern Miss" },
+                new { Name = "Stanford" },
+                new { Name = "Stephen F. Austin" },
+                new { Name = "Syracuse" },
+                new { Name = "TCU" },
+                new { Name = "Tarleton State" },
+                new { Name = "Tennessee" },
+                new { Name = "Texas" },
+                new { Name = "Texas A&M" },
+                new { Name = "Texas State" },
+                new { Name = "Texas Tech" },
+                new { Name = "Toledo" },
+                new { Name = "Troy" },
+                new { Name = "Tulane" },
+                new { Name = "Tulsa" },
+                new { Name = "UAB" },
+                new { Name = "UCF" },
+                new { Name = "UCLA" },
+                new { Name = "UConn" },
+                new { Name = "UNLV" },
+                new { Name = "USC" },
+                new { Name = "UTEP" },
+                new { Name = "UTSA" },
+                new { Name = "Utah" },
+                new { Name = "Utah State" },
+                new { Name = "Vanderbilt" },
+                new { Name = "Virginia" },
+                new { Name = "Virginia State" },
+                new { Name = "Virginia Tech" },
+                new { Name = "Wake Forest" },
+                new { Name = "Washington" },
+                new { Name = "Washington State" },
+                new { Name = "West Virginia" },
+                new { Name = "Western Michigan" },
+                new { Name = "William & Mary" },
+                new { Name = "Wisconsin" },
+                new { Name = "Wyoming" },
+                new { Name = "Youngstown State" }
             };
 
             int created = 0;
@@ -544,6 +720,23 @@
         {
             FormReference?.OnValidSubmit.InvokeAsync();
         }
+    }
+
+    public class CsvImportResultDto
+    {
+        public bool Success { get; set; }
+        public int TotalSchools { get; set; }
+        public int SuccessfulDownloads { get; set; }
+        public int FailedDownloads { get; set; }
+        public List<string> Errors { get; set; } = new();
+        public List<FailedDownloadDto> FailedDownloadDetails { get; set; } = new();
+    }
+
+    public class FailedDownloadDto
+    {
+        public string SchoolName { get; set; } = "";
+        public string Url { get; set; } = "";
+        public string Error { get; set; } = "";
     }
 
 }
