@@ -66,6 +66,11 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
     {
         try
         {
+            _logger.LogInformation("=== CREATE SCHOOL REQUEST STARTED ===");
+            _logger.LogInformation($"Request method: {req.Method}");
+            _logger.LogInformation($"Request URL: {req.Url}");
+            _logger.LogInformation($"Headers: {string.Join(", ", req.Headers.Select(h => $"{h.Key}={string.Join(",", h.Value)}"))}");
+
             // TODO: Temporarily disable auth for debugging
             /*
             // Validate admin token
@@ -78,17 +83,20 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
             }
             */
 
+            _logger.LogInformation("STEP 1: Reading request body");
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            _logger.LogInformation($"Received request body length: {requestBody.Length} characters");
+            _logger.LogInformation($"STEP 1 SUCCESS: Request body length: {requestBody.Length} characters");
+            _logger.LogInformation($"STEP 1 SUCCESS: Request body content: '{requestBody}'");
             
             if (string.IsNullOrWhiteSpace(requestBody))
             {
-                _logger.LogWarning("Empty request body received");
+                _logger.LogWarning("STEP 1 FAILED: Empty request body received");
                 var emptyResponse = req.CreateResponse(HttpStatusCode.BadRequest);
                 await emptyResponse.WriteStringAsync("Empty request body");
                 return emptyResponse;
             }
             
+            _logger.LogInformation("STEP 2: Deserializing JSON");
             CreateSchoolDto? schoolDto;
             try
             {
@@ -96,30 +104,38 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
                 {
                     PropertyNameCaseInsensitive = true
                 });
+                _logger.LogInformation($"STEP 2 SUCCESS: Deserialized school - Name: '{schoolDto?.Name}', LogoURL: '{schoolDto?.LogoURL}', LogoFileName: '{schoolDto?.LogoFileName}'");
             }
             catch (JsonException ex)
             {
-                _logger.LogError(ex, "Failed to deserialize JSON: {RequestBody}", requestBody);
+                _logger.LogError(ex, "STEP 2 FAILED: Failed to deserialize JSON: {RequestBody}", requestBody);
                 var jsonErrorResponse = req.CreateResponse(HttpStatusCode.BadRequest);
                 await jsonErrorResponse.WriteStringAsync($"Invalid JSON format: {ex.Message}");
                 return jsonErrorResponse;
             }
 
+            _logger.LogInformation("STEP 3: Validating school data");
             if (schoolDto == null || string.IsNullOrEmpty(schoolDto.Name))
             {
+                _logger.LogWarning("STEP 3 FAILED: Invalid school data - schoolDto is null or Name is empty");
                 var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
                 await badResponse.WriteStringAsync("Invalid request body or missing school name");
                 return badResponse;
             }
+            _logger.LogInformation($"STEP 3 SUCCESS: School name validated: '{schoolDto.Name}'");
 
+            _logger.LogInformation($"STEP 4: Checking for duplicate name in {_schools.Count} existing schools");
             // Check for duplicate name
             if (_schools.Values.Any(s => s.Name.Equals(schoolDto.Name, StringComparison.OrdinalIgnoreCase)))
             {
+                _logger.LogWarning($"STEP 4 FAILED: Duplicate school name found: '{schoolDto.Name}'");
                 var conflictResponse = req.CreateResponse(HttpStatusCode.Conflict);
                 await conflictResponse.WriteStringAsync("School name already exists");
                 return conflictResponse;
             }
+            _logger.LogInformation($"STEP 4 SUCCESS: No duplicate found for '{schoolDto.Name}'");
 
+            _logger.LogInformation("STEP 5: Creating school object");
             var school = new SchoolData
             {
                 SchoolId = GetNextId(),
@@ -129,9 +145,13 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
                 CreatedDate = DateTime.UtcNow,
                 ModifiedDate = DateTime.UtcNow
             };
+            _logger.LogInformation($"STEP 5 SUCCESS: School object created with ID {school.SchoolId}");
 
-            _schools.TryAdd(school.SchoolId, school);
+            _logger.LogInformation($"STEP 6: Adding school to dictionary (current count: {_schools.Count})");
+            var addResult = _schools.TryAdd(school.SchoolId, school);
+            _logger.LogInformation($"STEP 6 RESULT: TryAdd returned {addResult}, new count: {_schools.Count}");
 
+            _logger.LogInformation("STEP 7: Preparing response");
             _logger.LogInformation("Created school {SchoolName} with ID {SchoolId}", school.Name, school.SchoolId);
 
             var response = req.CreateResponse(HttpStatusCode.Created);
@@ -145,11 +165,15 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
                 school.ModifiedDate
             });
             response.Headers.Add("Location", $"/api/management/schools/{school.SchoolId}");
+            _logger.LogInformation("STEP 7 SUCCESS: Response prepared and returned");
+            _logger.LogInformation("=== CREATE SCHOOL REQUEST COMPLETED SUCCESSFULLY ===");
             return response;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating school");
+            _logger.LogError(ex, "=== CREATE SCHOOL REQUEST FAILED WITH EXCEPTION ===");
+            _logger.LogError(ex, "Exception details: Type: {ExceptionType}, Message: {Message}, StackTrace: {StackTrace}", 
+                ex.GetType().Name, ex.Message, ex.StackTrace);
             var response = req.CreateResponse(HttpStatusCode.InternalServerError);
             await response.WriteStringAsync($"Error creating school: {ex.Message}");
             return response;
