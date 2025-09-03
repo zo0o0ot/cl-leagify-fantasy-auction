@@ -7,7 +7,8 @@
       "Bash(dotnet restore:*)",
       "Bash(dotnet build)",
       "Bash(dotnet add package:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
