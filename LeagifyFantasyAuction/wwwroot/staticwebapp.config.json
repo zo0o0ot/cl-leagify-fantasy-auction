@@ -3,8 +3,36 @@
     "rewrite": "/index.html",
     "exclude": ["/api/*"]
   },
+  "routes": [
+    {
+      "route": "/management/*",
+      "allowedRoles": ["anonymous"]
+    },
+    {
+      "route": "/api/management/*",
+      "allowedRoles": ["anonymous"]
+    },
+    {
+      "route": "/_content/Microsoft.FluentUI.AspNetCore.Components/css/*",
+      "headers": {
+        "Content-Type": "text/css"
+      }
+    },
+    {
+      "route": "/_content/Microsoft.FluentUI.AspNetCore.Components/*",
+      "headers": {
+        "Content-Type": "text/css"
+      }
+    }
+  ],
   "mimeTypes": {
+    ".css": "text/css",
+    ".js": "application/javascript", 
+    ".svg": "image/svg+xml",
     ".json": "application/json",
     ".csv": "text/csv"
+  },
+  "defaultHeaders": {
+    "content-security-policy": "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; img-src 'self' data: https:; font-src 'self' data:"
   }
 }
