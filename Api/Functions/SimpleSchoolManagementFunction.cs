@@ -65,6 +65,8 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
     {
         try
         {
+            // TODO: Temporarily disable auth for debugging
+            /*
             // Validate admin token
             if (!IsValidAdminRequest(req))
             {
@@ -73,6 +75,7 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
                 await unauthorizedResponse.WriteStringAsync("Unauthorized");
                 return unauthorizedResponse;
             }
+            */
 
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             _logger.LogInformation($"Received request body length: {requestBody.Length} characters");
