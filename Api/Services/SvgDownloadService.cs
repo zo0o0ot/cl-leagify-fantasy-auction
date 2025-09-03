@@ -23,9 +23,8 @@ public class SvgDownloadService : ISvgDownloadService
         _logger = logger;
         _httpClient = httpClient;
         
-        // Create wwwroot/images directory for storing SVG files
+        // Set storage path but don't create directory until needed (Azure Functions have read-only file system)
         _svgStoragePath = Path.Combine("wwwroot", "images");
-        Directory.CreateDirectory(_svgStoragePath);
     }
 
     public async Task<string?> DownloadAndStoreSvgAsync(string schoolName, string svgUrl)
@@ -35,6 +34,17 @@ public class SvgDownloadService : ISvgDownloadService
             if (string.IsNullOrEmpty(svgUrl))
             {
                 _logger.LogWarning("Empty SVG URL provided for school: {SchoolName}", schoolName);
+                return null;
+            }
+
+            // Create directory only when actually needed
+            try
+            {
+                Directory.CreateDirectory(_svgStoragePath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Cannot create directory {Path} - file system may be read-only (Azure Functions). SVG download skipped.", _svgStoragePath);
                 return null;
             }
 
