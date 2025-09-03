@@ -16,6 +16,7 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
     // In-memory storage for now (this will be lost on restart, but works for testing)
     private static readonly ConcurrentDictionary<int, SchoolData> _schools = new();
     private static int _nextId = 1;
+    private static readonly object _idLock = new object();
 
     [Function("GetSchoolsSimple")]
     public async Task<HttpResponseData> GetSchools(
@@ -121,7 +122,7 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
 
             var school = new SchoolData
             {
-                SchoolId = _nextId++,
+                SchoolId = GetNextId(),
                 Name = schoolDto.Name,
                 LogoURL = schoolDto.LogoURL,
                 LogoFileName = schoolDto.LogoFileName,
@@ -189,13 +190,16 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
 
             // Clear existing schools and add imported ones
             _schools.Clear();
-            _nextId = 1;
+            lock (_idLock)
+            {
+                _nextId = 1;
+            }
 
             foreach (var importedSchool in importResult.Schools)
             {
                 var school = new SchoolData
                 {
-                    SchoolId = _nextId++,
+                    SchoolId = GetNextId(),
                     Name = importedSchool.Name,
                     LogoURL = importedSchool.SchoolURL,
                     LogoFileName = importedSchool.LogoFileName,
@@ -259,6 +263,14 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
         }
 
         return false;
+    }
+
+    private static int GetNextId()
+    {
+        lock (_idLock)
+        {
+            return _nextId++;
+        }
     }
 
 }
