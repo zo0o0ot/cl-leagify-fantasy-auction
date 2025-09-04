@@ -95,7 +95,7 @@
     </FluentCard>
 </FluentStack>
 
-<FluentDialog @ref="schoolDialog" Modal="true" TrapFocus="true" AriaLabel="School Form">
+<FluentDialog @ref="schoolDialog" Modal="true" TrapFocus="true" AriaLabel="School Form" Hidden="true">
     <FluentDialogHeader ShowDismiss="true">
         <FluentStack VerticalAlignment="VerticalAlignment.Center">
             <FluentIcon Value="@(new Icons.Regular.Size24.Building())" />
@@ -143,7 +143,7 @@
     </FluentDialogFooter>
 </FluentDialog>
 
-<FluentDialog @ref="csvImportDialog" Modal="true" TrapFocus="true" AriaLabel="CSV Import">
+<FluentDialog @ref="csvImportDialog" Modal="true" TrapFocus="true" AriaLabel="CSV Import" Hidden="true">
     <FluentDialogHeader ShowDismiss="true">
         <FluentStack VerticalAlignment="VerticalAlignment.Center">
             <FluentIcon Value="@(new Icons.Regular.Size24.DocumentAdd())" />
