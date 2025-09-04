@@ -11,12 +11,12 @@
         <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="10">
             <FluentButton Appearance="Appearance.Accent" 
                          IconStart="@(new Icons.Regular.Size20.DocumentAdd())"
-                         OnClick="OpenCsvImportDialog">
+                         OnClick="@OpenCsvImportDialog">
                 Import CSV with Logos
             </FluentButton>
             <FluentButton Appearance="Appearance.Outline" 
                          IconStart="@(new Icons.Regular.Size20.Add())"
-                         OnClick="OpenAddSchoolDialog">
+                         OnClick="@OpenAddSchoolDialog">
                 Add School
             </FluentButton>
         </FluentStack>
@@ -77,12 +77,12 @@
                     <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8">
                         <FluentButton Appearance="Appearance.Lightweight" 
                                      IconStart="@(new Icons.Regular.Size16.Edit())"
-                                     OnClick="() => OpenEditSchoolDialog(context)">
+                                     OnClick="@(() => OpenEditSchoolDialog(context))">
                             Edit
                         </FluentButton>
                         <FluentButton Appearance="Appearance.Lightweight" 
                                      IconStart="@(new Icons.Regular.Size16.Delete())"
-                                     OnClick="() => DeleteSchoolAsync(context)"
+                                     OnClick="@(() => DeleteSchoolAsync(context))"
                                      Disabled="@(context.AuctionCount > 0)">
                             Delete
                         </FluentButton>
