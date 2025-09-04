@@ -3,13 +3,26 @@
     "rewrite": "/index.html",
     "exclude": ["/api/*", "/_content/*"]
   },
+  "routes": [
+    {
+      "route": "/management/*",
+      "allowedRoles": ["anonymous"]
+    },
+    {
+      "route": "/api/management/*",
+      "allowedRoles": ["anonymous"]
+    }
+  ],
   "mimeTypes": {
     ".css": "text/css",
     ".js": "application/javascript",
     ".woff": "font/woff",
-    ".woff2": "font/woff2", 
+    ".woff2": "font/woff2",
     ".svg": "image/svg+xml",
     ".json": "application/json",
     ".csv": "text/csv"
+  },
+  "globalHeaders": {
+    "X-Content-Type-Options": "nosniff"
   }
 }

@@ -19,8 +19,20 @@
                          OnClick="@OpenAddSchoolDialog">
                 Add School
             </FluentButton>
+            <FluentButton Appearance="Appearance.Stealth" 
+                         OnClick="@TestButtonClick"
+                         Style="background-color: red; color: white;">
+                🔧 TEST BUTTON
+            </FluentButton>
         </FluentStack>
     </FluentStack>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-warning" role="alert">
+            @errorMessage
+        </div>
+    }
 
     <FluentCard>
         @if (schools == null)
@@ -286,10 +298,13 @@
 
     private void OpenAddSchoolDialog()
     {
+        Console.WriteLine("DEBUG: OpenAddSchoolDialog called");
         editingSchool = null;
         schoolForm = new SchoolFormModel();
         errorMessage = null;
+        Console.WriteLine($"DEBUG: schoolDialog is null: {schoolDialog == null}");
         schoolDialog?.Show();
+        Console.WriteLine("DEBUG: OpenAddSchoolDialog completed");
     }
 
     private void OpenEditSchoolDialog(SchoolDto school)
@@ -393,12 +408,22 @@
 
     private void OpenCsvImportDialog()
     {
+        Console.WriteLine("DEBUG: OpenCsvImportDialog called");
         selectedCsvFile = null;
         csvErrorMessage = null;
         csvImportStatus = null;
         csvImportResult = null;
         importingCsv = false;
+        Console.WriteLine($"DEBUG: csvImportDialog is null: {csvImportDialog == null}");
         csvImportDialog?.Show();
+        Console.WriteLine("DEBUG: OpenCsvImportDialog completed");
+    }
+
+    private void TestButtonClick()
+    {
+        Console.WriteLine("🔧 TEST BUTTON CLICKED - Blazor interactivity is working!");
+        errorMessage = $"TEST BUTTON CLICKED AT {DateTime.Now:HH:mm:ss} - If you see this, Blazor is working!";
+        StateHasChanged();
     }
 
     private void OnCsvFileSelected(IEnumerable<FluentInputFileEventArgs> files)
