@@ -13,14 +13,14 @@ Based on the requirement: **School Management → Auction Creation → Join Auct
 **Estimated Effort:** 4-6 hours  
 **Dependencies:** None
 
-- [ ] Install Microsoft Fluent UI Blazor templates: `dotnet new install Microsoft.FluentUI.AspNetCore.Templates`
-- [ ] Create Blazor WebAssembly project with Fluent UI template
-- [ ] Set up Azure SQL Database with connection strings
-- [ ] Configure Azure SignalR Service (basic setup)
-- [ ] Implement basic project structure (Models, Services, Pages) following C# 13/.NET 8+ patterns
-- [ ] Add Microsoft.Extensions.Logging for structured logging
-- [ ] Create deployment workflow for Azure Static Web Apps
-- [ ] Verify deployed app loads correctly with Fluent UI components
+- [x] Install Microsoft Fluent UI Blazor templates: `dotnet new install Microsoft.FluentUI.AspNetCore.Templates`
+- [x] Create Blazor WebAssembly project with Fluent UI template
+- [x] Set up Azure SQL Database with connection strings
+- [x] Configure Azure SignalR Service (basic setup)
+- [x] Implement basic project structure (Models, Services, Pages) following C# 13/.NET 8+ patterns
+- [x] Add Microsoft.Extensions.Logging for structured logging
+- [x] Create deployment workflow for Azure Static Web Apps
+- [x] Verify deployed app loads correctly with Fluent UI components
 
 **Deliverables:**
 - Working Blazor app deployed to Azure
@@ -32,12 +32,12 @@ Based on the requirement: **School Management → Auction Creation → Join Auct
 **Estimated Effort:** 8-10 hours  
 **Dependencies:** Task 1.1
 
-- [ ] Create School entity and database schema
-- [ ] Implement School repository with CRUD operations
-- [ ] Build management interface using FluentDataGrid for school management
-- [ ] Add external logo URL loading with fallback to internal files using FluentTextField
-- [ ] Create school search and fuzzy matching logic
-- [ ] Implement school creation from unmatched names
+- [x] Create School entity and database schema
+- [x] Implement School repository with CRUD operations (in-memory for now)
+- [x] Build management interface using FluentDataGrid for school management
+- [x] Add external logo URL loading with fallback to internal files using FluentTextField
+- [x] Create school search and fuzzy matching logic
+- [x] Implement school creation from unmatched names
 - [ ] Add comprehensive XML documentation for all public school management APIs
 - [ ] Implement unit tests using xUnit with AAA pattern for school services
 

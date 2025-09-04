@@ -27,6 +27,12 @@ This is a real-time auction draft web application for fantasy sports, specifical
 - **DATABASE-ERD.md** - Complete database schema with 12 entities and relationships
 - **DEVELOPMENT-TASKS.md** - 6-phase implementation plan with 23 specific tasks
 
+**IMPORTANT:** Keep PRODUCT-DESIGN.md and DEVELOPMENT-TASKS.md updated as work progresses:
+- Mark completed tasks with ✅ in DEVELOPMENT-TASKS.md 
+- Update progress status and implementation details in both documents
+- Document any architectural changes or deviations in PRODUCT-DESIGN.md
+- These living documents should reflect current project state
+
 ### Sample Data Files
 - **SampleDraftTemplate.csv** - Input CSV format with school data and statistics
 - **SampleFantasyDraft.csv** - Output CSV format showing auction results
