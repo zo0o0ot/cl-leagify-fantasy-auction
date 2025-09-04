@@ -645,10 +645,44 @@
                         StateHasChanged();
                     }
                     
+                    // Add SVG logo URLs from the CSV template data for testing image loading
+                    var logoUrl = school.Name switch
+                    {
+                        "Alabama" => "https://d9ioojyvhqpok.cloudfront.net/ipat9gfnm0mjkzxjgjduhgd3dhh5",
+                        "Clemson" => "https://d9ioojyvhqpok.cloudfront.net/qdoiydn8n7rrbe24fh91o35g46a2", 
+                        "Penn State" => "https://d9ioojyvhqpok.cloudfront.net/r7ka9jaowmh2i9mbty8xvcw3lszi",
+                        "Texas" => "https://d9ioojyvhqpok.cloudfront.net/qg9cbgbb8dt3ibmkhhpbnxnmu2ym",
+                        "Oregon" => "https://d9ioojyvhqpok.cloudfront.net/jtm5dpazszqv0w6emkd6479rdrk8",
+                        "Ohio State" => "https://d9ioojyvhqpok.cloudfront.net/t0cc17koiq4lypyf6v0bjmb48dl1",
+                        "LSU" => "https://d9ioojyvhqpok.cloudfront.net/kotupd48marnkuttwxr1ueuusuq4",
+                        "Georgia" => "https://d9ioojyvhqpok.cloudfront.net/lk6cx1kv1jp68409gl92aapm1amw",
+                        "Florida" => "https://d9ioojyvhqpok.cloudfront.net/36khmjuee0xz2lxwa0xvcpewulbr",
+                        "Texas A&M" => "https://d9ioojyvhqpok.cloudfront.net/2zs6v615in0lqkjlrpwr0ss7jal3",
+                        "Auburn" => "https://d9ioojyvhqpok.cloudfront.net/eleiezsd0lvxbat70oyxvobqj1wy",
+                        "Notre Dame" => "https://d9ioojyvhqpok.cloudfront.net/tbs37oz73f8lx0yton630db3mwil",
+                        "Utah" => "https://d9ioojyvhqpok.cloudfront.net/6knutc24htvta65sc5lynfbx3bag",
+                        "South Carolina" => "https://d9ioojyvhqpok.cloudfront.net/xf3wi54n26qaha5aventrscyqj9i",
+                        "Arizona State" => "https://d9ioojyvhqpok.cloudfront.net/ki89e84ng0fbkdkof0pb7l8eavl7",
+                        "Miami (FL)" => "https://d9ioojyvhqpok.cloudfront.net/ua8vtcmx37g6fru3tna1nygak655",
+                        "Indiana" => "https://d9ioojyvhqpok.cloudfront.net/wapph05yk3m4c6hzhc4793w94sxj",
+                        "USC" => "https://d9ioojyvhqpok.cloudfront.net/9qzau6lr9d2g4rnpah5m4o5l5wrb",
+                        "Oklahoma" => "https://d9ioojyvhqpok.cloudfront.net/2oxpf3x0lqqyaqu2vusmkrrfpvz4",
+                        "Michigan" => "https://d9ioojyvhqpok.cloudfront.net/q8wl5dk6g7zupims4dtdrh3ssr12",
+                        "Missouri" => "https://d9ioojyvhqpok.cloudfront.net/at4tedy432dma8a852zl29mhpl97",
+                        "Iowa" => "https://d9ioojyvhqpok.cloudfront.net/1v4qash6kghlbzawlc9mcktcv6et",
+                        "Illinois" => "https://d9ioojyvhqpok.cloudfront.net/ufjr2mjvb39qtuuxl324m16av9zg",
+                        "Tennessee" => "https://d9ioojyvhqpok.cloudfront.net/xvzdtm1u94la26tuf9s7k9biiobk",
+                        "Washington" => "https://d9ioojyvhqpok.cloudfront.net/ymbx2qwvtd64qbet6aw5rlpvlznq",
+                        "Louisville" => "https://d9ioojyvhqpok.cloudfront.net/6dtekr0ju42cquwnyoilhqr5048j",
+                        "Texas Tech" => "https://d9ioojyvhqpok.cloudfront.net/kuscl9st1izh66xvf7t3cqs05xlc",
+                        "Ole Miss" => "https://d9ioojyvhqpok.cloudfront.net/4ci7fizvkcl1pmfv17qg8ngxjghp",
+                        _ => null
+                    };
+
                     var createDto = new
                     {
                         Name = school.Name,
-                        LogoURL = (string?)null,
+                        LogoURL = logoUrl,
                         LogoFileName = (string?)null
                     };
 
