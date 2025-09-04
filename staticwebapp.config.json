@@ -1,7 +1,7 @@
 {
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/api/*", "/_content/*"]
+    "exclude": ["/api/*", "/_content/*", "*.css", "*.js", "*.svg", "*.woff", "*.woff2"]
   },
   "routes": [
     {
@@ -11,6 +11,12 @@
     {
       "route": "/api/management/*",
       "allowedRoles": ["anonymous"]
+    },
+    {
+      "route": "/_content/**",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000"
+      }
     }
   ],
   "mimeTypes": {

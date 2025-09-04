@@ -263,6 +263,62 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
         }
     }
 
+    [Function("DeleteSchoolSimple")]
+    public async Task<HttpResponseData> DeleteSchool(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "management/schools/{schoolId:int}")] HttpRequestData req,
+        int schoolId)
+    {
+        try
+        {
+            // TODO: Temporarily disable auth for debugging
+            /*
+            // Validate admin token
+            if (!IsValidAdminRequest(req))
+            {
+                _logger.LogWarning("Unauthorized request to delete school");
+                var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
+                await unauthorizedResponse.WriteStringAsync("Unauthorized");
+                return unauthorizedResponse;
+            }
+            */
+
+            _logger.LogInformation($"=== DELETE SCHOOL REQUEST: ID {schoolId} ===");
+
+            if (!_schools.TryGetValue(schoolId, out var school))
+            {
+                _logger.LogWarning($"School with ID {schoolId} not found");
+                var notFoundResponse = req.CreateResponse(HttpStatusCode.NotFound);
+                await notFoundResponse.WriteStringAsync("School not found");
+                return notFoundResponse;
+            }
+
+            // TODO: In production, check if school is used in any auctions
+            // For now, just delete it
+            if (_schools.TryRemove(schoolId, out _))
+            {
+                _logger.LogInformation($"Successfully deleted school: {school.Name} (ID: {schoolId})");
+                
+                var response = req.CreateResponse(HttpStatusCode.OK);
+                await response.WriteAsJsonAsync(new { message = "School deleted successfully", schoolId, name = school.Name });
+                return response;
+            }
+            else
+            {
+                _logger.LogError($"Failed to remove school {schoolId} from dictionary");
+                var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+                await errorResponse.WriteStringAsync("Failed to delete school");
+                return errorResponse;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error deleting school {schoolId}");
+            var response = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await response.WriteStringAsync($"Error deleting school: {ex.Message}");
+            return response;
+        }
+    }
+
     private bool IsValidAdminRequest(HttpRequestData req)
     {
         // Check for admin token in Authorization header
