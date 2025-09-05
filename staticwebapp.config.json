@@ -1,7 +1,25 @@
 {
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/api/*", "/_content/*", "*.css", "*.js", "*.svg", "*.woff", "*.woff2"]
+    "exclude": [
+      "/api/*",
+      "/_content/**",
+      "/_framework/**", 
+      "/css/**",
+      "/js/**",
+      "**/*.css",
+      "**/*.js",
+      "**/*.svg",
+      "**/*.woff",
+      "**/*.woff2",
+      "**/*.map",
+      "**/*.json",
+      "**/*.dat",
+      "**/*.pdb",
+      "**/*.dll",
+      "**/*.wasm",
+      "**/*.blat"
+    ]
   },
   "routes": [
     {
@@ -14,6 +32,22 @@
     },
     {
       "route": "/_content/**",
+      "allowedRoles": ["anonymous"],
+      "headers": {
+        "Cache-Control": "public, max-age=31536000",
+        "Content-Type": "text/css"
+      }
+    },
+    {
+      "route": "/_content/**/*.css",
+      "allowedRoles": ["anonymous"],
+      "headers": {
+        "Content-Type": "text/css"
+      }
+    },
+    {
+      "route": "/_framework/**",
+      "allowedRoles": ["anonymous"],
       "headers": {
         "Cache-Control": "public, max-age=31536000"
       }
@@ -26,7 +60,12 @@
     ".woff2": "font/woff2",
     ".svg": "image/svg+xml",
     ".json": "application/json",
-    ".csv": "text/csv"
+    ".csv": "text/csv",
+    ".wasm": "application/wasm",
+    ".dll": "application/octet-stream",
+    ".dat": "application/octet-stream",
+    ".pdb": "application/octet-stream",
+    ".blat": "application/octet-stream"
   },
   "globalHeaders": {
     "X-Content-Type-Options": "nosniff"

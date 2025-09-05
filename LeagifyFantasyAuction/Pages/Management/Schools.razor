@@ -24,6 +24,9 @@
                          Style="background-color: red; color: white;">
                 🔧 TEST BUTTON
             </FluentButton>
+            <button @onclick="@ShowBasicDialog" style="background: blue; color: white; margin-left: 10px;">
+                📋 BASIC DIALOG TEST
+            </button>
         </FluentStack>
     </FluentStack>
 
@@ -31,6 +34,20 @@
     {
         <div class="alert alert-warning" role="alert">
             @errorMessage
+        </div>
+    }
+
+    @if (showBasicDialog)
+    {
+        <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; justify-content: center; align-items: center;">
+            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); max-width: 400px;">
+                <h3>🎯 Basic Dialog Works!</h3>
+                <p>This proves dialogs can work without FluentUI styling.</p>
+                <p><strong>Time:</strong> @DateTime.Now.ToString("HH:mm:ss")</p>
+                <button @onclick="@(() => showBasicDialog = false)" style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px;">
+                    Close
+                </button>
+            </div>
         </div>
     }
 
@@ -271,6 +288,7 @@
     private string? csvImportStatus;
     private FluentInputFileEventArgs? selectedCsvFile;
     private CsvImportResultDto? csvImportResult;
+    private bool showBasicDialog;
 
     protected override async Task OnInitializedAsync()
     {
@@ -423,6 +441,13 @@
     {
         Console.WriteLine("🔧 TEST BUTTON CLICKED - Blazor interactivity is working!");
         errorMessage = $"TEST BUTTON CLICKED AT {DateTime.Now:HH:mm:ss} - If you see this, Blazor is working!";
+        StateHasChanged();
+    }
+
+    private void ShowBasicDialog()
+    {
+        Console.WriteLine("📋 BASIC DIALOG TEST - Opening basic HTML dialog");
+        showBasicDialog = true;
         StateHasChanged();
     }
 
