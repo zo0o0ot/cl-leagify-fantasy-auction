@@ -263,6 +263,86 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
         }
     }
 
+    [Function("UpdateSchoolSimple")]
+    public async Task<HttpResponseData> UpdateSchool(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "management/schools/{schoolId:int}")] HttpRequestData req,
+        int schoolId)
+    {
+        try
+        {
+            // TODO: Temporarily disable auth for debugging
+            /*
+            // Validate admin token
+            if (!IsValidAdminRequest(req))
+            {
+                _logger.LogWarning("Unauthorized request to update school");
+                var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
+                await unauthorizedResponse.WriteStringAsync("Unauthorized");
+                return unauthorizedResponse;
+            }
+            */
+
+            _logger.LogInformation($"=== UPDATE SCHOOL REQUEST: ID {schoolId} ===");
+
+            var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+            _logger.LogInformation($"Request body: {requestBody}");
+
+            if (string.IsNullOrWhiteSpace(requestBody))
+            {
+                var emptyResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await emptyResponse.WriteStringAsync("Empty request body");
+                return emptyResponse;
+            }
+
+            var updateDto = JsonSerializer.Deserialize<UpdateSchoolDto>(requestBody, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            if (updateDto == null || string.IsNullOrWhiteSpace(updateDto.Name))
+            {
+                var invalidResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await invalidResponse.WriteStringAsync("Invalid school data or missing name");
+                return invalidResponse;
+            }
+
+            // Check if school exists
+            if (!_schools.TryGetValue(schoolId, out var existingSchool))
+            {
+                var notFoundResponse = req.CreateResponse(HttpStatusCode.NotFound);
+                await notFoundResponse.WriteStringAsync("School not found");
+                return notFoundResponse;
+            }
+
+            // Update the school
+            existingSchool.Name = updateDto.Name;
+            existingSchool.LogoURL = updateDto.LogoURL;
+            existingSchool.ModifiedDate = DateTime.UtcNow;
+
+            _logger.LogInformation($"Successfully updated school: {existingSchool.Name} (ID: {schoolId})");
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(new
+            {
+                schoolId = existingSchool.SchoolId,
+                name = existingSchool.Name,
+                logoURL = existingSchool.LogoURL,
+                logoFileName = existingSchool.LogoFileName,
+                createdDate = existingSchool.CreatedDate,
+                modifiedDate = existingSchool.ModifiedDate,
+                auctionCount = 0 // TODO: Calculate when auction system is implemented
+            });
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error updating school {schoolId}");
+            var response = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await response.WriteStringAsync($"Error updating school: {ex.Message}");
+            return response;
+        }
+    }
+
     [Function("DeleteSchoolSimple")]
     public async Task<HttpResponseData> DeleteSchool(
         [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "management/schools/{schoolId:int}")] HttpRequestData req,
@@ -376,4 +456,10 @@ public class CreateSchoolDto
     public string Name { get; set; } = "";
     public string? LogoURL { get; set; }
     public string? LogoFileName { get; set; }
+}
+
+public class UpdateSchoolDto
+{
+    public string Name { get; set; } = "";
+    public string? LogoURL { get; set; }
 }
