@@ -408,8 +408,15 @@
 
             if (editingSchool == null)
             {
-                // Add new school
-                var response = await Http.PostAsJsonAsync("/api/management/schools", schoolForm);
+                // Add new school - create clean DTO
+                var createDto = new
+                {
+                    Name = schoolForm.Name,
+                    LogoURL = schoolForm.LogoURL,
+                    LogoFileName = (string?)null
+                };
+
+                var response = await Http.PostAsJsonAsync("/api/management/schools", createDto);
                 if (response.IsSuccessStatusCode)
                 {
                     await LoadSchoolsAsync();
@@ -424,8 +431,14 @@
             }
             else
             {
-                // Update existing school
-                var response = await Http.PutAsJsonAsync($"/api/management/schools/{editingSchool.SchoolId}", schoolForm);
+                // Update existing school - create clean DTO
+                var updateDto = new
+                {
+                    Name = schoolForm.Name,
+                    LogoURL = schoolForm.LogoURL
+                };
+
+                var response = await Http.PutAsJsonAsync($"/api/management/schools/{editingSchool.SchoolId}", updateDto);
                 if (response.IsSuccessStatusCode)
                 {
                     await LoadSchoolsAsync();
