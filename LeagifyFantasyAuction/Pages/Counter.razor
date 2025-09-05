@@ -4,9 +4,15 @@
 
 <h1>Counter</h1>
 
-<p role="status">Current count: <FluentBadge Appearance="Appearance.Neutral">@currentCount</FluentBadge></p>
+<p role="status">Current count: <strong>@currentCount</strong></p>
 
-<FluentButton Appearance="Appearance.Accent" @onclick="IncrementCount">Click me</FluentButton>
+<button class="btn btn-primary" @onclick="IncrementCount">Click me</button>
+
+<style>
+    .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+    .btn-primary { background: #0078d4; color: white; }
+    .btn:hover { opacity: 0.8; }
+</style>
 
 @code {
     private int currentCount = 0;

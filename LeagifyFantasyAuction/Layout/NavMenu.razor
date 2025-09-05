@@ -1,15 +1,26 @@
-﻿<div class="navmenu">
-    <input type="checkbox" title="Menu expand/collapse toggle" id="navmenu-toggle" class="navmenu-icon" />
-    <label for="navmenu-toggle" class="navmenu-icon"><FluentIcon Value="@(new Icons.Regular.Size20.Navigation())" Color="Color.Fill" /></label>
+﻿<style>
+    .navmenu { width: 250px; background: #f5f5f5; border-right: 1px solid #ddd; padding: 20px 0; }
+    .navmenu-header { padding: 0 20px 16px; border-bottom: 1px solid #ddd; margin-bottom: 16px; }
+    .navmenu-toggle { display: none; }
+    .nav-item { display: block; padding: 12px 20px; text-decoration: none; color: #333; transition: background 0.2s; }
+    .nav-item:hover { background: #e3f2fd; text-decoration: none; color: #0078d4; }
+    .nav-item.active { background: #0078d4; color: white; }
+    .nav-item.active:hover { background: #106ebe; }
+</style>
+
+<div class="navmenu">
+    <div class="navmenu-header">
+        <h5>Navigation</h5>
+    </div>
     <nav class="sitenav" aria-labelledby="main-menu">
-        <FluentNavMenu Id="main-menu" Width="250" Collapsible="true" Title="Navigation menu" @bind-Expanded="expanded" CustomToggle="true">
-             <FluentNavLink Href="/" Match="NavLinkMatch.All" Icon="@(new Icons.Regular.Size20.Home())" IconColor="Color.Accent">Home</FluentNavLink>
-             <FluentNavLink Href="counter" Icon="@(new Icons.Regular.Size20.NumberSymbolSquare())" IconColor="Color.Accent">Counter</FluentNavLink>
-             <FluentNavLink Href="weather" Icon="@(new Icons.Regular.Size20.WeatherPartlyCloudyDay())" IconColor="Color.Accent">Weather</FluentNavLink>
-        </FluentNavMenu>
+        <NavLink class="nav-item" href="/" Match="NavLinkMatch.All">
+            🏠 Home
+        </NavLink>
+        <NavLink class="nav-item" href="/counter">
+            🔢 Counter
+        </NavLink>
+        <NavLink class="nav-item" href="/weather">
+            🌤️ Weather
+        </NavLink>
     </nav>
 </div>
-
-@code {
-    private bool expanded = true;
-}

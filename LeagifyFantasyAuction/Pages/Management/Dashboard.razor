@@ -4,47 +4,45 @@
 
 <PageTitle>Management Dashboard</PageTitle>
 
-<FluentStack Orientation="Orientation.Vertical" VerticalGap="20">
-    <FluentLabel Typo="Typography.H2">Management Dashboard</FluentLabel>
-    
-    <FluentGrid Spacing="3" Justify="JustifyContent.FlexStart">
-        <FluentGridItem xs="12" sm="6" md="4">
-            <FluentCard>
-                <FluentStack Orientation="Orientation.Vertical" VerticalGap="10">
-                    <FluentIcon Value="@(new Icons.Regular.Size24.Building())" Color="Color.Accent" />
-                    <FluentLabel Typo="Typography.H4">Schools</FluentLabel>
-                    <FluentLabel Typo="Typography.Body">Manage school database and logos</FluentLabel>
-                    <FluentButton OnClick="@(() => Navigation.NavigateTo("/management/schools"))" Appearance="Appearance.Accent">
-                        Manage Schools
-                    </FluentButton>
-                </FluentStack>
-            </FluentCard>
-        </FluentGridItem>
-        
-        <FluentGridItem xs="12" sm="6" md="4">
-            <FluentCard>
-                <FluentStack Orientation="Orientation.Vertical" VerticalGap="10">
-                    <FluentIcon Value="@(new Icons.Regular.Size24.CalendarAgenda())" Color="Color.Accent" />
-                    <FluentLabel Typo="Typography.H4">Auctions</FluentLabel>
-                    <FluentLabel Typo="Typography.Body">View and manage all auctions</FluentLabel>
-                    <FluentButton OnClick="@(() => Navigation.NavigateTo("/management/auctions"))" Appearance="Appearance.Accent">
-                        Manage Auctions
-                    </FluentButton>
-                </FluentStack>
-            </FluentCard>
-        </FluentGridItem>
+<div class="dashboard-container">
+    <h2>Management Dashboard</h2>
 
-        <FluentGridItem xs="12" sm="6" md="4">
-            <FluentCard>
-                <FluentStack Orientation="Orientation.Vertical" VerticalGap="10">
-                    <FluentIcon Value="@(new Icons.Regular.Size24.DataBarVertical())" Color="Color.Accent" />
-                    <FluentLabel Typo="Typography.H4">System Status</FluentLabel>
-                    <FluentLabel Typo="Typography.Body">Monitor system health</FluentLabel>
-                    <FluentButton Appearance="Appearance.Neutral" Disabled="true">
-                        Coming Soon
-                    </FluentButton>
-                </FluentStack>
-            </FluentCard>
-        </FluentGridItem>
-    </FluentGrid>
-</FluentStack>
+    <div class="dashboard-grid">
+        <div class="dashboard-card">
+            <h3>🏫 Schools</h3>
+            <p>Manage school database and logos</p>
+            <button class="btn btn-primary" @onclick="@(() => Navigation.NavigateTo("/management/schools"))">
+                Manage Schools
+            </button>
+        </div>
+        
+        <div class="dashboard-card">
+            <h3>📅 Auctions</h3>
+            <p>View and manage all auctions</p>
+            <button class="btn btn-primary" @onclick="@(() => Navigation.NavigateTo("/management/auctions"))">
+                Manage Auctions
+            </button>
+        </div>
+        
+        <div class="dashboard-card">
+            <h3>📊 System Status</h3>
+            <p>Monitor system health</p>
+            <button class="btn btn-secondary" disabled>
+                Coming Soon
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .dashboard-container { padding: 20px; }
+    .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 20px; }
+    .dashboard-card { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 24px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .dashboard-card h3 { margin: 0 0 8px 0; font-size: 18px; }
+    .dashboard-card p { margin: 0 0 16px 0; color: #666; }
+    .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+    .btn-primary { background: #0078d4; color: white; }
+    .btn-secondary { background: #6c757d; color: white; }
+    .btn:hover:not(:disabled) { opacity: 0.8; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+</style>

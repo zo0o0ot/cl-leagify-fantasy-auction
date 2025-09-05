@@ -3,59 +3,61 @@
 
 <PageTitle>Auction Management</PageTitle>
 
-<FluentStack Orientation="Orientation.Vertical" VerticalGap="20">
-    <FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.SpaceBetween">
-        <FluentLabel Typo="Typography.H2">Auction Management</FluentLabel>
-        <FluentButton Appearance="Appearance.Accent" 
-                     IconStart="@(new Icons.Regular.Size20.Add())"
-                     Disabled="true">
-            Create Auction (Coming Soon)
-        </FluentButton>
-    </FluentStack>
+<div class="auction-container">
+    <div class="header-row">
+        <h2>Auction Management</h2>
+        <button class="btn btn-primary" disabled>
+            ➕ Create Auction (Coming Soon)
+        </button>
+    </div>
 
-    <FluentCard>
-        <FluentStack Orientation="Orientation.Vertical" VerticalGap="20">
-            <div class="alert alert-info" role="alert">
-                <FluentIcon Value="@(new Icons.Regular.Size20.Info())" />
-                <strong>Auction Management Coming Soon</strong>
-                <br />
-                This will allow you to:
-                <ul style="margin-top: 10px;">
-                    <li>View all auctions with status, participants, and last activity</li>
-                    <li>Create new auctions by uploading CSV draft templates</li>
-                    <li>Configure roster positions and team budgets</li>
-                    <li>Archive completed auctions</li>
-                    <li>Delete test auctions</li>
-                </ul>
-            </div>
+    <div class="auction-card">
+        <div class="alert alert-info">
+            <strong>ℹ️ Auction Management Coming Soon</strong>
+            <br />
+            This will allow you to:
+            <ul style="margin-top: 10px;">
+                <li>View all auctions with status, participants, and last activity</li>
+                <li>Create new auctions by uploading CSV draft templates</li>
+                <li>Configure roster positions and team budgets</li>
+                <li>Archive completed auctions</li>
+                <li>Delete test auctions</li>
+            </ul>
+        </div>
 
-            <FluentLabel Typo="Typography.H4">Current System Status</FluentLabel>
-            <FluentStack Orientation="Orientation.Vertical" VerticalGap="10">
-                <FluentBadge Appearance="Appearance.Accent" BackgroundColor="var(--accent-fill-rest)">
-                    ✅ Authentication System - Complete
-                </FluentBadge>
-                <FluentBadge Appearance="Appearance.Accent" BackgroundColor="var(--accent-fill-rest)">
-                    ✅ School Management - Complete
-                </FluentBadge>
-                <FluentBadge Appearance="Appearance.Neutral" BackgroundColor="var(--neutral-fill-secondary-rest)">
-                    🚧 Auction Creation - In Development
-                </FluentBadge>
-                <FluentBadge Appearance="Appearance.Neutral" BackgroundColor="var(--neutral-fill-secondary-rest)">
-                    📋 Join Auction Flow - Planned
-                </FluentBadge>
-                <FluentBadge Appearance="Appearance.Neutral" BackgroundColor="var(--neutral-fill-secondary-rest)">
-                    ⚡ Real-time Bidding - Planned
-                </FluentBadge>
-            </FluentStack>
+        <h3>Current System Status</h3>
+        <div class="status-badges">
+            <span class="status-badge complete">✅ Authentication System - Complete</span>
+            <span class="status-badge complete">✅ School Management - Complete</span>
+            <span class="status-badge progress">🚧 Auction Creation - In Development</span>
+            <span class="status-badge planned">📋 Join Auction Flow - Planned</span>
+            <span class="status-badge planned">⚡ Real-time Bidding - Planned</span>
+        </div>
 
-            <FluentLabel Typo="Typography.H4">Next Steps</FluentLabel>
-            <FluentStack Orientation="Orientation.Vertical" VerticalGap="5">
-                <FluentLabel>1. Implement CSV draft template upload and school matching</FluentLabel>
-                <FluentLabel>2. Create roster position configuration interface</FluentLabel>
-                <FluentLabel>3. Add auction validation and budget settings</FluentLabel>
-                <FluentLabel>4. Build user join code system</FluentLabel>
-                <FluentLabel>5. Implement real-time bidding with SignalR</FluentLabel>
-            </FluentStack>
-        </FluentStack>
-    </FluentCard>
-</FluentStack>
+        <h3>Next Steps</h3>
+        <ol>
+            <li>Implement CSV draft template upload and school matching</li>
+            <li>Create roster position configuration interface</li>
+            <li>Add auction validation and budget settings</li>
+            <li>Build user join code system</li>
+            <li>Implement real-time bidding with SignalR</li>
+        </ol>
+    </div>
+</div>
+
+<style>
+    .auction-container { padding: 20px; }
+    .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .auction-card { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 24px; }
+    .status-badges { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; }
+    .status-badge { padding: 8px 12px; border-radius: 4px; font-size: 14px; }
+    .status-badge.complete { background: #d4edda; color: #155724; }
+    .status-badge.progress { background: #fff3cd; color: #856404; }
+    .status-badge.planned { background: #f8f9fa; color: #6c757d; }
+    .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+    .btn-primary { background: #0078d4; color: white; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .alert { padding: 12px; border-radius: 4px; margin: 10px 0; }
+    .alert-info { background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+    ol { padding-left: 20px; }
+</style>

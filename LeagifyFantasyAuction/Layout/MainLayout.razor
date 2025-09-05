@@ -1,12 +1,22 @@
 ﻿@inherits LayoutComponentBase
 
-<FluentLayout>
-    <FluentHeader>
+<style>
+    .main-layout { display: flex; flex-direction: column; min-height: 100vh; }
+    .main-header { background: #0078d4; color: white; padding: 12px 20px; font-size: 18px; font-weight: 600; }
+    .main-content-wrapper { display: flex; flex: 1; }
+    .main-body { flex: 1; padding: 20px; }
+    .main-footer { background: #f5f5f5; padding: 8px 20px; font-size: 12px; color: #666; text-align: center; display: flex; justify-content: space-between; align-items: center; }
+    .main-footer a { color: #0078d4; text-decoration: none; }
+    .main-footer a:hover { text-decoration: underline; }
+</style>
+
+<div class="main-layout">
+    <header class="main-header">
         LeagifyFantasyAuction
-    </FluentHeader>
-    <FluentStack Class="main" Orientation="Orientation.Horizontal" Width="100%">
+    </header>
+    <div class="main-content-wrapper">
         <NavMenu />
-        <FluentBodyContent Class="body-content">
+        <main class="main-body">
             <ErrorBoundary>
                 <ChildContent>
                     <div class="content">
@@ -17,11 +27,10 @@
                     <div class="blazor-error-boundary">@ex.Message</div>
                 </ErrorContent>
             </ErrorBoundary>
-        </FluentBodyContent>
-    </FluentStack>
-    <FluentFooter>
+        </main>
+    </div>
+    <footer class="main-footer">
         <a href="https://www.fluentui-blazor.net" target="_blank">Documentation and demos</a>
-        <FluentSpacer />
         <a href="https://learn.microsoft.com/en-us/aspnet/core/blazor" target="_blank">About Blazor</a>
-    </FluentFooter>
-</FluentLayout>
+    </footer>
+</div>

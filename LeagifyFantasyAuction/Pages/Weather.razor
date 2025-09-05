@@ -13,20 +13,42 @@
 }
 else
 {
-    <FluentDataGrid Id="weathergrid" Items="@forecasts" GridTemplateColumns="1fr 1fr 1fr 2fr" TGridItem=WeatherForecast>
-        <PropertyColumn Title="Date" Property="@(c => c!.Date)" Sortable="true" Align="Align.Start" />
-        <PropertyColumn Title="Temp. (C)" Property="@(c => c!.TemperatureC)" Sortable="true" Align="Align.Center" />
-        <PropertyColumn Title="Temp. (F)" Property="@(c => c!.TemperatureF)" Sortable="true" Align="Align.Center" />
-        <PropertyColumn Title="Summary" Property="@(c => c!.Summary)" Sortable="true" Align="Align.End" />
-    </FluentDataGrid>
+    <table class="weather-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Temp. (C)</th>
+                <th>Temp. (F)</th>
+                <th>Summary</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var forecast in forecasts)
+            {
+                <tr>
+                    <td>@forecast.Date.ToString("MMM dd, yyyy")</td>
+                    <td>@forecast.TemperatureC°C</td>
+                    <td>@forecast.TemperatureF°F</td>
+                    <td>@forecast.Summary</td>
+                </tr>
+            }
+        </tbody>
+    </table>
 }
 
+<style>
+    .weather-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    .weather-table th, .weather-table td { padding: 8px 12px; border: 1px solid #dee2e6; text-align: left; }
+    .weather-table th { background: #f8f9fa; font-weight: 600; }
+    .weather-table tr:nth-child(even) { background: #f8f9fa; }
+</style>
+
 @code {
-    private IQueryable<WeatherForecast>? forecasts;
+    private List<WeatherForecast>? forecasts;
 
     protected override async Task OnInitializedAsync()
     {
-        forecasts = (await Http.GetFromJsonAsync<List<WeatherForecast>>("sample-data/weather.json"))!.AsQueryable();
+        forecasts = await Http.GetFromJsonAsync<List<WeatherForecast>>("sample-data/weather.json");
     }
 
     public class WeatherForecast

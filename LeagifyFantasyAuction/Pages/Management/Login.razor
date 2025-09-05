@@ -4,37 +4,52 @@
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Navigation
 
-<FluentStack Orientation="Orientation.Vertical" HorizontalAlignment="HorizontalAlignment.Center" VerticalAlignment="VerticalAlignment.Center" Style="height: 100vh;">
-    <FluentCard Width="400px">
-        <FluentStack Orientation="Orientation.Vertical" VerticalGap="20">
-            <FluentLabel Typo="Typography.H3" Alignment="HorizontalAlignment.Center">Management Login</FluentLabel>
+<div class="login-container">
+    <div class="login-card">
+        <h3>Management Login</h3>
+        
+        <EditForm Model="@loginModel" OnValidSubmit="@LoginAsync">
+            <div class="form-group">
+                <label class="form-label">Master Password</label>
+                <InputText @bind-Value="loginModel.Password" type="password" class="form-control" required />
+            </div>
             
-            <EditForm Model="@loginModel" OnValidSubmit="@LoginAsync">
-                <FluentStack Orientation="Orientation.Vertical" VerticalGap="15">
-                    <FluentTextField @bind-Value="loginModel.Password" 
-                                   Type="TextFieldType.Password" 
-                                   Label="Master Password" 
-                                   Required="true"
-                                   Style="width: 100%;" />
-                    
-                    <FluentButton Type="ButtonType.Submit" 
-                                Appearance="Appearance.Accent" 
-                                Style="width: 100%;"
-                                Loading="@isLoading">
-                        Login
-                    </FluentButton>
-                </FluentStack>
-            </EditForm>
+            <button type="submit" class="btn btn-primary login-btn" disabled="@isLoading">
+                @if (isLoading)
+                {
+                    <span>🔄 Logging in...</span>
+                }
+                else
+                {
+                    <span>Login</span>
+                }
+            </button>
+        </EditForm>
 
-            @if (!string.IsNullOrEmpty(errorMessage))
-            {
-                <div class="alert alert-danger" role="alert">
-                    @errorMessage
-                </div>
-            }
-        </FluentStack>
-    </FluentCard>
-</FluentStack>
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">
+                @errorMessage
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .login-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #f5f5f5; }
+    .login-card { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 32px; width: 400px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+    .login-card h3 { text-align: center; margin-bottom: 24px; }
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-weight: 600; margin-bottom: 4px; }
+    .form-control { width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px; }
+    .login-btn { width: 100%; margin-top: 8px; }
+    .btn { padding: 10px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+    .btn-primary { background: #0078d4; color: white; }
+    .btn:hover:not(:disabled) { opacity: 0.8; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .alert { padding: 12px; border-radius: 4px; margin-top: 16px; }
+    .alert-danger { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+</style>
 
 @code {
     private LoginModel loginModel = new();
