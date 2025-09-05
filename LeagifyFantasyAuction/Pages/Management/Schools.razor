@@ -317,6 +317,7 @@
     private string? csvErrorMessage;
     private string? csvImportStatus;
     private IBrowserFile? selectedCsvFile;
+    private byte[]? csvFileContent;
     private CsvImportResultDto? csvImportResult;
     private bool showSchoolDialog;
     private bool showCsvImportDialog;
@@ -470,6 +471,7 @@
     {
         Console.WriteLine("DEBUG: OpenCsvImportDialog called");
         selectedCsvFile = null;
+        csvFileContent = null;
         csvErrorMessage = null;
         csvImportStatus = null;
         csvImportResult = null;
@@ -479,20 +481,37 @@
     }
 
 
-    private void OnCsvFileSelected(InputFileChangeEventArgs e)
+    private async Task OnCsvFileSelected(InputFileChangeEventArgs e)
     {
         var file = e.File;
         if (file != null)
         {
-            selectedCsvFile = file;
-            csvErrorMessage = null;
-            StateHasChanged();
+            try
+            {
+                selectedCsvFile = file;
+                csvErrorMessage = null;
+                
+                // Read the file content immediately to avoid file reference issues
+                using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+                using var memoryStream = new MemoryStream();
+                await stream.CopyToAsync(memoryStream);
+                csvFileContent = memoryStream.ToArray();
+                
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                csvErrorMessage = $"Error reading file: {ex.Message}";
+                selectedCsvFile = null;
+                csvFileContent = null;
+                StateHasChanged();
+            }
         }
     }
 
     private async Task ImportCsvAsync()
     {
-        if (selectedCsvFile == null)
+        if (selectedCsvFile == null || csvFileContent == null)
         {
             csvErrorMessage = "Please select a CSV file first.";
             return;
@@ -514,9 +533,8 @@
 
             Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-            // Read the CSV file content
-            using var stream = selectedCsvFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
-            using var content = new StreamContent(stream);
+            // Use the pre-read file content
+            using var content = new ByteArrayContent(csvFileContent);
             content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/csv");
 
             csvImportStatus = "Uploading CSV file and processing schools...";
@@ -828,6 +846,7 @@
         csvErrorMessage = null;
         csvImportStatus = null;
         selectedCsvFile = null;
+        csvFileContent = null;
         showCsvImportDialog = false;
         StateHasChanged();
     }
