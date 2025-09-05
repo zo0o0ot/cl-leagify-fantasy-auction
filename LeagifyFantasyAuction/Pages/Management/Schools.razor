@@ -34,6 +34,8 @@
     .form-group { margin-bottom: 16px; }
     .form-label { display: block; font-weight: 600; margin-bottom: 4px; }
     .form-control { width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px; }
+    .form-text { color: #6c757d; font-size: 12px; margin-top: 4px; }
+    .logo-preview { margin-top: 8px; }
 </style>
 
 <div class="basic-container">
@@ -193,9 +195,27 @@
                     <InputText @bind-Value="schoolForm.Name" class="form-control" required />
                 </div>
                 
-                <div class="alert alert-info" style="font-size: 0.9em;">
-                    <strong>Images:</strong> School logos can be uploaded after creating the school entry. SVG format preferred.
+                <div class="form-group">
+                    <label class="form-label">Logo URL</label>
+                    <InputText @bind-Value="schoolForm.LogoURL" class="form-control" 
+                               placeholder="https://example.com/logo.svg" />
+                    <small class="form-text">Enter a URL to a school logo image (SVG preferred)</small>
                 </div>
+
+                @if (!string.IsNullOrEmpty(schoolForm.LogoURL))
+                {
+                    <div class="form-group">
+                        <label class="form-label">Logo Preview</label>
+                        <div class="logo-preview">
+                            <img src="@schoolForm.LogoURL" alt="Logo preview" 
+                                 style="max-width: 64px; max-height: 64px; border: 1px solid #ddd; padding: 4px;"
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+                            <div style="display: none; color: #dc3545; font-size: 12px;">
+                                ❌ Unable to load image from URL
+                            </div>
+                        </div>
+                    </div>
+                }
 
                 @if (!string.IsNullOrEmpty(errorMessage))
                 {
@@ -365,7 +385,8 @@
         editingSchool = school;
         schoolForm = new SchoolFormModel
         {
-            Name = school.Name
+            Name = school.Name,
+            LogoURL = school.LogoURL
         };
         errorMessage = null;
         showSchoolDialog = true;
@@ -852,6 +873,9 @@
         [Required]
         [MaxLength(100)]
         public string Name { get; set; } = "";
+
+        [MaxLength(500)]
+        public string? LogoURL { get; set; }
 
         public EditForm? FormReference { get; set; }
 
