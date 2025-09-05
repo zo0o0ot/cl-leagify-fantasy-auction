@@ -48,12 +48,6 @@
             <button class="btn btn-secondary" @onclick="@OpenAddSchoolDialog">
                 ➕ Add School
             </button>
-            <button class="btn btn-info" @onclick="@TestButtonClick">
-                🔧 TEST BUTTON
-            </button>
-            <button class="btn btn-info" @onclick="@ShowBasicDialog">
-                📋 BASIC DIALOG TEST
-            </button>
         </div>
     </div>
 
@@ -64,24 +58,6 @@
         </div>
     }
 
-    @if (showBasicDialog)
-    {
-        <div class="modal-overlay">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>🎯 Basic Dialog Works!</h3>
-                    <button @onclick="@(() => showBasicDialog = false)" class="btn btn-light">×</button>
-                </div>
-                <p>This proves dialogs can work without FluentUI styling.</p>
-                <p><strong>Time:</strong> @DateTime.Now.ToString("HH:mm:ss")</p>
-                <div class="modal-footer">
-                    <button @onclick="@(() => showBasicDialog = false)" class="btn btn-primary">
-                        Close
-                    </button>
-                </div>
-            </div>
-        </div>
-    }
 
     <div>
         @if (schools == null)
@@ -342,7 +318,6 @@
     private string? csvImportStatus;
     private IBrowserFile? selectedCsvFile;
     private CsvImportResultDto? csvImportResult;
-    private bool showBasicDialog;
     private bool showSchoolDialog;
     private bool showCsvImportDialog;
 
@@ -503,19 +478,6 @@
         Console.WriteLine("DEBUG: OpenCsvImportDialog completed");
     }
 
-    private void TestButtonClick()
-    {
-        Console.WriteLine("🔧 TEST BUTTON CLICKED - Blazor interactivity is working!");
-        errorMessage = $"TEST BUTTON CLICKED AT {DateTime.Now:HH:mm:ss} - If you see this, Blazor is working!";
-        StateHasChanged();
-    }
-
-    private void ShowBasicDialog()
-    {
-        Console.WriteLine("📋 BASIC DIALOG TEST - Opening basic HTML dialog");
-        showBasicDialog = true;
-        StateHasChanged();
-    }
 
     private void OnCsvFileSelected(InputFileChangeEventArgs e)
     {
