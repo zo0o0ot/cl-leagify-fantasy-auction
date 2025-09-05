@@ -5,278 +5,312 @@
 
 <PageTitle>School Management</PageTitle>
 
-<FluentStack Orientation="Orientation.Vertical" VerticalGap="20">
-    <FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.SpaceBetween">
-        <FluentLabel Typo="Typography.H2">School Management</FluentLabel>
-        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="10">
-            <FluentButton Appearance="Appearance.Accent" 
-                         IconStart="@(new Icons.Regular.Size20.DocumentAdd())"
-                         OnClick="@OpenCsvImportDialog">
-                Import CSV with Logos
-            </FluentButton>
-            <FluentButton Appearance="Appearance.Outline" 
-                         IconStart="@(new Icons.Regular.Size20.Add())"
-                         OnClick="@OpenAddSchoolDialog">
-                Add School
-            </FluentButton>
-            <FluentButton Appearance="Appearance.Stealth" 
-                         OnClick="@TestButtonClick"
-                         Style="background-color: red; color: white;">
+<style>
+    .basic-container { padding: 20px; }
+    .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .button-group { display: flex; gap: 10px; }
+    .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+    .btn-primary { background: #0078d4; color: white; }
+    .btn-secondary { background: #6c757d; color: white; }
+    .btn-info { background: #17a2b8; color: white; }
+    .btn-light { background: #f8f9fa; color: #212529; border: 1px solid #dee2e6; }
+    .btn-danger { background: #dc3545; color: white; }
+    .btn:hover { opacity: 0.8; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .alert { padding: 12px; border-radius: 4px; margin: 10px 0; }
+    .alert-warning { background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; }
+    .alert-info { background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+    .alert-success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+    .alert-danger { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+    .basic-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    .basic-table th, .basic-table td { padding: 8px 12px; border: 1px solid #dee2e6; text-align: left; }
+    .basic-table th { background: #f8f9fa; font-weight: 600; }
+    .basic-table tr:nth-child(even) { background: #f8f9fa; }
+    .basic-table img { width: 32px; height: 32px; }
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; justify-content: center; align-items: center; }
+    .modal-content { background: white; padding: 24px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); max-width: 500px; width: 90%; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-weight: 600; margin-bottom: 4px; }
+    .form-control { width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px; }
+</style>
+
+<div class="basic-container">
+    <div class="header-row">
+        <h2>School Management</h2>
+        <div class="button-group">
+            <button class="btn btn-primary" @onclick="@OpenCsvImportDialog">
+                📄 Import CSV with Logos
+            </button>
+            <button class="btn btn-secondary" @onclick="@OpenAddSchoolDialog">
+                ➕ Add School
+            </button>
+            <button class="btn btn-info" @onclick="@TestButtonClick">
                 🔧 TEST BUTTON
-            </FluentButton>
-            <button @onclick="@ShowBasicDialog" style="background: blue; color: white; margin-left: 10px;">
+            </button>
+            <button class="btn btn-info" @onclick="@ShowBasicDialog">
                 📋 BASIC DIALOG TEST
             </button>
-        </FluentStack>
-    </FluentStack>
+        </div>
+    </div>
 
     @if (!string.IsNullOrEmpty(errorMessage))
     {
-        <div class="alert alert-warning" role="alert">
+        <div class="alert alert-warning">
             @errorMessage
         </div>
     }
 
     @if (showBasicDialog)
     {
-        <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; justify-content: center; align-items: center;">
-            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); max-width: 400px;">
-                <h3>🎯 Basic Dialog Works!</h3>
+        <div class="modal-overlay">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>🎯 Basic Dialog Works!</h3>
+                    <button @onclick="@(() => showBasicDialog = false)" class="btn btn-light">×</button>
+                </div>
                 <p>This proves dialogs can work without FluentUI styling.</p>
                 <p><strong>Time:</strong> @DateTime.Now.ToString("HH:mm:ss")</p>
-                <button @onclick="@(() => showBasicDialog = false)" style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px;">
-                    Close
-                </button>
+                <div class="modal-footer">
+                    <button @onclick="@(() => showBasicDialog = false)" class="btn btn-primary">
+                        Close
+                    </button>
+                </div>
             </div>
         </div>
     }
 
-    <FluentCard>
+    <div>
         @if (schools == null)
         {
-            <FluentProgressRing>Loading schools...</FluentProgressRing>
+            <div class="alert alert-info">🔄 Loading schools...</div>
         }
         else if (schools.Count == 0)
         {
-            <FluentStack Orientation="Orientation.Vertical" VerticalGap="15">
-                <div class="alert alert-info" role="alert">
-                    No schools found. You can either add schools manually or seed all schools from the draft template.
+            <div class="alert alert-info">
+                No schools found. You can either add schools manually or seed all schools from the draft template.
+            </div>
+            <button class="btn btn-primary" 
+                    @onclick="SeedSampleSchoolsAsync"
+                    disabled="@seedingSchools">
+                @if (seedingSchools)
+                {
+                    <span>🔄 Seeding...</span>
+                }
+                else
+                {
+                    <span>🗃️ Seed All 130 Schools from Template</span>
+                }
+            </button>
+            
+            @if (!string.IsNullOrEmpty(seedingMessage))
+            {
+                <div class="alert alert-success">
+                    @seedingMessage
                 </div>
-                <FluentButton Appearance="Appearance.Accent" 
-                             IconStart="@(new Icons.Regular.Size20.Database())"
-                             OnClick="SeedSampleSchoolsAsync"
-                             Loading="@seedingSchools">
-                    Seed All 130 Schools from Template
-                </FluentButton>
-                
-                @if (!string.IsNullOrEmpty(seedingMessage))
-                {
-                    <div class="alert alert-success" role="alert">
-                        @seedingMessage
-                    </div>
-                }
-                
-                @if (!string.IsNullOrEmpty(errorMessage))
-                {
-                    <div class="alert alert-danger" role="alert">
-                        @errorMessage
-                    </div>
-                }
-            </FluentStack>
+            }
+            
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger">
+                    @errorMessage
+                </div>
+            }
         }
         else
         {
-            <FluentDataGrid Items="@schools.AsQueryable()" ResizableColumns="true" Pagination="@pagination">
-                <PropertyColumn Property="@(s => s.SchoolId)" Title="ID" Sortable="true" Align="Align.Start" />
-                <PropertyColumn Property="@(s => s.Name)" Title="Name" Sortable="true" />
-                <TemplateColumn Title="Logo" Align="Align.Center">
-                    @if (!string.IsNullOrEmpty(context.LogoURL))
+            <table class="basic-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Logo</th>
+                        <th>Used in Auctions</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var school in schools.Take(20))
                     {
-                        <img src="@context.LogoURL" alt="@context.Name" style="width: 32px; height: 32px;" 
-                             onerror="this.style.display='none'" />
+                        <tr>
+                            <td>@school.SchoolId</td>
+                            <td>@school.Name</td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(school.LogoURL))
+                                {
+                                    <img src="@school.LogoURL" alt="@school.Name" 
+                                         onerror="this.style.display='none'" />
+                                }
+                                else
+                                {
+                                    <span>🏫</span>
+                                }
+                            </td>
+                            <td>@school.AuctionCount</td>
+                            <td>@school.CreatedDate.ToString("MMM d, yyyy")</td>
+                            <td>
+                                <button class="btn btn-light" @onclick="@(() => OpenEditSchoolDialog(school))">
+                                    ✏️ Edit
+                                </button>
+                                <button class="btn btn-danger" 
+                                        @onclick="@(() => DeleteSchoolAsync(school))"
+                                        disabled="@(school.AuctionCount > 0)">
+                                    🗑️ Delete
+                                </button>
+                            </td>
+                        </tr>
                     }
-                    else
-                    {
-                        <FluentIcon Value="@(new Icons.Regular.Size20.Building())" Color="Color.Neutral" />
-                    }
-                </TemplateColumn>
-                <PropertyColumn Property="@(s => s.AuctionCount)" Title="Used in Auctions" Sortable="true" Align="Align.Center" />
-                <PropertyColumn Property="@(s => s.CreatedDate)" Title="Created" Format="MMM d, yyyy" Sortable="true" />
-                <TemplateColumn Title="Actions" Align="Align.Center">
-                    <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8">
-                        <FluentButton Appearance="Appearance.Lightweight" 
-                                     IconStart="@(new Icons.Regular.Size16.Edit())"
-                                     OnClick="@(() => OpenEditSchoolDialog(context))">
-                            Edit
-                        </FluentButton>
-                        <FluentButton Appearance="Appearance.Lightweight" 
-                                     IconStart="@(new Icons.Regular.Size16.Delete())"
-                                     OnClick="@(() => DeleteSchoolAsync(context))"
-                                     Disabled="@(context.AuctionCount > 0)">
-                            Delete
-                        </FluentButton>
-                    </FluentStack>
-                </TemplateColumn>
-            </FluentDataGrid>
+                </tbody>
+            </table>
             
-            <FluentPaginator State="@pagination" />
+            @if (schools.Count > 20)
+            {
+                <div class="alert alert-info">
+                    Showing first 20 of @schools.Count schools. Pagination will be added later.
+                </div>
+            }
         }
-    </FluentCard>
-</FluentStack>
+    </div>
+</div>
 
-<FluentDialog @ref="schoolDialog" Modal="true" TrapFocus="true" AriaLabel="School Form" Hidden="true">
-    <FluentDialogHeader ShowDismiss="true">
-        <FluentStack VerticalAlignment="VerticalAlignment.Center">
-            <FluentIcon Value="@(new Icons.Regular.Size24.Building())" />
-            <FluentLabel Typo="Typography.PaneHeader">
-                @(editingSchool == null ? "Add School" : "Edit School")
-            </FluentLabel>
-        </FluentStack>
-    </FluentDialogHeader>
+@if (showSchoolDialog)
+{
+    <div class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🏫 @(editingSchool == null ? "Add School" : "Edit School")</h3>
+                <button @onclick="@CancelSchoolDialog" class="btn btn-light">×</button>
+            </div>
 
-    <FluentDialogBody>
-        <EditForm Model="@schoolForm" OnValidSubmit="@SaveSchoolAsync">
-            <DataAnnotationsValidator />
-            <FluentValidationSummary />
+            <EditForm Model="@schoolForm" OnValidSubmit="@SaveSchoolAsync">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
 
-            <FluentStack Orientation="Orientation.Vertical" VerticalGap="15">
-                <FluentTextField @bind-Value="schoolForm.Name" 
-                               Label="School Name" 
-                               Required="true"
-                               Style="width: 100%;" />
+                <div class="form-group">
+                    <label class="form-label">School Name *</label>
+                    <InputText @bind-Value="schoolForm.Name" class="form-control" required />
+                </div>
                 
-                <div class="alert alert-info" role="alert" style="font-size: 0.9em;">
+                <div class="alert alert-info" style="font-size: 0.9em;">
                     <strong>Images:</strong> School logos can be uploaded after creating the school entry. SVG format preferred.
                 </div>
 
                 @if (!string.IsNullOrEmpty(errorMessage))
                 {
-                    <div class="alert alert-danger" role="alert">
+                    <div class="alert alert-danger">
                         @errorMessage
                     </div>
                 }
-            </FluentStack>
-        </EditForm>
-    </FluentDialogBody>
 
-    <FluentDialogFooter>
-        <FluentButton Appearance="Appearance.Accent" 
-                     Loading="@savingSchool"
-                     OnClick="@(() => schoolForm?.OnSubmit())">
-            @(editingSchool == null ? "Add School" : "Update School")
-        </FluentButton>
-        <FluentButton Appearance="Appearance.Neutral" 
-                     OnClick="@CancelSchoolDialog">
-            Cancel
-        </FluentButton>
-    </FluentDialogFooter>
-</FluentDialog>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary" disabled="@savingSchool">
+                        @if (savingSchool)
+                        {
+                            <span>🔄 Saving...</span>
+                        }
+                        else
+                        {
+                            <span>@(editingSchool == null ? "Add School" : "Update School")</span>
+                        }
+                    </button>
+                    <button type="button" class="btn btn-secondary" @onclick="@CancelSchoolDialog">
+                        Cancel
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
 
-<FluentDialog @ref="csvImportDialog" Modal="true" TrapFocus="true" AriaLabel="CSV Import" Hidden="true">
-    <FluentDialogHeader ShowDismiss="true">
-        <FluentStack VerticalAlignment="VerticalAlignment.Center">
-            <FluentIcon Value="@(new Icons.Regular.Size24.DocumentAdd())" />
-            <FluentLabel Typo="Typography.PaneHeader">Import Schools from CSV</FluentLabel>
-        </FluentStack>
-    </FluentDialogHeader>
+@if (showCsvImportDialog)
+{
+    <div class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📄 Import Schools from CSV</h3>
+                <button @onclick="@CancelCsvImportDialog" class="btn btn-light">×</button>
+            </div>
 
-    <FluentDialogBody>
-        @if (!importingCsv)
-        {
-            <FluentStack Orientation="Orientation.Vertical" VerticalGap="15">
-                <div class="alert alert-info" role="alert">
+            @if (!importingCsv)
+            {
+                <div class="alert alert-info">
                     <strong>CSV Import with Logo Downloads:</strong><br/>
                     Upload your CSV file and school logos will be automatically downloaded and stored locally.
                     The CSV should have columns: School, Conference, ProjectedPoints, NumberOfProspects, SchoolURL, etc.
                 </div>
                 
-                <FluentInputFile @ref="csvFileInput" 
-                               AnchorId="csv-upload-anchor"
-                               Accept=".csv"
-                               Multiple="false"
-                               OnCompleted="@OnCsvFileSelected"
-                               MaximumFileCount="1"
-                               MaximumFileSize="@(10 * 1024 * 1024)">
-                    <ChildContent>
-                        <FluentLabel>
-                            <FluentButton Id="csv-upload-anchor" Appearance="Appearance.Outline">
-                                <FluentIcon Value="@(new Icons.Regular.Size20.Folder())" />
-                                &nbsp; Choose CSV File
-                            </FluentButton>
-                        </FluentLabel>
-                    </ChildContent>
-                </FluentInputFile>
+                <div class="form-group">
+                    <label class="form-label">Choose CSV File</label>
+                    <InputFile OnChange="@OnCsvFileSelected" accept=".csv" class="form-control" />
+                </div>
 
                 @if (selectedCsvFile != null)
                 {
-                    <div class="alert alert-success" role="alert">
+                    <div class="alert alert-success">
                         Selected: <strong>@selectedCsvFile.Name</strong> (@selectedCsvFile.Size.ToString("N0") bytes)
                     </div>
                 }
-            </FluentStack>
-        }
-        else
-        {
-            <FluentStack Orientation="Orientation.Vertical" VerticalGap="15">
-                <FluentProgressRing>Importing CSV and downloading logos...</FluentProgressRing>
+            }
+            else
+            {
+                <div class="alert alert-info">
+                    🔄 Importing CSV and downloading logos...
+                </div>
                 
                 @if (!string.IsNullOrEmpty(csvImportStatus))
                 {
-                    <div class="alert alert-info" role="alert">
+                    <div class="alert alert-info">
                         @csvImportStatus
                     </div>
                 }
-            </FluentStack>
-        }
+            }
 
-        @if (!string.IsNullOrEmpty(csvErrorMessage))
-        {
-            <div class="alert alert-danger" role="alert">
-                @csvErrorMessage
-            </div>
-        }
+            @if (!string.IsNullOrEmpty(csvErrorMessage))
+            {
+                <div class="alert alert-danger">
+                    @csvErrorMessage
+                </div>
+            }
 
-        @if (csvImportResult != null)
-        {
-            <div class="alert alert-success" role="alert">
-                <strong>Import Complete:</strong><br/>
-                • Schools processed: @csvImportResult.TotalSchools<br/>
-                • Logo downloads successful: @csvImportResult.SuccessfulDownloads<br/>
-                • Logo downloads failed: @csvImportResult.FailedDownloads<br/>
-                @if (csvImportResult.Errors.Any())
-                {
-                    <br/><strong>Errors:</strong><br/>
-                    @foreach (var error in csvImportResult.Errors)
+            @if (csvImportResult != null)
+            {
+                <div class="alert alert-success">
+                    <strong>Import Complete:</strong><br/>
+                    • Schools processed: @csvImportResult.TotalSchools<br/>
+                    • Logo downloads successful: @csvImportResult.SuccessfulDownloads<br/>
+                    • Logo downloads failed: @csvImportResult.FailedDownloads<br/>
+                    @if (csvImportResult.Errors.Any())
                     {
-                        <div>• @error</div>
+                        <br/><strong>Errors:</strong><br/>
+                        @foreach (var error in csvImportResult.Errors)
+                        {
+                            <div>• @error</div>
+                        }
                     }
-                }
-            </div>
-        }
-    </FluentDialogBody>
+                </div>
+            }
 
-    <FluentDialogFooter>
-        @if (!importingCsv)
-        {
-            <FluentButton Appearance="Appearance.Accent" 
-                         Disabled="@(selectedCsvFile == null)"
-                         OnClick="ImportCsvAsync">
-                Import CSV & Download Logos
-            </FluentButton>
-        }
-        <FluentButton Appearance="Appearance.Neutral" 
-                     OnClick="@CancelCsvImportDialog">
-            @(importingCsv ? "Close" : "Cancel")
-        </FluentButton>
-    </FluentDialogFooter>
-</FluentDialog>
+            <div class="modal-footer">
+                @if (!importingCsv)
+                {
+                    <button class="btn btn-primary" 
+                            disabled="@(selectedCsvFile == null)"
+                            @onclick="ImportCsvAsync">
+                        Import CSV & Download Logos
+                    </button>
+                }
+                <button class="btn btn-secondary" @onclick="@CancelCsvImportDialog">
+                    @(importingCsv ? "Close" : "Cancel")
+                </button>
+            </div>
+        </div>
+    </div>
+}
 
 @code {
     private List<SchoolDto>? schools;
-    private PaginationState pagination = new() { ItemsPerPage = 20 };
-    private FluentDialog? schoolDialog;
-    private FluentDialog? csvImportDialog;
-    private FluentInputFile? csvFileInput;
     private SchoolFormModel schoolForm = new();
     private SchoolDto? editingSchool;
     private bool savingSchool;
@@ -286,9 +320,11 @@
     private string? seedingMessage;
     private string? csvErrorMessage;
     private string? csvImportStatus;
-    private FluentInputFileEventArgs? selectedCsvFile;
+    private IBrowserFile? selectedCsvFile;
     private CsvImportResultDto? csvImportResult;
     private bool showBasicDialog;
+    private bool showSchoolDialog;
+    private bool showCsvImportDialog;
 
     protected override async Task OnInitializedAsync()
     {
@@ -320,8 +356,7 @@
         editingSchool = null;
         schoolForm = new SchoolFormModel();
         errorMessage = null;
-        Console.WriteLine($"DEBUG: schoolDialog is null: {schoolDialog == null}");
-        schoolDialog?.Show();
+        showSchoolDialog = true;
         Console.WriteLine("DEBUG: OpenAddSchoolDialog completed");
     }
 
@@ -333,7 +368,7 @@
             Name = school.Name
         };
         errorMessage = null;
-        schoolDialog?.Show();
+        showSchoolDialog = true;
     }
 
     private async Task SaveSchoolAsync()
@@ -357,9 +392,8 @@
                 if (response.IsSuccessStatusCode)
                 {
                     await LoadSchoolsAsync();
+                    showSchoolDialog = false;
                     StateHasChanged();
-                    await Task.Delay(50);
-                    schoolDialog!.Hide();
                 }
                 else
                 {
@@ -374,9 +408,8 @@
                 if (response.IsSuccessStatusCode)
                 {
                     await LoadSchoolsAsync();
+                    showSchoolDialog = false;
                     StateHasChanged();
-                    await Task.Delay(50);
-                    schoolDialog!.Hide();
                 }
                 else
                 {
@@ -432,8 +465,7 @@
         csvImportStatus = null;
         csvImportResult = null;
         importingCsv = false;
-        Console.WriteLine($"DEBUG: csvImportDialog is null: {csvImportDialog == null}");
-        csvImportDialog?.Show();
+        showCsvImportDialog = true;
         Console.WriteLine("DEBUG: OpenCsvImportDialog completed");
     }
 
@@ -451,9 +483,9 @@
         StateHasChanged();
     }
 
-    private void OnCsvFileSelected(IEnumerable<FluentInputFileEventArgs> files)
+    private void OnCsvFileSelected(InputFileChangeEventArgs e)
     {
-        var file = files.FirstOrDefault();
+        var file = e.File;
         if (file != null)
         {
             selectedCsvFile = file;
@@ -464,7 +496,7 @@
 
     private async Task ImportCsvAsync()
     {
-        if (selectedCsvFile?.Stream == null)
+        if (selectedCsvFile == null)
         {
             csvErrorMessage = "Please select a CSV file first.";
             return;
@@ -487,8 +519,8 @@
             Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
             // Read the CSV file content
-            selectedCsvFile.Stream.Position = 0; // Reset to beginning
-            using var content = new StreamContent(selectedCsvFile.Stream);
+            using var stream = selectedCsvFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            using var content = new StreamContent(stream);
             content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/csv");
 
             csvImportStatus = "Uploading CSV file and processing schools...";
@@ -790,11 +822,8 @@
         // Clean up state before hiding dialog to prevent focus issues
         savingSchool = false;
         errorMessage = null;
+        showSchoolDialog = false;
         StateHasChanged();
-        
-        // Small delay to let state update complete
-        await Task.Delay(50);
-        schoolDialog?.Hide();
     }
 
     private async Task CancelCsvImportDialog()
@@ -803,11 +832,8 @@
         csvErrorMessage = null;
         csvImportStatus = null;
         selectedCsvFile = null;
+        showCsvImportDialog = false;
         StateHasChanged();
-        
-        // Small delay to let state update complete
-        await Task.Delay(50);
-        csvImportDialog?.Hide();
     }
 
     public class SchoolDto
