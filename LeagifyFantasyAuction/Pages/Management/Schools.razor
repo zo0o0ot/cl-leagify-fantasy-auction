@@ -98,57 +98,45 @@
         }
         else
         {
-            <table class="basic-table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Name</th>
-                        <th>Logo</th>
-                        <th>Used in Auctions</th>
-                        <th>Created</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var school in schools.Take(20))
+            <FluentDataGrid Items="@schoolsQueryable" Pagination="@pagination">
+                <PropertyColumn Property="@(s => s.SchoolId)" Title="ID" Sortable="true" />
+                <PropertyColumn Property="@(s => s.Name)" Title="School Name" Sortable="true" />
+                <TemplateColumn Title="Logo">
+                    @if (!string.IsNullOrEmpty(context.LogoURL))
                     {
-                        <tr>
-                            <td>@school.SchoolId</td>
-                            <td>@school.Name</td>
-                            <td>
-                                @if (!string.IsNullOrEmpty(school.LogoURL))
-                                {
-                                    <img src="@school.LogoURL" alt="@school.Name" 
-                                         onerror="this.style.display='none'" />
-                                }
-                                else
-                                {
-                                    <span>🏫</span>
-                                }
-                            </td>
-                            <td>@school.AuctionCount</td>
-                            <td>@school.CreatedDate.ToString("MMM d, yyyy")</td>
-                            <td>
-                                <button class="btn btn-light" @onclick="@(() => OpenEditSchoolDialog(school))">
-                                    ✏️ Edit
-                                </button>
-                                <button class="btn btn-danger" 
-                                        @onclick="@(() => DeleteSchoolAsync(school))"
-                                        disabled="@(school.AuctionCount > 0)">
-                                    🗑️ Delete
-                                </button>
-                            </td>
-                        </tr>
+                        <img src="@context.LogoURL" alt="@context.Name" 
+                             style="width: 32px; height: 32px;"
+                             onerror="this.style.display='none'" />
                     }
-                </tbody>
-            </table>
+                    else
+                    {
+                        <FluentIcon Value="@(new Icons.Regular.Size20.Building())" />
+                    }
+                </TemplateColumn>
+                <PropertyColumn Property="@(s => s.AuctionCount)" Title="Used in Auctions" Sortable="true" />
+                <TemplateColumn Title="Created" Sortable="true" SortBy="@schoolCreatedSort">
+                    @context.CreatedDate.ToString("MMM d, yyyy")
+                </TemplateColumn>
+                <TemplateColumn Title="Actions">
+                    <FluentStack Orientation="Orientation.Horizontal" Style="gap: 8px;">
+                        <FluentButton Size="ButtonSize.Small" 
+                                     IconStart="@(new Icons.Regular.Size16.Edit())"
+                                     @onclick="@(() => OpenEditSchoolDialog(context))">
+                            Edit
+                        </FluentButton>
+                        <FluentButton Size="ButtonSize.Small" 
+                                     Appearance="Appearance.Accent" 
+                                     Color="Color.Error"
+                                     IconStart="@(new Icons.Regular.Size16.Delete())"
+                                     Disabled="@(context.AuctionCount > 0)"
+                                     @onclick="@(() => DeleteSchoolAsync(context))">
+                            Delete
+                        </FluentButton>
+                    </FluentStack>
+                </TemplateColumn>
+            </FluentDataGrid>
             
-            @if (schools.Count > 20)
-            {
-                <div class="alert alert-info">
-                    Showing first 20 of @schools.Count schools. Pagination will be added later.
-                </div>
-            }
+            <FluentPaginator State="@pagination" />
         }
     </div>
 </div>
@@ -307,6 +295,9 @@
 
 @code {
     private List<SchoolDto>? schools;
+    private IQueryable<SchoolDto>? schoolsQueryable;
+    private PaginationState pagination = new() { ItemsPerPage = 20 };
+    private GridSort<SchoolDto> schoolCreatedSort = GridSort<SchoolDto>.ByDescending(s => s.CreatedDate);
     private SchoolFormModel schoolForm = new();
     private SchoolDto? editingSchool;
     private bool savingSchool;
@@ -338,10 +329,12 @@
             }
 
             schools = await Http.GetFromJsonAsync<List<SchoolDto>>("/api/management/schools") ?? new List<SchoolDto>();
+            schoolsQueryable = schools.AsQueryable();
         }
         catch (Exception ex)
         {
             schools = new List<SchoolDto>();
+            schoolsQueryable = schools.AsQueryable();
             Console.WriteLine($"Error loading schools: {ex.Message}");
         }
     }
@@ -831,7 +824,7 @@
         }
     }
 
-    private async Task CancelSchoolDialog()
+    private void CancelSchoolDialog()
     {
         // Clean up state before hiding dialog to prevent focus issues
         savingSchool = false;
@@ -840,7 +833,7 @@
         StateHasChanged();
     }
 
-    private async Task CancelCsvImportDialog()
+    private void CancelCsvImportDialog()
     {
         // Clean up state before hiding dialog to prevent focus issues
         csvErrorMessage = null;
