@@ -2,20 +2,27 @@
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Navigation
 
-<FluentLayout>
-    <FluentHeader>
-        <FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.SpaceBetween" Width="100%">
-            <FluentLabel Typo="Typography.H4">Leagify Management</FluentLabel>
-            <FluentButton Appearance="Appearance.Lightweight" 
-                         IconStart="@(new Icons.Regular.Size20.SignOut())"
-                         OnClick="LogoutAsync">
-                Logout
-            </FluentButton>
-        </FluentStack>
-    </FluentHeader>
-    <FluentStack Class="main" Orientation="Orientation.Horizontal" Width="100%">
+<style>
+    .management-layout { display: flex; flex-direction: column; min-height: 100vh; }
+    .management-header { background: #0078d4; color: white; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; }
+    .management-header h4 { margin: 0; font-size: 18px; font-weight: 600; }
+    .management-main { display: flex; flex: 1; }
+    .management-content { flex: 1; padding: 20px; }
+    .management-footer { background: #f5f5f5; padding: 8px 20px; font-size: 12px; color: #666; text-align: center; }
+    .logout-btn { background: transparent; border: 1px solid rgba(255,255,255,0.5); color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+    .logout-btn:hover { background: rgba(255,255,255,0.1); }
+</style>
+
+<div class="management-layout">
+    <header class="management-header">
+        <h4>Leagify Management</h4>
+        <button class="logout-btn" @onclick="LogoutAsync">
+            🚪 Logout
+        </button>
+    </header>
+    <div class="management-main">
         <ManagementNavMenu />
-        <FluentBodyContent Class="body-content">
+        <main class="management-content">
             <ErrorBoundary>
                 <ChildContent>
                     <div class="content">
@@ -28,12 +35,12 @@
                     </div>
                 </ErrorContent>
             </ErrorBoundary>
-        </FluentBodyContent>
-    </FluentStack>
-    <FluentFooter>
-        <FluentLabel Typo="Typography.Body">Management Interface - Token expires at @GetTokenExpiration()</FluentLabel>
-    </FluentFooter>
-</FluentLayout>
+        </main>
+    </div>
+    <footer class="management-footer">
+        Management Interface - Token expires at @GetTokenExpiration()
+    </footer>
+</div>
 
 @code {
     private async Task LogoutAsync()

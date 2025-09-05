@@ -1,13 +1,28 @@
 @using Microsoft.AspNetCore.Components.Routing
 
-<FluentNavMenu Id="main-menu" Width="250" CollapsedWidth="50" Title="Management" SubTitle="System Administration">
-    <FluentNavLink Href="/management" Match="NavLinkMatch.All" Icon="@(new Icons.Regular.Size20.Home())" IconColor="Color.Accent">
-        Dashboard
-    </FluentNavLink>
-    <FluentNavLink Href="/management/schools" Icon="@(new Icons.Regular.Size20.Building())" IconColor="Color.Accent">
-        Schools
-    </FluentNavLink>
-    <FluentNavLink Href="/management/auctions" Icon="@(new Icons.Regular.Size20.CalendarAgenda())" IconColor="Color.Accent">
-        Auctions
-    </FluentNavLink>
-</FluentNavMenu>
+<style>
+    .management-nav { width: 250px; background: #f5f5f5; border-right: 1px solid #ddd; padding: 20px 0; }
+    .nav-header { padding: 0 20px 16px; border-bottom: 1px solid #ddd; margin-bottom: 16px; }
+    .nav-header h5 { margin: 0; font-size: 16px; font-weight: 600; color: #333; }
+    .nav-header p { margin: 4px 0 0; font-size: 12px; color: #666; }
+    .nav-item { display: block; padding: 12px 20px; text-decoration: none; color: #333; border: none; background: none; cursor: pointer; transition: background 0.2s; }
+    .nav-item:hover { background: #e3f2fd; text-decoration: none; color: #0078d4; }
+    .nav-item.active { background: #0078d4; color: white; }
+    .nav-item.active:hover { background: #106ebe; }
+</style>
+
+<nav class="management-nav">
+    <div class="nav-header">
+        <h5>Management</h5>
+        <p>System Administration</p>
+    </div>
+    <NavLink class="nav-item" href="/management" Match="NavLinkMatch.All">
+        🏠 Dashboard
+    </NavLink>
+    <NavLink class="nav-item" href="/management/schools">
+        🏫 Schools
+    </NavLink>
+    <NavLink class="nav-item" href="/management/auctions">
+        📅 Auctions
+    </NavLink>
+</nav>
