@@ -24,9 +24,9 @@ else
 {
 
 
-<FluentStack Style="padding: 20px; gap: 24px;">
-    <FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.Center" Style="justify-content: space-between; width: 100%;">
-        <FluentLabel Typo="Typography.PageTitle">School Management</FluentLabel>
+<FluentStack Orientation="Orientation.Vertical" Style="gap: 24px;">
+    <FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.Right" Style="width: 100%;">
+        <FluentLabel Typo="Typography.PageTitle" Style="flex: 1;">School Management</FluentLabel>
         <FluentStack Orientation="Orientation.Horizontal" Style="gap: 12px;">
             <FluentButton Appearance="Appearance.Accent" IconStart="@(new Icons.Regular.Size20.DocumentAdd())" @onclick="@OpenCsvImportDialog">
                 Import CSV with Logos
