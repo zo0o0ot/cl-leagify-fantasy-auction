@@ -184,18 +184,15 @@ public class ManagementAuthFunction(ILogger<ManagementAuthFunction> logger)
             }
 
             var token = authHeader.Substring("Bearer ".Length);
-            Console.WriteLine($"[DEBUG] Token received: {token}");
 
             // Decode and validate token
             var decodedBytes = Convert.FromBase64String(token);
             var decodedString = Encoding.UTF8.GetString(decodedBytes);
-            Console.WriteLine($"[DEBUG] Decoded token: {decodedString}");
             
             // Split only on the first colon to separate "admin" from the datetime
             var colonIndex = decodedString.IndexOf(':');
             if (colonIndex == -1)
             {
-                Console.WriteLine($"[DEBUG] No colon found in token");
                 return new TokenValidationResult { IsValid = false, ErrorMessage = "Invalid token format" };
             }
             
@@ -204,16 +201,11 @@ public class ManagementAuthFunction(ILogger<ManagementAuthFunction> logger)
                 decodedString.Substring(0, colonIndex),
                 decodedString.Substring(colonIndex + 1)
             };
-            Console.WriteLine($"[DEBUG] Token parts count: {parts.Length}");
-            Console.WriteLine($"[DEBUG] Admin part: '{parts[0]}', DateTime part: '{parts[1]}'");
 
             if (parts.Length != 2 || parts[0] != "admin")
             {
-                Console.WriteLine($"[DEBUG] Token format invalid - parts: [{string.Join(", ", parts)}]");
                 return new TokenValidationResult { IsValid = false, ErrorMessage = "Invalid token format" };
             }
-
-            Console.WriteLine($"[DEBUG] Expiry string: '{parts[1]}'");
             
             // Use explicit format parsing for ISO 8601 dates
             if (!DateTime.TryParseExact(parts[1], "yyyy-MM-ddTHH:mm:ssZ", 
@@ -221,23 +213,17 @@ public class ManagementAuthFunction(ILogger<ManagementAuthFunction> logger)
                 System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal, 
                 out var expiryTime))
             {
-                Console.WriteLine($"[DEBUG] Failed to parse expiry time with exact format: '{parts[1]}'");
                 // Fallback to general parsing
                 if (!DateTime.TryParse(parts[1], null, System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal, out expiryTime))
                 {
-                    Console.WriteLine($"[DEBUG] Failed to parse expiry time with fallback: '{parts[1]}'");
                     return new TokenValidationResult { IsValid = false, ErrorMessage = "Invalid token expiry format" };
                 }
             }
 
-            Console.WriteLine($"[DEBUG] Parsed expiry: {expiryTime}, Current UTC: {DateTime.UtcNow}");
             if (DateTime.UtcNow >= expiryTime)
             {
-                Console.WriteLine($"[DEBUG] Token expired");
                 return new TokenValidationResult { IsValid = false, ErrorMessage = "Token has expired" };
             }
-
-            Console.WriteLine($"[DEBUG] Token validation successful");
             return new TokenValidationResult 
             { 
                 IsValid = true, 
@@ -245,9 +231,8 @@ public class ManagementAuthFunction(ILogger<ManagementAuthFunction> logger)
                 Role = "admin"
             };
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Console.WriteLine($"[DEBUG] Token validation exception: {ex.Message}");
             return new TokenValidationResult { IsValid = false, ErrorMessage = "Token validation failed" };
         }
     }

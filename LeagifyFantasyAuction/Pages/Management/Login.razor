@@ -109,10 +109,9 @@
                     Http.DefaultRequestHeaders.Authorization = null;
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // Network error or other issue - clear token and continue to login form
-                Console.WriteLine($"Token validation error: {ex.Message}");
                 await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "managementToken");
                 Http.DefaultRequestHeaders.Authorization = null;
             }
@@ -131,38 +130,27 @@
         {
             var response = await Http.PostAsJsonAsync("/api/management/auth/login", loginModel);
             
-            Console.WriteLine($"Login response status: {response.StatusCode}");
-            
             if (response.IsSuccessStatusCode)
             {
                 var responseContent = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"Login response content: {responseContent}");
                 
                 // Parse the response manually since we already read it as string
                 var result = System.Text.Json.JsonSerializer.Deserialize<AuthResponse>(responseContent, new System.Text.Json.JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true
                 });
-                Console.WriteLine($"Login result: Success={result?.Success}, Token length={result?.Token?.Length ?? 0}");
                 
                 if (result?.Success == true && !string.IsNullOrEmpty(result.Token))
                 {
                     // Store token in localStorage
                     await JSRuntime.InvokeVoidAsync("localStorage.setItem", "managementToken", result.Token);
-                    Console.WriteLine($"Token stored in localStorage");
                     
                     // Set authorization header for future requests
                     Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", result.Token);
-                    Console.WriteLine($"Authorization header set");
                     
                     // Navigate to management dashboard
-                    Console.WriteLine("Navigating to /management/schools");
                     Navigation.NavigateTo("/management/schools");
                     return;
-                }
-                else
-                {
-                    Console.WriteLine("Login succeeded but result was invalid");
                 }
             }
             
