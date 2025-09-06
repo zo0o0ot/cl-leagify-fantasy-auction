@@ -252,11 +252,24 @@ public class ManagementAuthFunction(ILogger<ManagementAuthFunction> logger)
             Console.WriteLine($"[DEBUG] Token parts: '{parts[0]}', '{parts[1]}'");
             Console.WriteLine($"[DEBUG] Parts length: {parts.Length}, First part: '{parts[0]}', Expected: 'admin'");
             Console.WriteLine($"[DEBUG] First part equals 'admin': {parts[0] == "admin"}");
-            if (parts.Length != 2 || parts[0] != "admin")
+            
+            // Check each condition separately
+            Console.WriteLine($"[DEBUG] Parts.Length == 2: {parts.Length == 2}");
+            Console.WriteLine($"[DEBUG] parts[0] == 'admin': {parts[0] == "admin"}");
+            
+            if (parts.Length != 2)
             {
-                Console.WriteLine($"[DEBUG] Token format validation failed - parts length: {parts.Length}, first part: '{parts[0]}'");
+                Console.WriteLine($"[DEBUG] FAILURE: Parts length is {parts.Length}, expected 2");
                 return new TokenValidationResult { IsValid = false, ErrorMessage = "Invalid token format" };
             }
+            
+            if (parts[0] != "admin")
+            {
+                Console.WriteLine($"[DEBUG] FAILURE: First part is '{parts[0]}', expected 'admin'");
+                return new TokenValidationResult { IsValid = false, ErrorMessage = "Invalid token format" };
+            }
+            
+            Console.WriteLine($"[DEBUG] Token format validation PASSED - proceeding to datetime validation");
             
             // Use explicit format parsing for ISO 8601 dates
             Console.WriteLine($"[DEBUG] Attempting to parse datetime: '{parts[1]}'");
