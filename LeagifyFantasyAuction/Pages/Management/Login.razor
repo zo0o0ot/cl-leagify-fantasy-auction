@@ -4,16 +4,16 @@
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Navigation
 
-<FluentStack Style="min-height: 100vh; align-items: center; justify-content: center; background: var(--neutral-layer-1); padding: 16px;">
+<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--neutral-layer-1); padding: 16px;">
     <FluentCard Style="width: 100%; max-width: 400px; padding: 32px; box-sizing: border-box;">
-        <FluentStack Style="gap: 24px; text-align: center;">
-            <FluentStack Style="gap: 8px;">
+        <div style="display: flex; flex-direction: column; gap: 24px; text-align: center; align-items: center;">
+            <div style="display: flex; flex-direction: column; gap: 8px; align-items: center;">
                 <FluentIcon Value="@(new Icons.Regular.Size32.Shield())" Color="Color.Accent" />
                 <FluentLabel Typo="Typography.PageTitle" Style="word-break: break-word;">Management Access</FluentLabel>
                 <FluentLabel Typo="Typography.Body" Style="word-wrap: break-word;">
                     Enter the master password to access the management interface.
                 </FluentLabel>
-            </FluentStack>
+            </div>
 
             @if (!string.IsNullOrEmpty(errorMessage))
             {
@@ -24,15 +24,15 @@
 
             @if (isLoading)
             {
-                <FluentStack Style="gap: 16px; align-items: center;">
+                <div style="display: flex; flex-direction: column; gap: 16px; align-items: center;">
                     <FluentProgressRing />
                     <FluentLabel>Authenticating...</FluentLabel>
-                </FluentStack>
+                </div>
             }
             else
             {
                 <EditForm Model="@loginModel" OnValidSubmit="@LoginAsync" style="width: 100%;">
-                    <FluentStack Style="gap: 16px; width: 100%;">
+                    <div style="display: flex; flex-direction: column; gap: 16px; width: 100%; align-items: center;">
                         <FluentTextField @bind-Value="loginModel.Password" 
                                        Label="Master Password" 
                                        Type="TextFieldType.Password"
@@ -45,16 +45,16 @@
                                      Style="width: 100%;">
                             Sign In
                         </FluentButton>
-                    </FluentStack>
+                    </div>
                 </EditForm>
             }
 
             <FluentLabel Typo="Typography.Body" Style="color: var(--neutral-foreground-hint); font-size: 12px; word-wrap: break-word;">
                 This is a secure management area. Only authorized personnel should access this interface.
             </FluentLabel>
-        </FluentStack>
+        </div>
     </FluentCard>
-</FluentStack>
+</div>
 
 <style>
     /* Ensure responsive layout */
