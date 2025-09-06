@@ -200,10 +200,19 @@ public class ManagementAuthFunction(ILogger<ManagementAuthFunction> logger)
             }
 
             Console.WriteLine($"[DEBUG] Expiry string: '{parts[1]}'");
-            if (!DateTime.TryParse(parts[1], out var expiryTime))
+            // Use explicit format parsing for ISO 8601 dates
+            if (!DateTime.TryParseExact(parts[1], "yyyy-MM-ddTHH:mm:ssZ", 
+                System.Globalization.CultureInfo.InvariantCulture, 
+                System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal, 
+                out var expiryTime))
             {
-                Console.WriteLine($"[DEBUG] Failed to parse expiry time: '{parts[1]}'");
-                return new TokenValidationResult { IsValid = false, ErrorMessage = "Invalid token expiry format" };
+                Console.WriteLine($"[DEBUG] Failed to parse expiry time with exact format: '{parts[1]}'");
+                // Fallback to general parsing
+                if (!DateTime.TryParse(parts[1], null, System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal, out expiryTime))
+                {
+                    Console.WriteLine($"[DEBUG] Failed to parse expiry time with fallback: '{parts[1]}'");
+                    return new TokenValidationResult { IsValid = false, ErrorMessage = "Invalid token expiry format" };
+                }
             }
 
             Console.WriteLine($"[DEBUG] Parsed expiry: {expiryTime}, Current UTC: {DateTime.UtcNow}");
