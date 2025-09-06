@@ -15,7 +15,18 @@ var host = new HostBuilder()
                               "Server=(localdb)\\mssqllocaldb;Database=LeagifyFantasyAuction;Trusted_Connection=true;MultipleActiveResultSets=true";
         
         services.AddDbContext<LeagifyAuctionDbContext>(options =>
-            options.UseSqlServer(connectionString));
+        {
+            if (connectionString.Contains("Data Source") && connectionString.Contains(".db"))
+            {
+                // SQLite for local development
+                options.UseSqlite(connectionString);
+            }
+            else
+            {
+                // SQL Server for Azure
+                options.UseSqlServer(connectionString);
+            }
+        });
 
         // Add HttpClient for SVG downloads
         services.AddHttpClient<ISvgDownloadService, SvgDownloadService>(client =>
@@ -30,5 +41,22 @@ var host = new HostBuilder()
         services.AddScoped<IAuctionService, AuctionService>();
     })
     .Build();
+
+// Initialize database on startup
+using (var scope = host.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<LeagifyAuctionDbContext>();
+    try
+    {
+        // Create database and tables if they don't exist
+        dbContext.Database.EnsureCreated();
+        Console.WriteLine("Database initialized successfully");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Database initialization failed: {ex.Message}");
+        // Continue running even if database init fails - for Azure deployment scenarios
+    }
+}
 
 host.Run();
