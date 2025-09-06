@@ -187,8 +187,8 @@ public class ManagementAuthFunction(ILogger<ManagementAuthFunction> logger)
                 return new TokenValidationResult { IsValid = false, ErrorMessage = "Invalid Authorization header format" };
             }
 
-            var token = authHeader.Substring("Bearer ".Length);
-            Console.WriteLine($"[DEBUG] Token received: {token}");
+            var token = authHeader.Substring("Bearer ".Length).Trim();
+            Console.WriteLine($"[DEBUG] Token received: '{token}' (length: {token.Length})");
 
             // Decode and validate token
             byte[] decodedBytes;
@@ -202,6 +202,7 @@ public class ManagementAuthFunction(ILogger<ManagementAuthFunction> logger)
             catch (Exception ex)
             {
                 Console.WriteLine($"[DEBUG] Base64 decode failed: {ex.Message}");
+                Console.WriteLine($"[DEBUG] Token length: {token.Length}, Token: '{token}'");
                 return new TokenValidationResult { IsValid = false, ErrorMessage = "Invalid token encoding" };
             }
             
