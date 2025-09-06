@@ -195,14 +195,41 @@ public class ManagementAuthFunction(ILogger<ManagementAuthFunction> logger)
             string decodedString;
             try
             {
-                decodedBytes = Convert.FromBase64String(token);
+                // Additional validation for base64 string
+                if (string.IsNullOrEmpty(token))
+                {
+                    Console.WriteLine($"[DEBUG] Token is null or empty");
+                    return new TokenValidationResult { IsValid = false, ErrorMessage = "Missing token" };
+                }
+
+                // Check if token length is valid for base64 (must be multiple of 4)
+                if (token.Length % 4 != 0)
+                {
+                    Console.WriteLine($"[DEBUG] Invalid base64 length: {token.Length} (not multiple of 4)");
+                    return new TokenValidationResult { IsValid = false, ErrorMessage = "Invalid token format" };
+                }
+
+                // Try to pad the token if needed (some base64 implementations are lenient about padding)
+                var paddedToken = token;
+                while (paddedToken.Length % 4 != 0)
+                {
+                    paddedToken += "=";
+                }
+                
+                if (paddedToken != token)
+                {
+                    Console.WriteLine($"[DEBUG] Added padding: '{token}' -> '{paddedToken}'");
+                }
+
+                decodedBytes = Convert.FromBase64String(paddedToken);
                 decodedString = Encoding.UTF8.GetString(decodedBytes);
-                Console.WriteLine($"[DEBUG] Decoded token: {decodedString}");
+                Console.WriteLine($"[DEBUG] Decoded token: '{decodedString}'");
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[DEBUG] Base64 decode failed: {ex.Message}");
                 Console.WriteLine($"[DEBUG] Token length: {token.Length}, Token: '{token}'");
+                Console.WriteLine($"[DEBUG] Exception type: {ex.GetType().Name}");
                 return new TokenValidationResult { IsValid = false, ErrorMessage = "Invalid token encoding" };
             }
             
