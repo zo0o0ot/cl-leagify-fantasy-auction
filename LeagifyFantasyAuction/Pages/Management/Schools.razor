@@ -91,14 +91,14 @@ else
     else
     {
         <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px;">
-            <FluentDataGrid Items="@schoolsQueryable" Pagination="@pagination">
+            <FluentDataGrid Items="@schoolsQueryable" Pagination="@pagination" Style="--row-height: 60px;">
                 <PropertyColumn Property="@(s => s.SchoolId)" Title="ID" Sortable="true" />
                 <PropertyColumn Property="@(s => s.Name)" Title="School Name" Sortable="true" />
                 <TemplateColumn Title="Logo">
                     @if (!string.IsNullOrEmpty(context.LogoURL))
                     {
                         <img src="@context.LogoURL" alt="@context.Name" 
-                             style="width: 32px; height: 32px;"
+                             style="width: 40px; height: 40px; object-fit: contain;"
                              onerror="this.style.display='none'" />
                     }
                     else
@@ -111,7 +111,9 @@ else
                     @context.CreatedDate.ToString("MMM d, yyyy")
                 </TemplateColumn>
                 <TemplateColumn Title="Actions">
-                    <FluentStack Orientation="Orientation.Horizontal" Style="gap: 8px;">
+                    <FluentStack Orientation="Orientation.Horizontal" 
+                                 VerticalAlignment="VerticalAlignment.Center"
+                                 Style="gap: 8px; height: 100%;">
                         <FluentButton Size="ButtonSize.Small" 
                                      IconStart="@(new Icons.Regular.Size16.Edit())"
                                      @onclick="@(() => OpenEditSchoolDialog(context))">
