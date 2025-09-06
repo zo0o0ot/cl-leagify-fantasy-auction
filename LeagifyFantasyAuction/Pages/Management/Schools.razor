@@ -892,10 +892,20 @@ else
             {
                 isAuthenticated = true;
             }
+            else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                // Token is invalid/expired, clear it and redirect
+                await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "managementToken");
+                Http.DefaultRequestHeaders.Authorization = null;
+                Navigation.NavigateTo("/management/login");
+                return;
+            }
             else
             {
-                // Token is invalid, clear it and redirect
+                // Other error, log and redirect
+                Console.WriteLine($"Token validation failed with status: {response.StatusCode}");
                 await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "managementToken");
+                Http.DefaultRequestHeaders.Authorization = null;
                 Navigation.NavigateTo("/management/login");
                 return;
             }

@@ -80,11 +80,19 @@
                     Navigation.NavigateTo("/management/schools");
                     return;
                 }
+                else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                {
+                    // Expected response for invalid/expired token - just clear it
+                    await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "managementToken");
+                    Http.DefaultRequestHeaders.Authorization = null;
+                }
             }
-            catch
+            catch (Exception ex)
             {
-                // Invalid token, clear it
+                // Network error or other issue - clear token and continue to login form
+                Console.WriteLine($"Token validation error: {ex.Message}");
                 await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "managementToken");
+                Http.DefaultRequestHeaders.Authorization = null;
             }
         }
     }
