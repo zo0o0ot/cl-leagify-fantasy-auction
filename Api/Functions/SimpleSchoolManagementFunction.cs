@@ -8,6 +8,16 @@ using LeagifyFantasyAuction.Api.Services;
 
 namespace LeagifyFantasyAuction.Api.Functions;
 
+/// <summary>
+/// Provides HTTP endpoints for managing schools in the Leagify Fantasy Auction system.
+/// This service handles CRUD operations for schools including creation, retrieval, updates, and CSV imports.
+/// All endpoints require valid management authentication tokens.
+/// </summary>
+/// <remarks>
+/// This implementation uses in-memory storage for development and testing purposes.
+/// In production, this should be replaced with persistent database storage.
+/// Schools are identified by unique integer IDs and must have unique names (case-insensitive).
+/// </remarks>
 public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFunction> logger, ICsvImportService csvImportService)
 {
     private readonly ILogger<SimpleSchoolManagementFunction> _logger = logger;
@@ -18,6 +28,20 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
     private static int _nextId = 1;
     private static readonly object _idLock = new object();
 
+    /// <summary>
+    /// Retrieves all schools from the system.
+    /// </summary>
+    /// <param name="req">The HTTP request containing management authentication headers.</param>
+    /// <returns>
+    /// HTTP 200 OK with an array of school objects containing SchoolId, Name, LogoURL, LogoFileName, CreatedDate, ModifiedDate, and AuctionCount.
+    /// HTTP 401 Unauthorized if the management token is invalid or missing.
+    /// HTTP 500 Internal Server Error if an unexpected error occurs during retrieval.
+    /// </returns>
+    /// <remarks>
+    /// Schools are returned sorted alphabetically by name.
+    /// The AuctionCount field is currently hardcoded to 0 as auction functionality is not yet implemented.
+    /// Requires a valid Bearer token in the Authorization header obtained from the management authentication endpoint.
+    /// </remarks>
     [Function("GetSchoolsSimple")]
     public async Task<HttpResponseData> GetSchools(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "management/schools")] HttpRequestData req)
@@ -60,6 +84,24 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
         }
     }
 
+    /// <summary>
+    /// Creates a new school in the system.
+    /// </summary>
+    /// <param name="req">The HTTP request containing the school data in JSON format and management authentication headers.</param>
+    /// <returns>
+    /// HTTP 201 Created with the created school object and Location header on success.
+    /// HTTP 400 Bad Request if the request body is invalid, empty, or contains invalid JSON.
+    /// HTTP 401 Unauthorized if the management token is invalid or missing.
+    /// HTTP 409 Conflict if a school with the same name already exists (case-insensitive comparison).
+    /// HTTP 500 Internal Server Error if an unexpected error occurs during creation.
+    /// </returns>
+    /// <remarks>
+    /// Expects a JSON body with Name (required), LogoURL (optional), and LogoFileName (optional) properties.
+    /// School names must be unique across the system (case-insensitive comparison).
+    /// The created school is assigned a unique integer ID automatically.
+    /// CreatedDate and ModifiedDate are set to the current UTC time.
+    /// A Location header is included in the response pointing to the created resource.
+    /// </remarks>
     [Function("CreateSchoolSimple")]
     public async Task<HttpResponseData> CreateSchool(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "management/schools")] HttpRequestData req)
@@ -177,6 +219,25 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
         }
     }
 
+    /// <summary>
+    /// Imports schools from a CSV file, replacing all existing schools in the system.
+    /// Optionally downloads school logos from URLs provided in the CSV.
+    /// </summary>
+    /// <param name="req">The HTTP request containing the CSV file data and management authentication headers.</param>
+    /// <returns>
+    /// HTTP 200 OK with import results including total schools, successful downloads, failed downloads, and any errors.
+    /// HTTP 400 Bad Request if the CSV format is invalid or contains errors.
+    /// HTTP 401 Unauthorized if the management token is invalid or missing.
+    /// HTTP 500 Internal Server Error if an unexpected error occurs during import.
+    /// </returns>
+    /// <remarks>
+    /// This operation completely replaces all existing schools in the system.
+    /// The CSV should contain school data with columns for Name, SchoolURL (for logos), and other school information.
+    /// Logo download is enabled by default and will attempt to download images from provided SchoolURL values.
+    /// Failed logo downloads are reported but do not prevent the import from succeeding.
+    /// School IDs are reassigned starting from 1 after import.
+    /// Uses the ICsvImportService to handle CSV parsing and logo downloads.
+    /// </remarks>
     [Function("ImportSchoolsCsvSimple")]
     public async Task<HttpResponseData> ImportSchoolsCsv(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "management/schools/import")] HttpRequestData req)
@@ -254,6 +315,25 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
         }
     }
 
+    /// <summary>
+    /// Updates an existing school's information.
+    /// </summary>
+    /// <param name="req">The HTTP request containing the updated school data in JSON format and management authentication headers.</param>
+    /// <param name="schoolId">The unique integer ID of the school to update.</param>
+    /// <returns>
+    /// HTTP 200 OK with the updated school object on success.
+    /// HTTP 400 Bad Request if the request body is invalid, empty, or contains invalid JSON.
+    /// HTTP 401 Unauthorized if the management token is invalid or missing.
+    /// HTTP 404 Not Found if the specified school ID does not exist.
+    /// HTTP 500 Internal Server Error if an unexpected error occurs during update.
+    /// </returns>
+    /// <remarks>
+    /// Expects a JSON body with Name (required) and LogoURL (optional) properties.
+    /// The ModifiedDate is automatically updated to the current UTC time.
+    /// LogoFileName is preserved from the original school data.
+    /// School name uniqueness is not enforced during updates (this may be a design consideration for future versions).
+    /// The AuctionCount field in the response is hardcoded to 0 as auction functionality is not yet implemented.
+    /// </remarks>
     [Function("UpdateSchoolSimple")]
     public async Task<HttpResponseData> UpdateSchool(
         [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "management/schools/{schoolId:int}")] HttpRequestData req,
@@ -331,6 +411,23 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
         }
     }
 
+    /// <summary>
+    /// Deletes a school from the system.
+    /// </summary>
+    /// <param name="req">The HTTP request containing management authentication headers.</param>
+    /// <param name="schoolId">The unique integer ID of the school to delete.</param>
+    /// <returns>
+    /// HTTP 200 OK with a success message and deleted school information on success.
+    /// HTTP 401 Unauthorized if the management token is invalid or missing.
+    /// HTTP 404 Not Found if the specified school ID does not exist.
+    /// HTTP 500 Internal Server Error if an unexpected error occurs during deletion.
+    /// </returns>
+    /// <remarks>
+    /// This operation permanently removes the school from the system.
+    /// In production, this should check for references in auction systems before allowing deletion.
+    /// Currently, no referential integrity checks are performed (marked as TODO).
+    /// The response includes the deleted school's ID and name for confirmation.
+    /// </remarks>
     [Function("DeleteSchoolSimple")]
     public async Task<HttpResponseData> DeleteSchool(
         [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "management/schools/{schoolId:int}")] HttpRequestData req,
@@ -384,6 +481,16 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
         }
     }
 
+    /// <summary>
+    /// Validates that the HTTP request contains a valid management authentication token.
+    /// </summary>
+    /// <param name="req">The HTTP request to validate.</param>
+    /// <returns>True if the request contains a valid management token; otherwise, false.</returns>
+    /// <remarks>
+    /// Uses the ManagementAuthFunction.ValidateManagementToken method to perform token validation.
+    /// Logs a warning message if the token validation fails, including the specific error message.
+    /// Expects a Bearer token in the Authorization header.
+    /// </remarks>
     private bool IsValidAdminRequest(HttpRequestData req)
     {
         var validation = ManagementAuthFunction.ValidateManagementToken(req);
@@ -394,6 +501,15 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
         return validation.IsValid;
     }
 
+    /// <summary>
+    /// Generates the next available unique integer ID for a new school.
+    /// </summary>
+    /// <returns>A unique integer ID that can be used for a new school.</returns>
+    /// <remarks>
+    /// This method is thread-safe and uses locking to ensure unique IDs even under concurrent access.
+    /// IDs are assigned sequentially starting from 1.
+    /// In production, this should be replaced with database-generated IDs.
+    /// </remarks>
     private static int GetNextId()
     {
         lock (_idLock)
@@ -404,25 +520,100 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
 
 }
 
+/// <summary>
+/// Represents a school entity in the Leagify Fantasy Auction system.
+/// </summary>
+/// <remarks>
+/// This class serves as the primary data model for schools stored in the system.
+/// In production, this should be replaced with a proper Entity Framework model.
+/// School names are expected to be unique across the system (case-insensitive).
+/// </remarks>
 public class SchoolData
 {
+    /// <summary>
+    /// Gets or sets the unique identifier for the school.
+    /// </summary>
+    /// <value>A unique integer ID assigned when the school is created.</value>
     public int SchoolId { get; set; }
+    
+    /// <summary>
+    /// Gets or sets the name of the school.
+    /// </summary>
+    /// <value>The full name of the school. Must be unique across the system (case-insensitive).</value>
     public string Name { get; set; } = "";
+    
+    /// <summary>
+    /// Gets or sets the URL to the school's logo image.
+    /// </summary>
+    /// <value>A valid URL pointing to the school's logo image, or null if no logo is available.</value>
     public string? LogoURL { get; set; }
+    
+    /// <summary>
+    /// Gets or sets the filename of the downloaded logo image.
+    /// </summary>
+    /// <value>The local filename of the logo image after download, or null if no logo was downloaded.</value>
     public string? LogoFileName { get; set; }
+    
+    /// <summary>
+    /// Gets or sets the date and time when the school was created.
+    /// </summary>
+    /// <value>The UTC timestamp when the school was first added to the system.</value>
     public DateTime CreatedDate { get; set; }
+    
+    /// <summary>
+    /// Gets or sets the date and time when the school was last modified.
+    /// </summary>
+    /// <value>The UTC timestamp when the school was last updated.</value>
     public DateTime ModifiedDate { get; set; }
 }
 
+/// <summary>
+/// Data transfer object for creating a new school.
+/// </summary>
+/// <remarks>
+/// This class is used to deserialize JSON data from HTTP requests when creating new schools.
+/// All validation should be performed on the server side after deserialization.
+/// </remarks>
 public class CreateSchoolDto
 {
+    /// <summary>
+    /// Gets or sets the name of the school to be created.
+    /// </summary>
+    /// <value>The full name of the school. This field is required and cannot be empty.</value>
     public string Name { get; set; } = "";
+    
+    /// <summary>
+    /// Gets or sets the URL to the school's logo image.
+    /// </summary>
+    /// <value>A valid URL pointing to the school's logo image, or null if no logo is provided.</value>
     public string? LogoURL { get; set; }
+    
+    /// <summary>
+    /// Gets or sets the filename for the logo image.
+    /// </summary>
+    /// <value>The desired filename for the logo image, or null to use a generated filename.</value>
     public string? LogoFileName { get; set; }
 }
 
+/// <summary>
+/// Data transfer object for updating an existing school.
+/// </summary>
+/// <remarks>
+/// This class is used to deserialize JSON data from HTTP requests when updating schools.
+/// Only the fields that need to be updated should be included in the request.
+/// The LogoFileName field is not included as it's preserved from the original school data.
+/// </remarks>
 public class UpdateSchoolDto
 {
+    /// <summary>
+    /// Gets or sets the updated name of the school.
+    /// </summary>
+    /// <value>The new name for the school. This field is required and cannot be empty.</value>
     public string Name { get; set; } = "";
+    
+    /// <summary>
+    /// Gets or sets the updated URL to the school's logo image.
+    /// </summary>
+    /// <value>The new URL pointing to the school's logo image, or null to clear the logo URL.</value>
     public string? LogoURL { get; set; }
 }
