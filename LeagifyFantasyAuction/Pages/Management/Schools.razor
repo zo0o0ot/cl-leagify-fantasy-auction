@@ -325,7 +325,8 @@ else
             var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
             if (!string.IsNullOrEmpty(token))
             {
-                Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
             }
 
             schools = await Http.GetFromJsonAsync<List<SchoolDto>>("/api/management/schools") ?? new List<SchoolDto>();
@@ -372,7 +373,8 @@ else
             var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
             if (!string.IsNullOrEmpty(token))
             {
-                Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
             }
 
             if (editingSchool == null)
@@ -445,7 +447,8 @@ else
             var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
             if (!string.IsNullOrEmpty(token))
             {
-                Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
             }
 
             var response = await Http.DeleteAsync($"/api/management/schools/{school.SchoolId}");
@@ -524,7 +527,8 @@ else
                 return;
             }
 
-            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
 
             // Use the pre-read file content
             using var content = new ByteArrayContent(csvFileContent);
@@ -580,7 +584,8 @@ else
                 return;
             }
             
-            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
             seedingMessage = "Starting to seed schools...";
 
             // All schools from current SampleDraftTemplate.csv
@@ -860,8 +865,9 @@ else
             }
 
             // Set the authorization header
-            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-            Console.WriteLine("Authorization header set");
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+            Console.WriteLine("X-Management-Token header set");
             
             // Validate the token
             Console.WriteLine("Calling /api/management/auth/validate");
@@ -881,7 +887,7 @@ else
                 Console.WriteLine($"401 response content: {responseContent}");
                 
                 await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "managementToken");
-                Http.DefaultRequestHeaders.Authorization = null;
+                Http.DefaultRequestHeaders.Remove("X-Management-Token");
                 Navigation.NavigateTo("/management/login");
                 return;
             }
@@ -893,7 +899,7 @@ else
                 Console.WriteLine($"Error response content: {responseContent}");
                 
                 await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "managementToken");
-                Http.DefaultRequestHeaders.Authorization = null;
+                Http.DefaultRequestHeaders.Remove("X-Management-Token");
                 Navigation.NavigateTo("/management/login");
                 return;
             }
@@ -926,7 +932,7 @@ else
         {
             // Clear local storage and redirect regardless of API call success
             await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "managementToken");
-            Http.DefaultRequestHeaders.Authorization = null;
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
             Navigation.NavigateTo("/management/login");
         }
     }

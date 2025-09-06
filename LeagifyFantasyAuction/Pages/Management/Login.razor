@@ -93,7 +93,9 @@
             // Validate existing token
             try
             {
-                Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                // Use custom header instead of Authorization (Azure Static Web Apps overrides Authorization)
+                Http.DefaultRequestHeaders.Remove("X-Management-Token");
+                Http.DefaultRequestHeaders.Add("X-Management-Token", token);
                 var response = await Http.GetAsync("/api/management/auth/validate");
                 
                 if (response.IsSuccessStatusCode)
@@ -106,14 +108,14 @@
                 {
                     // Expected response for invalid/expired token - just clear it
                     await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "managementToken");
-                    Http.DefaultRequestHeaders.Authorization = null;
+                    Http.DefaultRequestHeaders.Remove("X-Management-Token");
                 }
             }
             catch (Exception)
             {
                 // Network error or other issue - clear token and continue to login form
                 await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "managementToken");
-                Http.DefaultRequestHeaders.Authorization = null;
+                Http.DefaultRequestHeaders.Remove("X-Management-Token");
             }
         }
     }
@@ -145,8 +147,9 @@
                     // Store token in localStorage
                     await JSRuntime.InvokeVoidAsync("localStorage.setItem", "managementToken", result.Token);
                     
-                    // Set authorization header for future requests
-                    Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", result.Token);
+                    // Set custom header for future requests (Azure Static Web Apps overrides Authorization)
+                    Http.DefaultRequestHeaders.Remove("X-Management-Token");
+                    Http.DefaultRequestHeaders.Add("X-Management-Token", result.Token);
                     
                     // Navigate to management dashboard
                     Navigation.NavigateTo("/management/schools");

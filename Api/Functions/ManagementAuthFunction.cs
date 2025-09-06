@@ -175,19 +175,17 @@ public class ManagementAuthFunction(ILogger<ManagementAuthFunction> logger)
     {
         try
         {
-            // Check for Authorization header
-            if (!req.Headers.TryGetValues("Authorization", out var authHeaderValues))
+            // Use custom header instead of Authorization (Azure Static Web Apps overrides Authorization header)
+            if (!req.Headers.TryGetValues("X-Management-Token", out var tokenHeaderValues))
             {
-                return new TokenValidationResult { IsValid = false, ErrorMessage = "Missing Authorization header" };
+                return new TokenValidationResult { IsValid = false, ErrorMessage = "Missing X-Management-Token header" };
             }
 
-            var authHeader = authHeaderValues.FirstOrDefault();
-            if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
+            var token = tokenHeaderValues.FirstOrDefault()?.Trim();
+            if (string.IsNullOrEmpty(token))
             {
-                return new TokenValidationResult { IsValid = false, ErrorMessage = "Invalid Authorization header format" };
+                return new TokenValidationResult { IsValid = false, ErrorMessage = "Empty X-Management-Token header" };
             }
-
-            var token = authHeader.Substring("Bearer ".Length).Trim();
             Console.WriteLine($"[DEBUG] Token received: '{token}' (length: {token.Length})");
 
             // Decode and validate token
