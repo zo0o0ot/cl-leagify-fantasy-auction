@@ -16,7 +16,9 @@
       "Bash(dotnet add reference:*)",
       "Bash(dotnet add:*)",
       "Bash(dotnet test:*)",
-      "Bash(timeout 30 dotnet test LeagifyFantasyAuction.Tests --filter \"CsvImportServiceIntegrationTests\" --logger \"console;verbosity=minimal\")"
+      "Bash(timeout 30 dotnet test LeagifyFantasyAuction.Tests --filter \"CsvImportServiceIntegrationTests\" --logger \"console;verbosity=minimal\")",
+      "Bash(dotnet run:*)",
+      "Bash(git restore:*)"
     ],
     "deny": [],
     "ask": []
