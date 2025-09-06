@@ -4,13 +4,13 @@
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Navigation
 
-<FluentStack Style="min-height: 100vh; align-items: center; justify-content: center; background: var(--neutral-layer-1);">
-    <FluentCard Style="width: 400px; padding: 32px;">
+<FluentStack Style="min-height: 100vh; align-items: center; justify-content: center; background: var(--neutral-layer-1); padding: 16px;">
+    <FluentCard Style="width: 100%; max-width: 400px; padding: 32px; box-sizing: border-box;">
         <FluentStack Style="gap: 24px; text-align: center;">
             <FluentStack Style="gap: 8px;">
                 <FluentIcon Value="@(new Icons.Regular.Size32.Shield())" Color="Color.Accent" />
-                <FluentLabel Typo="Typography.PageTitle">Management Access</FluentLabel>
-                <FluentLabel Typo="Typography.Body">
+                <FluentLabel Typo="Typography.PageTitle" Style="word-break: break-word;">Management Access</FluentLabel>
+                <FluentLabel Typo="Typography.Body" Style="word-wrap: break-word;">
                     Enter the master password to access the management interface.
                 </FluentLabel>
             </FluentStack>
@@ -31,13 +31,13 @@
             }
             else
             {
-                <EditForm Model="@loginModel" OnValidSubmit="@LoginAsync">
-                    <FluentStack Style="gap: 16px;">
+                <EditForm Model="@loginModel" OnValidSubmit="@LoginAsync" style="width: 100%;">
+                    <FluentStack Style="gap: 16px; width: 100%;">
                         <FluentTextField @bind-Value="loginModel.Password" 
                                        Label="Master Password" 
                                        Type="TextFieldType.Password"
                                        Required="true"
-                                       Style="width: 100%;"
+                                       Style="width: 100%; min-width: 0; box-sizing: border-box;"
                                        @onkeypress="@OnKeyPress" />
                         
                         <FluentButton Type="ButtonType.Submit" 
@@ -49,12 +49,34 @@
                 </EditForm>
             }
 
-            <FluentLabel Typo="Typography.Body" Style="color: var(--neutral-foreground-hint); font-size: 12px;">
+            <FluentLabel Typo="Typography.Body" Style="color: var(--neutral-foreground-hint); font-size: 12px; word-wrap: break-word;">
                 This is a secure management area. Only authorized personnel should access this interface.
             </FluentLabel>
         </FluentStack>
     </FluentCard>
 </FluentStack>
+
+<style>
+    /* Ensure responsive layout */
+    .fluent-text-field {
+        width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+    }
+    
+    .fluent-text-field input {
+        width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    @@media (max-width: 480px) {
+        .fluent-card {
+            margin: 0 8px;
+            padding: 24px !important;
+        }
+    }
+</style>
 
 
 @code {
