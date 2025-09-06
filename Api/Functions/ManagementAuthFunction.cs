@@ -70,6 +70,10 @@ public class ManagementAuthFunction(ILogger<ManagementAuthFunction> logger)
             var expiryTime = DateTime.UtcNow.AddHours(TOKEN_EXPIRY_HOURS);
             var tokenData = $"admin:{expiryTime:yyyy-MM-ddTHH:mm:ssZ}";
             var token = Convert.ToBase64String(Encoding.UTF8.GetBytes(tokenData));
+            
+            Console.WriteLine($"[DEBUG] Login - Generated token data: {tokenData}");
+            Console.WriteLine($"[DEBUG] Login - Generated token: {token}");
+            Console.WriteLine($"[DEBUG] Login - Token length: {token.Length}");
 
             _logger.LogInformation("Successful management authentication. Token expires at {ExpiryTime}", expiryTime);
 
