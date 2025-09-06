@@ -234,9 +234,12 @@ public class ManagementAuthFunction(ILogger<ManagementAuthFunction> logger)
             }
             
             // Split only on the first colon to separate "admin" from the datetime
+            Console.WriteLine($"[DEBUG] Looking for colon in decoded string: '{decodedString}'");
             var colonIndex = decodedString.IndexOf(':');
+            Console.WriteLine($"[DEBUG] Colon index: {colonIndex}");
             if (colonIndex == -1)
             {
+                Console.WriteLine($"[DEBUG] No colon found in token - invalid format");
                 return new TokenValidationResult { IsValid = false, ErrorMessage = "Invalid token format" };
             }
             
@@ -247,8 +250,11 @@ public class ManagementAuthFunction(ILogger<ManagementAuthFunction> logger)
             };
 
             Console.WriteLine($"[DEBUG] Token parts: '{parts[0]}', '{parts[1]}'");
+            Console.WriteLine($"[DEBUG] Parts length: {parts.Length}, First part: '{parts[0]}', Expected: 'admin'");
+            Console.WriteLine($"[DEBUG] First part equals 'admin': {parts[0] == "admin"}");
             if (parts.Length != 2 || parts[0] != "admin")
             {
+                Console.WriteLine($"[DEBUG] Token format validation failed - parts length: {parts.Length}, first part: '{parts[0]}'");
                 return new TokenValidationResult { IsValid = false, ErrorMessage = "Invalid token format" };
             }
             
