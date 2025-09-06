@@ -101,4 +101,100 @@ public class TokenDebugFunction(ILogger<TokenDebugFunction> logger)
             return errorResponse;
         }
     }
+
+    [Function("TestValidation")]
+    public async Task<HttpResponseData> TestValidation(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "debug/test-validation")] HttpRequestData req)
+    {
+        try
+        {
+            var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+            var token = requestBody?.Trim() ?? "";
+            
+            var debugSteps = new List<string>();
+            
+            debugSteps.Add($"Step 1: Token received: '{token}' (length: {token.Length})");
+            
+            if (string.IsNullOrEmpty(token))
+            {
+                debugSteps.Add("Step 2: FAIL - Token is null or empty");
+                var response = req.CreateResponse(HttpStatusCode.OK);
+                await response.WriteAsJsonAsync(new { success = false, error = "Missing token", steps = debugSteps });
+                return response;
+            }
+            
+            // Base64 decode
+            try
+            {
+                var decodedBytes = Convert.FromBase64String(token);
+                var decodedString = Encoding.UTF8.GetString(decodedBytes);
+                debugSteps.Add($"Step 2: Base64 decode SUCCESS: '{decodedString}'");
+                
+                // Check for colon
+                var colonIndex = decodedString.IndexOf(':');
+                debugSteps.Add($"Step 3: Colon index: {colonIndex}");
+                
+                if (colonIndex == -1)
+                {
+                    debugSteps.Add("Step 4: FAIL - No colon found");
+                    var response = req.CreateResponse(HttpStatusCode.OK);
+                    await response.WriteAsJsonAsync(new { success = false, error = "No colon found", steps = debugSteps });
+                    return response;
+                }
+                
+                // Split parts
+                var parts = new string[]
+                {
+                    decodedString.Substring(0, colonIndex),
+                    decodedString.Substring(colonIndex + 1)
+                };
+                
+                debugSteps.Add($"Step 4: Parts: ['{parts[0]}', '{parts[1]}']");
+                debugSteps.Add($"Step 5: Parts.Length == 2: {parts.Length == 2}");
+                debugSteps.Add($"Step 6: parts[0] == 'admin': {parts[0] == "admin"}");
+                
+                if (parts.Length != 2)
+                {
+                    debugSteps.Add($"Step 7: FAIL - Parts length is {parts.Length}, expected 2");
+                    var response = req.CreateResponse(HttpStatusCode.OK);
+                    await response.WriteAsJsonAsync(new { success = false, error = "Wrong parts length", steps = debugSteps });
+                    return response;
+                }
+                
+                if (parts[0] != "admin")
+                {
+                    debugSteps.Add($"Step 7: FAIL - First part is '{parts[0]}', expected 'admin'");
+                    var response = req.CreateResponse(HttpStatusCode.OK);
+                    await response.WriteAsJsonAsync(new { success = false, error = "Wrong admin part", steps = debugSteps });
+                    return response;
+                }
+                
+                debugSteps.Add("Step 7: SUCCESS - Format validation passed");
+                
+                var successResponse = req.CreateResponse(HttpStatusCode.OK);
+                await successResponse.WriteAsJsonAsync(new { 
+                    success = true, 
+                    message = "Token validation successful",
+                    decodedString = decodedString,
+                    parts = parts,
+                    steps = debugSteps 
+                });
+                return successResponse;
+            }
+            catch (Exception ex)
+            {
+                debugSteps.Add($"Step 2: FAIL - Base64 decode error: {ex.Message}");
+                var response = req.CreateResponse(HttpStatusCode.OK);
+                await response.WriteAsJsonAsync(new { success = false, error = "Base64 decode failed", exception = ex.Message, steps = debugSteps });
+                return response;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in test validation");
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync($"Test validation error: {ex.Message}");
+            return errorResponse;
+        }
+    }
 }
