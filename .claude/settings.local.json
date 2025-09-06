@@ -9,7 +9,8 @@
       "Bash(dotnet add package:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(dotnet build:*)"
+      "Bash(dotnet build:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []

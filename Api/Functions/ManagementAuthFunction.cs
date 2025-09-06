@@ -106,6 +106,7 @@ public class ManagementAuthFunction(ILogger<ManagementAuthFunction> logger)
             
             if (!tokenValidation.IsValid)
             {
+                _logger.LogWarning("Token validation failed: {ErrorMessage}", tokenValidation.ErrorMessage);
                 var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
                 await unauthorizedResponse.WriteStringAsync(tokenValidation.ErrorMessage ?? "Invalid token");
                 return unauthorizedResponse;
@@ -190,8 +191,21 @@ public class ManagementAuthFunction(ILogger<ManagementAuthFunction> logger)
             var decodedString = Encoding.UTF8.GetString(decodedBytes);
             Console.WriteLine($"[DEBUG] Decoded token: {decodedString}");
             
-            var parts = decodedString.Split(':');
+            // Split only on the first colon to separate "admin" from the datetime
+            var colonIndex = decodedString.IndexOf(':');
+            if (colonIndex == -1)
+            {
+                Console.WriteLine($"[DEBUG] No colon found in token");
+                return new TokenValidationResult { IsValid = false, ErrorMessage = "Invalid token format" };
+            }
+            
+            var parts = new string[]
+            {
+                decodedString.Substring(0, colonIndex),
+                decodedString.Substring(colonIndex + 1)
+            };
             Console.WriteLine($"[DEBUG] Token parts count: {parts.Length}");
+            Console.WriteLine($"[DEBUG] Admin part: '{parts[0]}', DateTime part: '{parts[1]}'");
 
             if (parts.Length != 2 || parts[0] != "admin")
             {
@@ -200,6 +214,7 @@ public class ManagementAuthFunction(ILogger<ManagementAuthFunction> logger)
             }
 
             Console.WriteLine($"[DEBUG] Expiry string: '{parts[1]}'");
+            
             // Use explicit format parsing for ISO 8601 dates
             if (!DateTime.TryParseExact(parts[1], "yyyy-MM-ddTHH:mm:ssZ", 
                 System.Globalization.CultureInfo.InvariantCulture, 
