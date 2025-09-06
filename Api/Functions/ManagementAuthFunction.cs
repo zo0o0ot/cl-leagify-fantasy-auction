@@ -184,10 +184,12 @@ public class ManagementAuthFunction(ILogger<ManagementAuthFunction> logger)
             }
 
             var token = authHeader.Substring("Bearer ".Length);
+            Console.WriteLine($"[DEBUG] Token received: {token}");
 
             // Decode and validate token
             var decodedBytes = Convert.FromBase64String(token);
             var decodedString = Encoding.UTF8.GetString(decodedBytes);
+            Console.WriteLine($"[DEBUG] Decoded token: {decodedString}");
             
             // Split only on the first colon to separate "admin" from the datetime
             var colonIndex = decodedString.IndexOf(':');
@@ -202,6 +204,7 @@ public class ManagementAuthFunction(ILogger<ManagementAuthFunction> logger)
                 decodedString.Substring(colonIndex + 1)
             };
 
+            Console.WriteLine($"[DEBUG] Token parts: '{parts[0]}', '{parts[1]}'");
             if (parts.Length != 2 || parts[0] != "admin")
             {
                 return new TokenValidationResult { IsValid = false, ErrorMessage = "Invalid token format" };
@@ -220,10 +223,14 @@ public class ManagementAuthFunction(ILogger<ManagementAuthFunction> logger)
                 }
             }
 
+            Console.WriteLine($"[DEBUG] Parsed expiry: {expiryTime}, Current UTC: {DateTime.UtcNow}");
             if (DateTime.UtcNow >= expiryTime)
             {
+                Console.WriteLine($"[DEBUG] Token expired");
                 return new TokenValidationResult { IsValid = false, ErrorMessage = "Token has expired" };
             }
+
+            Console.WriteLine($"[DEBUG] Token validation successful");
             return new TokenValidationResult 
             { 
                 IsValid = true, 
@@ -231,8 +238,9 @@ public class ManagementAuthFunction(ILogger<ManagementAuthFunction> logger)
                 Role = "admin"
             };
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Console.WriteLine($"[DEBUG] Token validation exception: {ex.Message}");
             return new TokenValidationResult { IsValid = false, ErrorMessage = "Token validation failed" };
         }
     }
