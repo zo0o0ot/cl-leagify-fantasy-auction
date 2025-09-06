@@ -11,7 +11,12 @@
       "Bash(git commit:*)",
       "Bash(dotnet build:*)",
       "Bash(git push:*)",
-      "WebFetch(domain:jolly-meadow-0b4450210.2.azurestaticapps.net)"
+      "WebFetch(domain:jolly-meadow-0b4450210.2.azurestaticapps.net)",
+      "Bash(dotnet sln add:*)",
+      "Bash(dotnet add reference:*)",
+      "Bash(dotnet add:*)",
+      "Bash(dotnet test:*)",
+      "Bash(timeout 30 dotnet test LeagifyFantasyAuction.Tests --filter \"CsvImportServiceIntegrationTests\" --logger \"console;verbosity=minimal\")"
     ],
     "deny": [],
     "ask": []

@@ -1,4 +1,4 @@
-Microsoft Visual Studio Solution File, Format Version 12.00
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
@@ -15,6 +15,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "net8.0", "net8.0", "{BBDA566F-7F0C-C21A-ADCC-BDDBE38052DB}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WorkerExtensions", "Api\obj\Debug\net8.0\WorkerExtensions\WorkerExtensions.csproj", "{17C9519B-5F46-B7A0-B921-0F99AE6838CA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LeagifyFantasyAuction.Tests", "LeagifyFantasyAuction.Tests\LeagifyFantasyAuction.Tests.csproj", "{2BD8278C-FCBF-4C69-AFBB-AD6080C78AFE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -34,6 +36,10 @@ Global
 		{17C9519B-5F46-B7A0-B921-0F99AE6838CA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{17C9519B-5F46-B7A0-B921-0F99AE6838CA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{17C9519B-5F46-B7A0-B921-0F99AE6838CA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2BD8278C-FCBF-4C69-AFBB-AD6080C78AFE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2BD8278C-FCBF-4C69-AFBB-AD6080C78AFE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2BD8278C-FCBF-4C69-AFBB-AD6080C78AFE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2BD8278C-FCBF-4C69-AFBB-AD6080C78AFE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
