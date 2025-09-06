@@ -191,9 +191,19 @@ public class ManagementAuthFunction(ILogger<ManagementAuthFunction> logger)
             Console.WriteLine($"[DEBUG] Token received: {token}");
 
             // Decode and validate token
-            var decodedBytes = Convert.FromBase64String(token);
-            var decodedString = Encoding.UTF8.GetString(decodedBytes);
-            Console.WriteLine($"[DEBUG] Decoded token: {decodedString}");
+            byte[] decodedBytes;
+            string decodedString;
+            try
+            {
+                decodedBytes = Convert.FromBase64String(token);
+                decodedString = Encoding.UTF8.GetString(decodedBytes);
+                Console.WriteLine($"[DEBUG] Decoded token: {decodedString}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DEBUG] Base64 decode failed: {ex.Message}");
+                return new TokenValidationResult { IsValid = false, ErrorMessage = "Invalid token encoding" };
+            }
             
             // Split only on the first colon to separate "admin" from the datetime
             var colonIndex = decodedString.IndexOf(':');
@@ -215,16 +225,24 @@ public class ManagementAuthFunction(ILogger<ManagementAuthFunction> logger)
             }
             
             // Use explicit format parsing for ISO 8601 dates
+            Console.WriteLine($"[DEBUG] Attempting to parse datetime: '{parts[1]}'");
             if (!DateTime.TryParseExact(parts[1], "yyyy-MM-ddTHH:mm:ssZ", 
                 System.Globalization.CultureInfo.InvariantCulture, 
                 System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal, 
                 out var expiryTime))
             {
+                Console.WriteLine($"[DEBUG] Exact parse failed, trying fallback parse");
                 // Fallback to general parsing
                 if (!DateTime.TryParse(parts[1], null, System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal, out expiryTime))
                 {
+                    Console.WriteLine($"[DEBUG] Fallback parse also failed");
                     return new TokenValidationResult { IsValid = false, ErrorMessage = "Invalid token expiry format" };
                 }
+                Console.WriteLine($"[DEBUG] Fallback parse succeeded: {expiryTime}");
+            }
+            else
+            {
+                Console.WriteLine($"[DEBUG] Exact parse succeeded: {expiryTime}");
             }
 
             Console.WriteLine($"[DEBUG] Parsed expiry: {expiryTime}, Current UTC: {DateTime.UtcNow}");
