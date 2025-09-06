@@ -197,4 +197,62 @@ public class TokenDebugFunction(ILogger<TokenDebugFunction> logger)
             return errorResponse;
         }
     }
+
+    [Function("DebugHeaders")]
+    public async Task<HttpResponseData> DebugHeaders(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "debug/headers")] HttpRequestData req)
+    {
+        try
+        {
+            var headerInfo = new
+            {
+                allHeaders = req.Headers.ToDictionary(h => h.Key, h => string.Join(", ", h.Value)),
+                authHeaderExists = req.Headers.TryGetValues("Authorization", out var authValues),
+                authHeaderValue = authValues?.FirstOrDefault(),
+                authHeaderCount = authValues?.Count() ?? 0,
+                message = "Header debug information"
+            };
+
+            // Try to extract token like the real validation does
+            string? extractedToken = null;
+            string? extractionError = null;
+            
+            if (req.Headers.TryGetValues("Authorization", out var authHeaderValues))
+            {
+                var authHeader = authHeaderValues.FirstOrDefault();
+                if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer "))
+                {
+                    extractedToken = authHeader.Substring("Bearer ".Length).Trim();
+                }
+                else
+                {
+                    extractionError = authHeader == null ? "Auth header is null" : 
+                                    string.IsNullOrEmpty(authHeader) ? "Auth header is empty" :
+                                    "Auth header doesn't start with 'Bearer '";
+                }
+            }
+            else
+            {
+                extractionError = "No Authorization header found";
+            }
+            
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(new
+            {
+                headerInfo,
+                extractedToken,
+                extractionError,
+                extractedTokenLength = extractedToken?.Length
+            });
+
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in header debug");
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync($"Header debug error: {ex.Message}");
+            return errorResponse;
+        }
+    }
 }
