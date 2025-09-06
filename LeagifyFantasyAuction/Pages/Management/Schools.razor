@@ -846,27 +846,40 @@ else
 
     private async Task CheckAuthenticationAsync()
     {
+        Console.WriteLine("=== CheckAuthenticationAsync started ===");
         try
         {
             var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            Console.WriteLine($"Retrieved token from localStorage: {(string.IsNullOrEmpty(token) ? "null/empty" : $"length {token.Length}")}");
+            
             if (string.IsNullOrEmpty(token))
             {
+                Console.WriteLine("No token found, redirecting to login");
                 Navigation.NavigateTo("/management/login");
                 return;
             }
 
             // Set the authorization header
             Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            Console.WriteLine("Authorization header set");
             
             // Validate the token
+            Console.WriteLine("Calling /api/management/auth/validate");
             var response = await Http.GetAsync("/api/management/auth/validate");
+            Console.WriteLine($"Validation response status: {response.StatusCode}");
+            
             if (response.IsSuccessStatusCode)
             {
+                Console.WriteLine("Token validation successful");
                 isAuthenticated = true;
             }
             else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             {
                 // Token is invalid/expired, clear it and redirect
+                Console.WriteLine("Token validation returned 401 - token invalid/expired");
+                var responseContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"401 response content: {responseContent}");
+                
                 await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "managementToken");
                 Http.DefaultRequestHeaders.Authorization = null;
                 Navigation.NavigateTo("/management/login");
@@ -876,6 +889,9 @@ else
             {
                 // Other error, log and redirect
                 Console.WriteLine($"Token validation failed with status: {response.StatusCode}");
+                var responseContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Error response content: {responseContent}");
+                
                 await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "managementToken");
                 Http.DefaultRequestHeaders.Authorization = null;
                 Navigation.NavigateTo("/management/login");
@@ -890,6 +906,7 @@ else
         finally
         {
             authenticating = false;
+            Console.WriteLine("=== CheckAuthenticationAsync completed ===");
             StateHasChanged();
         }
     }
