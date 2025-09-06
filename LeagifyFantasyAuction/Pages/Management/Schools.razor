@@ -90,7 +90,7 @@ else
     }
     else
     {
-        <FluentStack Style="gap: 16px;">
+        <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px;">
             <FluentDataGrid Items="@schoolsQueryable" Pagination="@pagination">
                 <PropertyColumn Property="@(s => s.SchoolId)" Title="ID" Sortable="true" />
                 <PropertyColumn Property="@(s => s.Name)" Title="School Name" Sortable="true" />
