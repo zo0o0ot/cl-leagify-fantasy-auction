@@ -1,0 +1,238 @@
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Extensions.Logging;
+using System.Net;
+using System.Text.Json;
+using System.Security.Cryptography;
+using System.Text;
+
+namespace LeagifyFantasyAuction.Api.Functions;
+
+/// <summary>
+/// Handles authentication for management operations.
+/// Provides token-based authentication with master password validation.
+/// </summary>
+public class ManagementAuthFunction(ILogger<ManagementAuthFunction> logger)
+{
+    private readonly ILogger<ManagementAuthFunction> _logger = logger;
+    
+    // TODO: Move to Azure Key Vault in production
+    private const string MASTER_PASSWORD = "LeagifyAdmin2024!";
+    private const int TOKEN_EXPIRY_HOURS = 8;
+
+    /// <summary>
+    /// Authenticates management user with master password and returns JWT-like token.
+    /// </summary>
+    [Function("AuthenticateManagement")]
+    public async Task<HttpResponseData> AuthenticateManagement(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "management/auth/login")] HttpRequestData req)
+    {
+        try
+        {
+            _logger.LogInformation("Management authentication request received");
+
+            var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+            
+            if (string.IsNullOrWhiteSpace(requestBody))
+            {
+                var badRequestResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await badRequestResponse.WriteStringAsync("Empty request body");
+                return badRequestResponse;
+            }
+
+            var loginRequest = JsonSerializer.Deserialize<LoginRequest>(requestBody, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            if (loginRequest == null || string.IsNullOrEmpty(loginRequest.Password))
+            {
+                var badDataResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await badDataResponse.WriteStringAsync("Invalid request format or missing password");
+                return badDataResponse;
+            }
+
+            // Validate master password
+            if (loginRequest.Password != MASTER_PASSWORD)
+            {
+                _logger.LogWarning("Invalid management password attempt from {UserAgent}", 
+                    req.Headers.FirstOrDefault(h => h.Key == "User-Agent").Value?.FirstOrDefault());
+                
+                // Add small delay to prevent brute force attacks
+                await Task.Delay(1000);
+                
+                var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
+                await unauthorizedResponse.WriteStringAsync("Invalid credentials");
+                return unauthorizedResponse;
+            }
+
+            // Generate authentication token
+            var expiryTime = DateTime.UtcNow.AddHours(TOKEN_EXPIRY_HOURS);
+            var tokenData = $"admin:{expiryTime:yyyy-MM-ddTHH:mm:ssZ}";
+            var token = Convert.ToBase64String(Encoding.UTF8.GetBytes(tokenData));
+
+            _logger.LogInformation("Successful management authentication. Token expires at {ExpiryTime}", expiryTime);
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(new
+            {
+                success = true,
+                token = token,
+                expiresAt = expiryTime,
+                message = "Authentication successful"
+            });
+
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during management authentication");
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync("Authentication service error");
+            return errorResponse;
+        }
+    }
+
+    /// <summary>
+    /// Validates an existing management token and returns user info.
+    /// </summary>
+    [Function("ValidateManagementToken")]
+    public async Task<HttpResponseData> ValidateToken(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "management/auth/validate")] HttpRequestData req)
+    {
+        try
+        {
+            var tokenValidation = ValidateManagementToken(req);
+            
+            if (!tokenValidation.IsValid)
+            {
+                var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
+                await unauthorizedResponse.WriteStringAsync(tokenValidation.ErrorMessage ?? "Invalid token");
+                return unauthorizedResponse;
+            }
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(new
+            {
+                valid = true,
+                expiresAt = tokenValidation.ExpiryTime,
+                role = "admin"
+            });
+
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error validating management token");
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync("Token validation error");
+            return errorResponse;
+        }
+    }
+
+    /// <summary>
+    /// Logs out management user by invalidating token (client-side cleanup).
+    /// </summary>
+    [Function("LogoutManagement")]
+    public async Task<HttpResponseData> LogoutManagement(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "management/auth/logout")] HttpRequestData req)
+    {
+        try
+        {
+            // For stateless tokens, logout is primarily client-side
+            // In production, consider maintaining a token blacklist in Redis/Database
+            
+            _logger.LogInformation("Management logout request received");
+            
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(new
+            {
+                success = true,
+                message = "Logged out successfully"
+            });
+
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during management logout");
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync("Logout service error");
+            return errorResponse;
+        }
+    }
+
+    /// <summary>
+    /// Validates a management token from the Authorization header.
+    /// Used internally by other management functions.
+    /// </summary>
+    public static TokenValidationResult ValidateManagementToken(HttpRequestData req)
+    {
+        try
+        {
+            // Check for Authorization header
+            if (!req.Headers.TryGetValues("Authorization", out var authHeaderValues))
+            {
+                return new TokenValidationResult { IsValid = false, ErrorMessage = "Missing Authorization header" };
+            }
+
+            var authHeader = authHeaderValues.FirstOrDefault();
+            if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
+            {
+                return new TokenValidationResult { IsValid = false, ErrorMessage = "Invalid Authorization header format" };
+            }
+
+            var token = authHeader.Substring("Bearer ".Length);
+
+            // Decode and validate token
+            var decodedBytes = Convert.FromBase64String(token);
+            var decodedString = Encoding.UTF8.GetString(decodedBytes);
+            var parts = decodedString.Split(':');
+
+            if (parts.Length != 2 || parts[0] != "admin")
+            {
+                return new TokenValidationResult { IsValid = false, ErrorMessage = "Invalid token format" };
+            }
+
+            if (!DateTime.TryParse(parts[1], out var expiryTime))
+            {
+                return new TokenValidationResult { IsValid = false, ErrorMessage = "Invalid token expiry format" };
+            }
+
+            if (DateTime.UtcNow >= expiryTime)
+            {
+                return new TokenValidationResult { IsValid = false, ErrorMessage = "Token has expired" };
+            }
+
+            return new TokenValidationResult 
+            { 
+                IsValid = true, 
+                ExpiryTime = expiryTime,
+                Role = "admin"
+            };
+        }
+        catch (Exception)
+        {
+            return new TokenValidationResult { IsValid = false, ErrorMessage = "Token validation failed" };
+        }
+    }
+}
+
+/// <summary>
+/// Request model for management login.
+/// </summary>
+public class LoginRequest
+{
+    public string Password { get; set; } = "";
+}
+
+/// <summary>
+/// Result of token validation.
+/// </summary>
+public class TokenValidationResult
+{
+    public bool IsValid { get; set; }
+    public string? ErrorMessage { get; set; }
+    public DateTime? ExpiryTime { get; set; }
+    public string? Role { get; set; }
+}

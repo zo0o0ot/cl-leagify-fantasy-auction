@@ -4,96 +4,142 @@
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Navigation
 
-<div class="login-container">
-    <div class="login-card">
-        <h3>Management Login</h3>
-        
-        <EditForm Model="@loginModel" OnValidSubmit="@LoginAsync">
-            <div class="form-group">
-                <label class="form-label">Master Password</label>
-                <InputText @bind-Value="loginModel.Password" type="password" class="form-control" required />
-            </div>
-            
-            <button type="submit" class="btn btn-primary login-btn" disabled="@isLoading">
-                @if (isLoading)
-                {
-                    <span>🔄 Logging in...</span>
-                }
-                else
-                {
-                    <span>Login</span>
-                }
-            </button>
-        </EditForm>
+<FluentStack Style="min-height: 100vh; align-items: center; justify-content: center; background: var(--neutral-layer-1);">
+    <FluentCard Style="width: 400px; padding: 32px;">
+        <FluentStack Style="gap: 24px; text-align: center;">
+            <FluentStack Style="gap: 8px;">
+                <FluentIcon Value="@(new Icons.Regular.Size32.Shield())" Color="Color.Accent" />
+                <FluentLabel Typo="Typography.PageTitle">Management Access</FluentLabel>
+                <FluentLabel Typo="Typography.Body">
+                    Enter the master password to access the management interface.
+                </FluentLabel>
+            </FluentStack>
 
-        @if (!string.IsNullOrEmpty(errorMessage))
-        {
-            <div class="alert alert-danger">
-                @errorMessage
-            </div>
-        }
-    </div>
-</div>
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <FluentMessageBar Intent="MessageIntent.Error">
+                    @errorMessage
+                </FluentMessageBar>
+            }
 
-<style>
-    .login-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #f5f5f5; }
-    .login-card { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 32px; width: 400px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-    .login-card h3 { text-align: center; margin-bottom: 24px; }
-    .form-group { margin-bottom: 16px; }
-    .form-label { display: block; font-weight: 600; margin-bottom: 4px; }
-    .form-control { width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px; }
-    .login-btn { width: 100%; margin-top: 8px; }
-    .btn { padding: 10px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
-    .btn-primary { background: #0078d4; color: white; }
-    .btn:hover:not(:disabled) { opacity: 0.8; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .alert { padding: 12px; border-radius: 4px; margin-top: 16px; }
-    .alert-danger { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
-</style>
+            @if (isLoading)
+            {
+                <FluentStack Style="gap: 16px; align-items: center;">
+                    <FluentProgressRing />
+                    <FluentLabel>Authenticating...</FluentLabel>
+                </FluentStack>
+            }
+            else
+            {
+                <EditForm Model="@loginModel" OnValidSubmit="@LoginAsync">
+                    <FluentStack Style="gap: 16px;">
+                        <FluentTextField @bind-Value="loginModel.Password" 
+                                       Label="Master Password" 
+                                       Type="TextFieldType.Password"
+                                       Required="true"
+                                       Style="width: 100%;"
+                                       @onkeypress="@OnKeyPress" />
+                        
+                        <FluentButton Type="ButtonType.Submit" 
+                                     Appearance="Appearance.Accent" 
+                                     Style="width: 100%;">
+                            Sign In
+                        </FluentButton>
+                    </FluentStack>
+                </EditForm>
+            }
+
+            <FluentLabel Typo="Typography.Body" Style="color: var(--neutral-foreground-hint); font-size: 12px;">
+                This is a secure management area. Only authorized personnel should access this interface.
+            </FluentLabel>
+        </FluentStack>
+    </FluentCard>
+</FluentStack>
+
 
 @code {
     private LoginModel loginModel = new();
     private bool isLoading;
     private string? errorMessage;
 
+    protected override async Task OnInitializedAsync()
+    {
+        // Check if already logged in
+        var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+        if (!string.IsNullOrEmpty(token))
+        {
+            // Validate existing token
+            try
+            {
+                Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                var response = await Http.GetAsync("/api/management/auth/validate");
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    // Valid token, redirect to dashboard
+                    Navigation.NavigateTo("/management/schools");
+                    return;
+                }
+            }
+            catch
+            {
+                // Invalid token, clear it
+                await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "managementToken");
+            }
+        }
+    }
+
     private async Task LoginAsync()
     {
+        if (isLoading) return;
+        
         isLoading = true;
         errorMessage = null;
         StateHasChanged();
 
         try
         {
-            var response = await Http.PostAsJsonAsync("/api/management/auth", loginModel);
+            var response = await Http.PostAsJsonAsync("/api/management/auth/login", loginModel);
             
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<AuthResponse>();
                 if (result?.Success == true && !string.IsNullOrEmpty(result.Token))
                 {
+                    // Store token in localStorage
                     await JSRuntime.InvokeVoidAsync("localStorage.setItem", "managementToken", result.Token);
-                    await JSRuntime.InvokeVoidAsync("localStorage.setItem", "tokenExpiration", result.ExpiresAt?.ToString("O"));
                     
-                    Navigation.NavigateTo("/management", true);
-                }
-                else
-                {
-                    errorMessage = result?.Message ?? "Login failed";
+                    // Set authorization header for future requests
+                    Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", result.Token);
+                    
+                    // Navigate to management dashboard
+                    Navigation.NavigateTo("/management/schools");
+                    return;
                 }
             }
-            else
-            {
-                errorMessage = "Invalid credentials";
-            }
+            
+            // Login failed
+            var errorContent = await response.Content.ReadAsStringAsync();
+            errorMessage = response.StatusCode == System.Net.HttpStatusCode.Unauthorized ? 
+                "Invalid password. Please try again." : 
+                $"Login failed: {errorContent}";
         }
         catch (Exception ex)
         {
-            errorMessage = $"Login error: {ex.Message}";
+            errorMessage = $"Connection error: {ex.Message}";
         }
         finally
         {
             isLoading = false;
             StateHasChanged();
+        }
+    }
+
+    private async Task OnKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !isLoading)
+        {
+            await LoginAsync();
         }
     }
 

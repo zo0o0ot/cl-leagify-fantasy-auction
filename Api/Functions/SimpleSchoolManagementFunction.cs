@@ -24,8 +24,6 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
     {
         try
         {
-            // TODO: Temporarily disable auth for debugging
-            /*
             // Validate admin token
             if (!IsValidAdminRequest(req))
             {
@@ -34,7 +32,6 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
                 await unauthorizedResponse.WriteStringAsync("Unauthorized");
                 return unauthorizedResponse;
             }
-            */
             
             var schools = _schools.Values
                 .OrderBy(s => s.Name)
@@ -74,8 +71,6 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
             _logger.LogInformation($"Request URL: {req.Url}");
             _logger.LogInformation($"Headers: {string.Join(", ", req.Headers.Select(h => $"{h.Key}={string.Join(",", h.Value)}"))}");
 
-            // TODO: Temporarily disable auth for debugging
-            /*
             // Validate admin token
             if (!IsValidAdminRequest(req))
             {
@@ -84,7 +79,6 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
                 await unauthorizedResponse.WriteStringAsync("Unauthorized");
                 return unauthorizedResponse;
             }
-            */
 
             _logger.LogInformation("STEP 1: Reading request body");
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
@@ -189,8 +183,6 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
     {
         try
         {
-            // TODO: Temporarily disable auth for debugging  
-            /*
             // Validate admin token
             if (!IsValidAdminRequest(req))
             {
@@ -199,7 +191,6 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
                 await unauthorizedResponse.WriteStringAsync("Unauthorized");
                 return unauthorizedResponse;
             }
-            */
 
             _logger.LogInformation("Starting CSV import with logo download");
 
@@ -270,8 +261,6 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
     {
         try
         {
-            // TODO: Temporarily disable auth for debugging
-            /*
             // Validate admin token
             if (!IsValidAdminRequest(req))
             {
@@ -280,7 +269,6 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
                 await unauthorizedResponse.WriteStringAsync("Unauthorized");
                 return unauthorizedResponse;
             }
-            */
 
             _logger.LogInformation($"=== UPDATE SCHOOL REQUEST: ID {schoolId} ===");
 
@@ -350,8 +338,6 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
     {
         try
         {
-            // TODO: Temporarily disable auth for debugging
-            /*
             // Validate admin token
             if (!IsValidAdminRequest(req))
             {
@@ -360,7 +346,6 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
                 await unauthorizedResponse.WriteStringAsync("Unauthorized");
                 return unauthorizedResponse;
             }
-            */
 
             _logger.LogInformation($"=== DELETE SCHOOL REQUEST: ID {schoolId} ===");
 
@@ -401,34 +386,12 @@ public class SimpleSchoolManagementFunction(ILogger<SimpleSchoolManagementFuncti
 
     private bool IsValidAdminRequest(HttpRequestData req)
     {
-        // Check for admin token in Authorization header
-        if (!req.Headers.TryGetValues("Authorization", out var authHeaderValues))
-            return false;
-
-        var authHeader = authHeaderValues.FirstOrDefault();
-        if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
-            return false;
-
-        var token = authHeader.Substring("Bearer ".Length);
-
-        try
+        var validation = ManagementAuthFunction.ValidateManagementToken(req);
+        if (!validation.IsValid)
         {
-            // Decode and validate token (simple implementation)
-            var decodedBytes = Convert.FromBase64String(token);
-            var decodedString = System.Text.Encoding.UTF8.GetString(decodedBytes);
-            var parts = decodedString.Split(':');
-
-            if (parts.Length == 2 && parts[0] == "admin" && DateTime.TryParse(parts[1], out var expiryDate))
-            {
-                return DateTime.UtcNow < expiryDate;
-            }
+            _logger.LogWarning("Invalid management token: {ErrorMessage}", validation.ErrorMessage);
         }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to validate admin token");
-        }
-
-        return false;
+        return validation.IsValid;
     }
 
     private static int GetNextId()

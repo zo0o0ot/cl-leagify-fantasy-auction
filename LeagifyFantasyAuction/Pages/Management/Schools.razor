@@ -2,8 +2,26 @@
 @layout ManagementLayout
 @inject HttpClient Http
 @inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
 
 <PageTitle>School Management</PageTitle>
+
+@if (authenticating)
+{
+    <FluentStack Style="min-height: 50vh; align-items: center; justify-content: center;">
+        <FluentProgressRing>Verifying access...</FluentProgressRing>
+    </FluentStack>
+}
+else if (!isAuthenticated)
+{
+    <FluentStack Style="min-height: 50vh; align-items: center; justify-content: center;">
+        <FluentMessageBar Intent="MessageIntent.Warning">
+            Access denied. Please log in to access this page.
+        </FluentMessageBar>
+    </FluentStack>
+}
+else
+{
 
 <style>
     .basic-container { padding: 20px; }
@@ -47,6 +65,9 @@
             </button>
             <button class="btn btn-secondary" @onclick="@OpenAddSchoolDialog">
                 ➕ Add School
+            </button>
+            <button class="btn btn-light" @onclick="@LogoutAsync" title="Logout">
+                🚪 Logout
             </button>
         </div>
     </div>
@@ -292,8 +313,11 @@
         </div>
     </div>
 }
+} 
 
 @code {
+    private bool authenticating = true;
+    private bool isAuthenticated = false;
     private List<SchoolDto>? schools;
     private IQueryable<SchoolDto>? schoolsQueryable;
     private PaginationState pagination = new() { ItemsPerPage = 20 };
@@ -315,7 +339,11 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadSchoolsAsync();
+        await CheckAuthenticationAsync();
+        if (isAuthenticated)
+        {
+            await LoadSchoolsAsync();
+        }
     }
 
     private async Task LoadSchoolsAsync()
@@ -842,6 +870,66 @@
         csvFileContent = null;
         showCsvImportDialog = false;
         StateHasChanged();
+    }
+
+    private async Task CheckAuthenticationAsync()
+    {
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                Navigation.NavigateTo("/management/login");
+                return;
+            }
+
+            // Set the authorization header
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            
+            // Validate the token
+            var response = await Http.GetAsync("/api/management/auth/validate");
+            if (response.IsSuccessStatusCode)
+            {
+                isAuthenticated = true;
+            }
+            else
+            {
+                // Token is invalid, clear it and redirect
+                await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "managementToken");
+                Navigation.NavigateTo("/management/login");
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Authentication check failed: {ex.Message}");
+            Navigation.NavigateTo("/management/login");
+        }
+        finally
+        {
+            authenticating = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LogoutAsync()
+    {
+        try
+        {
+            // Call logout endpoint
+            await Http.PostAsync("/api/management/auth/logout", null);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Logout API call failed: {ex.Message}");
+        }
+        finally
+        {
+            // Clear local storage and redirect regardless of API call success
+            await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "managementToken");
+            Http.DefaultRequestHeaders.Authorization = null;
+            Navigation.NavigateTo("/management/login");
+        }
     }
 
     public class SchoolDto
