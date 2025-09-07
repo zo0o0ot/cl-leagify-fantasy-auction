@@ -33,7 +33,9 @@
             {
                 <EditForm Model="@loginModel" OnValidSubmit="@LoginAsync" style="width: 100%;">
                     <div style="display: flex; flex-direction: column; gap: 16px; width: 100%; align-items: center;">
-                        <FluentTextField @bind-Value="loginModel.Password" 
+                        <FluentTextField Value="@loginModel.Password" 
+                                       ValueChanged="@(value => loginModel.Password = value)"
+                                       ValueExpression="@(() => loginModel.Password)"
                                        Label="Master Password" 
                                        Type="TextFieldType.Password"
                                        Required="true"
