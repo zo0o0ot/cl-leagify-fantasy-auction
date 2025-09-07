@@ -538,7 +538,7 @@ public class AuctionResponseDto
     /// <summary>
     /// Gets or sets the ID of the user who created the auction.
     /// </summary>
-    public int CreatedByUserId { get; set; }
+    public int? CreatedByUserId { get; set; }
     
     /// <summary>
     /// Gets or sets the date and time when the auction was created.
