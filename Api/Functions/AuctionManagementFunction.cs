@@ -101,7 +101,20 @@ public class AuctionManagementFunction
                 return badResponse;
             }
 
-            var auction = await _auctionService.CreateAuctionAsync(auctionDto.Name, auctionDto.CreatedByUserId);
+            _logger.LogInformation("Creating auction with Name: {Name}, CreatedByUserId: {CreatedByUserId}, Description: {Description}", 
+                auctionDto.Name, auctionDto.CreatedByUserId, auctionDto.Description);
+
+            Auction auction;
+            try
+            {
+                auction = await _auctionService.CreateAuctionAsync(auctionDto.Name, auctionDto.CreatedByUserId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in CreateAuctionAsync - Name: {Name}, CreatedByUserId: {CreatedByUserId}", 
+                    auctionDto.Name, auctionDto.CreatedByUserId);
+                throw; // Re-throw to be caught by outer handler
+            }
 
             _logger.LogInformation("Created auction {AuctionId} with join code {JoinCode}", 
                 auction.AuctionId, auction.JoinCode);
