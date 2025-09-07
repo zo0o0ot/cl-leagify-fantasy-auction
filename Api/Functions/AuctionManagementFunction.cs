@@ -427,6 +427,42 @@ public class AuctionManagementFunction
     }
 
     /// <summary>
+    /// Minimal auction creation test with only essential fields.
+    /// </summary>
+    [Function("TestMinimal")]
+    public async Task<HttpResponseData> TestMinimal(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "management/test-minimal")] HttpRequestData req)
+    {
+        try
+        {
+            _logger.LogInformation("Testing minimal auction creation...");
+            
+            // Use the working codes from diagnostic
+            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString();
+            var auctionName = "Minimal " + timestamp.Substring(timestamp.Length - 6);
+            
+            _logger.LogInformation("Creating minimal auction with name: {Name}", auctionName);
+            
+            // Use exact same approach as diagnostic but through CreateAuctionAsync
+            var testAuction = await _auctionService.CreateAuctionAsync(auctionName, 0);
+            
+            _logger.LogInformation("✅ Minimal auction created: ID={Id}, JoinCode={JoinCode}", 
+                testAuction.AuctionId, testAuction.JoinCode);
+            
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteStringAsync($"✅ Minimal test successful!\nAuction ID: {testAuction.AuctionId}\nJoin Code: {testAuction.JoinCode}\nMaster Code: {testAuction.MasterRecoveryCode}");
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ Minimal test failed: {Message}", ex.Message);
+            var response = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await response.WriteStringAsync($"❌ Minimal test failed: {ex.Message}\n\nFull Stack Trace:\n{ex.StackTrace}");
+            return response;
+        }
+    }
+
+    /// <summary>
     /// Direct database insert test bypassing join code generation.
     /// </summary>
     [Function("TestDirectInsert")]
