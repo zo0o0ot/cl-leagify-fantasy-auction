@@ -130,6 +130,10 @@
 
         try
         {
+            // DEBUG: Log what we're about to send
+            Console.WriteLine($"About to send login request - Password length: {loginModel.Password?.Length ?? 0}");
+            Console.WriteLine($"Password value: '{loginModel.Password}'");
+            
             var response = await Http.PostAsJsonAsync("/api/management/auth/login", loginModel);
             
             if (response.IsSuccessStatusCode)
@@ -184,7 +188,17 @@
 
     public class LoginModel
     {
-        public string Password { get; set; } = "";
+        private string _password = "";
+        
+        public string Password 
+        { 
+            get => _password;
+            set 
+            {
+                Console.WriteLine($"Password being set: '{value}' (length: {value?.Length ?? 0})");
+                _password = value ?? "";
+            }
+        }
     }
 
     public class AuthResponse
