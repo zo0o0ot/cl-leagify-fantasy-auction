@@ -68,8 +68,8 @@ public class Auction
     /// <summary>
     /// Gets or sets the ID of the user who created this auction.
     /// </summary>
-    /// <value>The user ID of the auction master who initially set up the auction.</value>
-    public int? CreatedByUserId { get; set; }
+    /// <value>The user ID of the auction master who initially set up the auction. 0 indicates system/admin created.</value>
+    public int CreatedByUserId { get; set; } = 0;
     
     /// <summary>
     /// Gets or sets the date and time when the auction was created.

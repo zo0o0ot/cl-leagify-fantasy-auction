@@ -101,8 +101,8 @@ public class AuctionManagementFunction
                 return badResponse;
             }
 
-            // Use nullable CreatedByUserId - will be set properly when user system is implemented  
-            int? createdByUserId = auctionDto.CreatedByUserId;
+            // Use CreatedByUserId = 0 for system-created auctions until user system is implemented
+            int createdByUserId = auctionDto.CreatedByUserId ?? 0;
             
             _logger.LogInformation("Creating auction with Name: {Name}, CreatedByUserId: {CreatedByUserId}, Description: {Description}", 
                 auctionDto.Name, createdByUserId, auctionDto.Description);
@@ -391,8 +391,8 @@ public class AuctionManagementFunction
             _logger.LogInformation("Direct insert - Name: {Name}, JoinCode: {JoinCode}, MasterCode: {MasterCode}", 
                 auction.Name, auction.JoinCode, auction.MasterRecoveryCode);
             
-            // This would need direct DbContext access, but let's try the service with fixed codes
-            var testAuction = await _auctionService.CreateAuctionAsync(auction.Name, auction.CreatedByUserId);
+            // This would need direct DbContext access, but let's try the service with fixed codes  
+            var testAuction = await _auctionService.CreateAuctionAsync(auction.Name, 0);
             
             var response = req.CreateResponse(HttpStatusCode.OK);
             await response.WriteStringAsync($"Direct test successful. AuctionId: {testAuction.AuctionId}, JoinCode: {testAuction.JoinCode}");
@@ -426,7 +426,7 @@ public class AuctionManagementFunction
             var testName = "Test Auction " + DateTime.UtcNow.Ticks;
             _logger.LogInformation("Creating test auction with name: {Name}", testName);
             
-            var testAuction = await _auctionService.CreateAuctionAsync(testName, null);
+            var testAuction = await _auctionService.CreateAuctionAsync(testName, 0);
             
             _logger.LogInformation("Test auction created successfully with ID: {AuctionId}, JoinCode: {JoinCode}", 
                 testAuction.AuctionId, testAuction.JoinCode);
@@ -581,7 +581,7 @@ public class AuctionResponseDto
     /// <summary>
     /// Gets or sets the ID of the user who created the auction.
     /// </summary>
-    public int? CreatedByUserId { get; set; }
+    public int CreatedByUserId { get; set; }
     
     /// <summary>
     /// Gets or sets the date and time when the auction was created.

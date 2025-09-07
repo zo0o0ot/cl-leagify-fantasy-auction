@@ -43,7 +43,7 @@ public class AuctionService : IAuctionService
     }
 
     /// <inheritdoc />
-    public async Task<Auction> CreateAuctionAsync(string name, int? createdByUserId)
+    public async Task<Auction> CreateAuctionAsync(string name, int createdByUserId)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
