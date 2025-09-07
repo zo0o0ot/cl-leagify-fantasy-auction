@@ -52,11 +52,25 @@ public class ManagementAuthFunction(ILogger<ManagementAuthFunction> logger)
                 return badDataResponse;
             }
 
+            // DEBUG: Log password details for troubleshooting browser encoding issues
+            var userAgent = req.Headers.FirstOrDefault(h => h.Key == "User-Agent").Value?.FirstOrDefault() ?? "Unknown";
+            _logger.LogInformation("Password debug - UserAgent: {UserAgent}", userAgent);
+            _logger.LogInformation("Received password length: {Length}", loginRequest.Password?.Length ?? 0);
+            _logger.LogInformation("Expected password length: {Length}", MASTER_PASSWORD.Length);
+            
+            if (!string.IsNullOrEmpty(loginRequest.Password))
+            {
+                // Log character codes for debugging encoding differences
+                var receivedCodes = string.Join(",", loginRequest.Password.Select(c => ((int)c).ToString()));
+                var expectedCodes = string.Join(",", MASTER_PASSWORD.Select(c => ((int)c).ToString()));
+                _logger.LogInformation("Received password char codes: [{Codes}]", receivedCodes);
+                _logger.LogInformation("Expected password char codes: [{Codes}]", expectedCodes);
+            }
+
             // Validate master password
             if (loginRequest.Password != MASTER_PASSWORD)
             {
-                _logger.LogWarning("Invalid management password attempt from {UserAgent}", 
-                    req.Headers.FirstOrDefault(h => h.Key == "User-Agent").Value?.FirstOrDefault());
+                _logger.LogWarning("Invalid management password attempt from {UserAgent}", userAgent);
                 
                 // Add small delay to prevent brute force attacks
                 await Task.Delay(1000);
