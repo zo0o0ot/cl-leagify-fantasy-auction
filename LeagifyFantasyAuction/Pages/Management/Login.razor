@@ -33,14 +33,15 @@
             {
                 <EditForm Model="@loginModel" OnValidSubmit="@LoginAsync" style="width: 100%;">
                     <div style="display: flex; flex-direction: column; gap: 16px; width: 100%; align-items: center;">
-                        <FluentTextField Value="@loginModel.Password" 
-                                       ValueChanged="@(value => loginModel.Password = value)"
-                                       ValueExpression="@(() => loginModel.Password)"
-                                       Label="Master Password" 
-                                       Type="TextFieldType.Password"
-                                       Required="true"
-                                       Style="width: 100%; min-width: 0; box-sizing: border-box;"
-                                       @onkeypress="@OnKeyPress" />
+                        <div style="width: 100%; display: flex; flex-direction: column; gap: 8px;">
+                            <FluentLabel>Master Password</FluentLabel>
+                            <input type="password" 
+                                   @bind="loginModel.Password" 
+                                   @bind:event="oninput"
+                                   @onkeypress="@OnKeyPress"
+                                   required
+                                   style="padding: 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; width: 100%; box-sizing: border-box;" />
+                        </div>
                         
                         <FluentButton Type="ButtonType.Submit" 
                                      Appearance="Appearance.Accent" 
