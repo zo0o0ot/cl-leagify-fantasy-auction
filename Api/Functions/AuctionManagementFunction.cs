@@ -383,7 +383,7 @@ public class AuctionManagementFunction
                 JoinCode = "T" + timestamp.ToString().Substring(8, 5), // 6 chars: T + last 5 digits
                 MasterRecoveryCode = "DIRECT" + timestamp.ToString().Substring(3, 10), // 16 chars total
                 Status = "Draft",
-                CreatedByUserId = null,
+                CreatedByUserId = 0,
                 CreatedDate = DateTime.UtcNow,
                 ModifiedDate = DateTime.UtcNow
             };
