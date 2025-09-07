@@ -19,7 +19,16 @@
       "Bash(timeout 30 dotnet test LeagifyFantasyAuction.Tests --filter \"CsvImportServiceIntegrationTests\" --logger \"console;verbosity=minimal\")",
       "Bash(dotnet run:*)",
       "Bash(git restore:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(export PATH=\"$PATH:/home/woo/.dotnet/tools:$HOME/.dotnet\")",
+      "Bash(dotnet ef migrations:*)",
+      "Bash(dotnet tool install:*)",
+      "Bash(export PATH=\"$PATH:/home/woo/.dotnet/tools\")",
+      "Bash(export PATH=\"$HOME/.dotnet:$PATH:/home/woo/.dotnet/tools\")",
+      "Bash(dotnet dotnet-ef migrations:*)",
+      "Bash(dotnet dotnet-ef:*)",
+      "Bash(git config:*)",
+      "Read(//home/woo/code/**)"
     ],
     "deny": [],
     "ask": []

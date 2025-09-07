@@ -449,8 +449,8 @@ public class AuctionManagementFunction
             
             _logger.LogInformation("Creating minimal auction with name: {Name}", auctionName);
             
-            // Use exact same approach as diagnostic but through CreateAuctionAsync
-            var testAuction = await _auctionService.CreateAuctionAsync(auctionName, 0);
+            // Use exact same approach as diagnostic but through CreateAuctionAsync (null = system created)
+            var testAuction = await _auctionService.CreateAuctionAsync(auctionName, null);
             
             _logger.LogInformation("✅ Minimal auction created: ID={Id}, JoinCode={JoinCode}", 
                 testAuction.AuctionId, testAuction.JoinCode);
@@ -496,7 +496,7 @@ public class AuctionManagementFunction
                 auction.Name, auction.JoinCode, auction.MasterRecoveryCode);
             
             // This would need direct DbContext access, but let's try the service with fixed codes  
-            var testAuction = await _auctionService.CreateAuctionAsync(auction.Name, 0);
+            var testAuction = await _auctionService.CreateAuctionAsync(auction.Name, null);
             
             var response = req.CreateResponse(HttpStatusCode.OK);
             await response.WriteStringAsync($"Direct test successful. AuctionId: {testAuction.AuctionId}, JoinCode: {testAuction.JoinCode}");
@@ -530,7 +530,7 @@ public class AuctionManagementFunction
             var testName = "Test Auction " + DateTime.UtcNow.Ticks;
             _logger.LogInformation("Creating test auction with name: {Name}", testName);
             
-            var testAuction = await _auctionService.CreateAuctionAsync(testName, 0);
+            var testAuction = await _auctionService.CreateAuctionAsync(testName, null);
             
             _logger.LogInformation("Test auction created successfully with ID: {AuctionId}, JoinCode: {JoinCode}", 
                 testAuction.AuctionId, testAuction.JoinCode);
@@ -763,7 +763,7 @@ public class AuctionResponseDto
     /// <summary>
     /// Gets or sets the ID of the user who created the auction.
     /// </summary>
-    public int CreatedByUserId { get; set; }
+    public int? CreatedByUserId { get; set; }
     
     /// <summary>
     /// Gets or sets the date and time when the auction was created.
