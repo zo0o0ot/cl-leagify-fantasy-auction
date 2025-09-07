@@ -626,6 +626,42 @@ public class AuctionManagementFunction
         }
     }
 
+    /// <summary>
+    /// Manual migration application endpoint to fix CreatedByUserId column.
+    /// </summary>
+    [Function("ApplyMigrationFix")]
+    public async Task<HttpResponseData> ApplyMigrationFix(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "management/apply-migration-fix")] HttpRequestData req)
+    {
+        try
+        {
+            _logger.LogInformation("Applying migration fix for CreatedByUserId column...");
+            
+            using var scope = _serviceProvider.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<LeagifyAuctionDbContext>();
+            
+            // Execute the specific SQL to make CreatedByUserId nullable
+            var sql = "ALTER TABLE [Auctions] ALTER COLUMN [CreatedByUserId] int NULL";
+            
+            _logger.LogInformation("Executing SQL: {Sql}", sql);
+            
+            await dbContext.Database.ExecuteSqlRawAsync(sql);
+            
+            _logger.LogInformation("Migration fix applied successfully");
+            
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteStringAsync("✅ Migration fix applied successfully! CreatedByUserId column is now nullable.");
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Migration fix failed: {Message}", ex.Message);
+            var response = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await response.WriteStringAsync($"❌ Migration fix failed: {ex.Message}\nStack Trace: {ex.StackTrace}");
+            return response;
+        }
+    }
+
     [Function("GetAllAuctions")]
     public async Task<HttpResponseData> GetAllAuctions(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "management/auctions")] HttpRequestData req)
