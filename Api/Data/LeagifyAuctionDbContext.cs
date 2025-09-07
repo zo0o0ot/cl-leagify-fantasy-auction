@@ -48,7 +48,8 @@ public class LeagifyAuctionDbContext : DbContext
             entity.HasOne(e => e.CreatedByUser)
                 .WithMany()
                 .HasForeignKey(e => e.CreatedByUserId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false); // Allow null CreatedByUserId for system-created auctions
 
             entity.HasOne(e => e.CurrentNominatorUser)
                 .WithMany()
