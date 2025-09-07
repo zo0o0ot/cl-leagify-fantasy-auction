@@ -3,16 +3,19 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Text.Json;
+using LeagifyFantasyAuction.Api.Data;
 
 namespace LeagifyFantasyAuction.Api.Functions;
 
 public class AdminDashboardFunction
 {
     private readonly ILogger<AdminDashboardFunction> _logger;
+    private readonly LeagifyAuctionDbContext _dbContext;
 
-    public AdminDashboardFunction(ILogger<AdminDashboardFunction> logger)
+    public AdminDashboardFunction(ILogger<AdminDashboardFunction> logger, LeagifyAuctionDbContext dbContext)
     {
         _logger = logger;
+        _dbContext = dbContext;
     }
 
     [Function("GetAuctions")]
@@ -89,8 +92,22 @@ public class AdminDashboardFunction
 
         try
         {
-            // TODO: Implement actual auction deletion with database
-            _logger.LogInformation($"Would delete auction {auctionId}");
+            // Find the auction to delete
+            var auction = await _dbContext.Auctions.FindAsync(auctionId);
+            if (auction == null)
+            {
+                _logger.LogWarning($"Auction {auctionId} not found for deletion");
+                var notFoundResponse = req.CreateResponse(HttpStatusCode.NotFound);
+                await notFoundResponse.WriteStringAsync(JsonSerializer.Serialize(new { success = false, message = $"Auction {auctionId} not found" }));
+                notFoundResponse.Headers.Add("Content-Type", "application/json");
+                return notFoundResponse;
+            }
+
+            // Delete the auction
+            _dbContext.Auctions.Remove(auction);
+            await _dbContext.SaveChangesAsync();
+
+            _logger.LogInformation($"Successfully deleted auction {auctionId} ({auction.Name})");
 
             var response = req.CreateResponse(HttpStatusCode.OK);
             await response.WriteStringAsync(JsonSerializer.Serialize(new { success = true, message = $"Auction {auctionId} deleted successfully" }));
