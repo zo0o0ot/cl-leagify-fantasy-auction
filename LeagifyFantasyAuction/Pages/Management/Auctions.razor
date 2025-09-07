@@ -127,6 +127,111 @@
     </FluentDialogFooter>
 </FluentDialog>
 
+<!-- Configure Auction Dialog -->
+<FluentDialog @ref="configureDialog" @bind-Hidden="@hideConfigureDialog" Style="width: 800px; max-width: 90vw;">
+    <FluentDialogHeader ShowDismiss="true">
+        <FluentStack VerticalAlignment="VerticalAlignment.Center">
+            <FluentIcon Value="@(new Icons.Regular.Size24.Settings())" />
+            <FluentLabel Typo="Typography.PaneHeader">Configure Auction: @(selectedAuction?.Name ?? "")</FluentLabel>
+        </FluentStack>
+    </FluentDialogHeader>
+
+    <FluentDialogBody>
+        @if (selectedAuction != null)
+        {
+            <FluentStack Orientation="Orientation.Vertical" VerticalGap="20">
+                
+                <!-- CSV Import Section -->
+                <FluentCard>
+                    <FluentStack Orientation="Orientation.Vertical" VerticalGap="12">
+                        <FluentLabel Typo="Typography.Subject">School Data Import</FluentLabel>
+                        <FluentLabel>Upload a CSV file containing school data for this auction.</FluentLabel>
+                        
+                        @if (!showSchoolMatching)
+                        {
+                            <FluentInputFile @ref="csvFileInput" 
+                                           Accept=".csv"
+                                           OnCompleted="@HandleCsvUpload" 
+                                           Style="width: 100%;" />
+                            
+                            @if (isCsvUploading)
+                            {
+                                <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="8">
+                                    <FluentProgressRing Style="width: 20px; height: 20px;" />
+                                    <FluentLabel>Processing CSV...</FluentLabel>
+                                </FluentStack>
+                            }
+                            
+                            @if (!string.IsNullOrEmpty(csvUploadMessage))
+                            {
+                                <FluentMessageBar Intent="@(csvUploadMessage.Contains("Error") ? MessageIntent.Error : MessageIntent.Success)">
+                                    @csvUploadMessage
+                                </FluentMessageBar>
+                            }
+                        }
+                        else
+                        {
+                            <!-- School Matching Interface -->
+                            <FluentStack Orientation="Orientation.Vertical" VerticalGap="12">
+                                <FluentLabel Typo="Typography.Body">Review and confirm school matches:</FluentLabel>
+                                
+                                <div style="max-height: 300px; overflow-y: auto;">
+                                    @foreach (var match in schoolMatches)
+                                    {
+                                        <FluentCard Style="margin-bottom: 8px; padding: 12px;">
+                                            <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="12">
+                                                <FluentStack Orientation="Orientation.Vertical" Style="flex: 1;">
+                                                    <FluentLabel Weight="FontWeight.Bold">@match.CsvData.Name</FluentLabel>
+                                                    <FluentLabel Style="font-size: 12px;">@match.CsvData.Conference - @match.CsvData.LeagifyPosition</FluentLabel>
+                                                </FluentStack>
+                                                
+                                                @if (match.MatchType == SchoolMatchType.Exact)
+                                                {
+                                                    <FluentBadge Appearance="Appearance.Accent">Exact Match</FluentBadge>
+                                                }
+                                                else if (match.MatchType == SchoolMatchType.Fuzzy)
+                                                {
+                                                    <FluentStack Orientation="Orientation.Vertical" VerticalGap="4">
+                                                        <FluentBadge Appearance="Appearance.Neutral">Fuzzy Match (@((match.Confidence * 100):F0)%)</FluentBadge>
+                                                        <FluentLabel Style="font-size: 12px;">→ @match.MatchedSchool?.Name</FluentLabel>
+                                                    </FluentStack>
+                                                }
+                                                else
+                                                {
+                                                    <FluentBadge Appearance="Appearance.Stealth">No Match - Will Create New</FluentBadge>
+                                                }
+                                            </FluentStack>
+                                        </FluentCard>
+                                    }
+                                </div>
+                                
+                                <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12">
+                                    <FluentButton Appearance="Appearance.Accent" OnClick="@ConfirmCsvImport">
+                                        Confirm Import (@schoolMatches.Count schools)
+                                    </FluentButton>
+                                    <FluentButton Appearance="Appearance.Neutral" OnClick="@CancelSchoolMatching">
+                                        Cancel
+                                    </FluentButton>
+                                </FluentStack>
+                            </FluentStack>
+                        }
+                    </FluentStack>
+                </FluentCard>
+
+                <!-- Future configuration sections would go here -->
+                <FluentMessageBar Intent="MessageIntent.Info">
+                    <strong>Coming Soon:</strong> Roster position configuration, team settings, and more.
+                </FluentMessageBar>
+                
+            </FluentStack>
+        }
+    </FluentDialogBody>
+
+    <FluentDialogFooter>
+        <FluentButton Appearance="Appearance.Neutral" OnClick="@CloseConfigureDialog">Close</FluentButton>
+    </FluentDialogFooter>
+</FluentDialog>
+
 @code {
     private List<AuctionDto> auctions = new();
     private bool isLoading = true;
@@ -138,6 +243,19 @@
     private FluentDialog? createDialog;
     private bool hideCreateDialog = true;
     private CreateAuctionRequest newAuction = new();
+
+    // Configuration dialog state
+    private FluentDialog? configureDialog;
+    private bool hideConfigureDialog = true;
+    private AuctionDto? selectedAuction;
+    private int selectedAuctionId;
+
+    // CSV import state
+    private FluentInputFile? csvFileInput;
+    private bool isCsvUploading = false;
+    private string csvUploadMessage = "";
+    private List<SchoolMatchPreview> schoolMatches = new();
+    private bool showSchoolMatching = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -244,6 +362,146 @@
         }
     }
 
+    private void CloseConfigureDialog()
+    {
+        hideConfigureDialog = true;
+        selectedAuction = null;
+        showSchoolMatching = false;
+        schoolMatches.Clear();
+        csvUploadMessage = "";
+        StateHasChanged();
+    }
+
+    private async Task HandleCsvUpload(IEnumerable<FluentInputFileEventArgs> files)
+    {
+        var file = files.FirstOrDefault();
+        if (file == null || selectedAuction == null) return;
+
+        try
+        {
+            isCsvUploading = true;
+            csvUploadMessage = "";
+            StateHasChanged();
+
+            // Get token from localStorage and set it in the request header
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                csvUploadMessage = "Error: Authentication token missing. Please log in again.";
+                return;
+            }
+
+            // Remove any existing X-Management-Token header and add the current one
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+
+            // Upload CSV for preview
+            using var content = new MultipartFormDataContent();
+            var fileContent = new StreamContent(file.Stream);
+            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/csv");
+            content.Add(fileContent, "csvFile", file.Name);
+
+            var response = await Http.PostAsync($"/api/management/auctions/{selectedAuction.AuctionId}/csv/preview", content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var previewResult = await response.Content.ReadFromJsonAsync<AuctionCsvPreviewResult>();
+                if (previewResult?.IsSuccess == true)
+                {
+                    schoolMatches = previewResult.SchoolMatches;
+                    showSchoolMatching = true;
+                    csvUploadMessage = $"Preview ready: {previewResult.TotalSchools} schools found";
+                }
+                else
+                {
+                    csvUploadMessage = $"Error: {string.Join(", ", previewResult?.Errors ?? new List<string> { "Unknown error" })}";
+                }
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                csvUploadMessage = $"Error: {errorContent}";
+            }
+        }
+        catch (Exception ex)
+        {
+            csvUploadMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isCsvUploading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ConfirmCsvImport()
+    {
+        if (selectedAuction == null || !schoolMatches.Any()) return;
+
+        try
+        {
+            isCsvUploading = true;
+            StateHasChanged();
+
+            // Prepare confirmed matches
+            var confirmedMatches = schoolMatches.Select(m => new ConfirmedSchoolMatch
+            {
+                SchoolId = m.MatchedSchool?.SchoolId ?? 0, // Will create new school if 0
+                CsvData = m.CsvData,
+                ImportOrder = m.ImportOrder
+            }).ToList();
+
+            // Get token and send confirmation
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Authentication token missing. Please log in again.");
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+
+            var response = await Http.PostAsJsonAsync($"/api/management/auctions/{selectedAuction.AuctionId}/csv/confirm", confirmedMatches);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var importResult = await response.Content.ReadFromJsonAsync<AuctionCsvImportResult>();
+                if (importResult?.IsSuccess == true)
+                {
+                    await JSRuntime.InvokeVoidAsync("alert", $"Successfully imported {importResult.TotalSchools} schools!");
+                    CloseConfigureDialog();
+                }
+                else
+                {
+                    await JSRuntime.InvokeVoidAsync("alert", $"Import failed: {string.Join(", ", importResult?.Errors ?? new List<string> { "Unknown error" })}");
+                }
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                await JSRuntime.InvokeVoidAsync("alert", $"Import failed: {errorContent}");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Import error: {ex.Message}");
+        }
+        finally
+        {
+            isCsvUploading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void CancelSchoolMatching()
+    {
+        showSchoolMatching = false;
+        schoolMatches.Clear();
+        csvUploadMessage = "";
+        StateHasChanged();
+    }
+
     private async Task CopyToClipboard(string text)
     {
         try
@@ -260,8 +518,10 @@
 
     private void EditAuction(AuctionDto auction)
     {
-        // TODO: Implement auction configuration page
-        JSRuntime.InvokeVoidAsync("alert", $"Auction configuration for '{auction.Name}' coming soon!");
+        selectedAuction = auction;
+        selectedAuctionId = auction.AuctionId;
+        hideConfigureDialog = false;
+        StateHasChanged();
     }
 
     private async Task DeleteAuction(AuctionDto auction)
@@ -332,6 +592,74 @@
         [Required]
         public string Name { get; set; } = "";
         public string? Description { get; set; }
+    }
+
+    // CSV Import DTOs (matching the service DTOs)
+    public class AuctionCsvPreviewResult
+    {
+        public int AuctionId { get; set; }
+        public bool IsSuccess { get; set; }
+        public List<string> Errors { get; set; } = new();
+        public List<SchoolMatchPreview> SchoolMatches { get; set; } = new();
+        public int TotalSchools { get; set; }
+        public int ExactMatches { get; set; }
+        public int FuzzyMatches { get; set; }
+        public int NoMatches { get; set; }
+    }
+
+    public class AuctionCsvImportResult
+    {
+        public int AuctionId { get; set; }
+        public bool IsSuccess { get; set; }
+        public List<string> Errors { get; set; } = new();
+        public int TotalSchools { get; set; }
+    }
+
+    public class SchoolMatchPreview
+    {
+        public SchoolImportData CsvData { get; set; } = new();
+        public int ImportOrder { get; set; }
+        public SchoolMatchType MatchType { get; set; }
+        public SchoolDto? MatchedSchool { get; set; }
+        public double Confidence { get; set; }
+        public List<SchoolDto> AlternativeMatches { get; set; } = new();
+    }
+
+    public class ConfirmedSchoolMatch
+    {
+        public int SchoolId { get; set; }
+        public SchoolImportData CsvData { get; set; } = new();
+        public int ImportOrder { get; set; }
+    }
+
+    public class SchoolImportData
+    {
+        public string Name { get; set; } = "";
+        public string Conference { get; set; } = "";
+        public string LeagifyPosition { get; set; } = "";
+        public decimal ProjectedPoints { get; set; }
+        public int NumberOfProspects { get; set; }
+        public decimal? SuggestedAuctionValue { get; set; }
+        public decimal ProjectedPointsAboveAverage { get; set; }
+        public decimal ProjectedPointsAboveReplacement { get; set; }
+        public decimal AveragePointsForPosition { get; set; }
+        public decimal ReplacementValueAverageForPosition { get; set; }
+        public string? SchoolURL { get; set; }
+        public string? LogoFileName { get; set; }
+    }
+
+    public class SchoolDto
+    {
+        public int SchoolId { get; set; }
+        public string Name { get; set; } = "";
+        public string LogoFileName { get; set; } = "";
+    }
+
+    public enum SchoolMatchType
+    {
+        Exact,
+        Fuzzy,
+        NoMatch
     }
 }
 
