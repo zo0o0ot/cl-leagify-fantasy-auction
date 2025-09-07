@@ -258,7 +258,7 @@ public class LeagifyAuctionDbContext : DbContext
             entity.HasOne(e => e.AdminUser)
                 .WithMany()
                 .HasForeignKey(e => e.AdminUserId)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }
