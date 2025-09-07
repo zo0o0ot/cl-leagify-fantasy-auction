@@ -101,8 +101,8 @@ public class AuctionManagementFunction
                 return badResponse;
             }
 
-            // Default CreatedByUserId to 0 if not provided - will be updated when user system is implemented
-            int createdByUserId = auctionDto.CreatedByUserId ?? 0;
+            // Use nullable CreatedByUserId - will be set properly when user system is implemented  
+            int? createdByUserId = auctionDto.CreatedByUserId;
             
             _logger.LogInformation("Creating auction with Name: {Name}, CreatedByUserId: {CreatedByUserId}, Description: {Description}", 
                 auctionDto.Name, createdByUserId, auctionDto.Description);
@@ -383,7 +383,7 @@ public class AuctionManagementFunction
             var testName = "Test Auction " + DateTime.UtcNow.Ticks;
             _logger.LogInformation("Creating test auction with name: {Name}", testName);
             
-            var testAuction = await _auctionService.CreateAuctionAsync(testName, 0);
+            var testAuction = await _auctionService.CreateAuctionAsync(testName, null);
             
             _logger.LogInformation("Test auction created successfully with ID: {AuctionId}, JoinCode: {JoinCode}", 
                 testAuction.AuctionId, testAuction.JoinCode);

@@ -25,7 +25,7 @@ public interface IAuctionService
     /// Automatically generates a unique 6-character join code and a unique 16-character master recovery code.
     /// The auction is created in "Draft" status and can be configured before being started.
     /// </remarks>
-    Task<Auction> CreateAuctionAsync(string name, int createdByUserId);
+    Task<Auction> CreateAuctionAsync(string name, int? createdByUserId);
 
     /// <summary>
     /// Retrieves an auction by its unique join code.
