@@ -33,16 +33,10 @@ public class ManagementAuthFunction(ILogger<ManagementAuthFunction> logger)
 
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             
-            // DEBUG: Log the exact request body received  
-            var userAgent = req.Headers.FirstOrDefault(h => h.Key == "User-Agent").Value?.FirstOrDefault() ?? "Unknown";
-            var contentType = req.Headers.FirstOrDefault(h => h.Key == "Content-Type").Value?.FirstOrDefault() ?? "Not set";
-            _logger.LogInformation("Request debug - UserAgent: {UserAgent}, ContentType: {ContentType}, Body: [{RequestBody}]", 
-                userAgent, contentType, requestBody);
-            
             if (string.IsNullOrWhiteSpace(requestBody))
             {
                 var badRequestResponse = req.CreateResponse(HttpStatusCode.BadRequest);
-                await badRequestResponse.WriteStringAsync($"Empty request body. UserAgent: {userAgent}, ContentType: {contentType}");
+                await badRequestResponse.WriteStringAsync("Empty request body");
                 return badRequestResponse;
             }
 
@@ -56,59 +50,31 @@ public class ManagementAuthFunction(ILogger<ManagementAuthFunction> logger)
             }
             catch (JsonException jsonEx)
             {
-                _logger.LogError(jsonEx, "JSON deserialization failed for request body: [{RequestBody}]", requestBody);
+                _logger.LogError(jsonEx, "JSON deserialization failed");
                 var jsonErrorResponse = req.CreateResponse(HttpStatusCode.BadRequest);
-                await jsonErrorResponse.WriteStringAsync($"JSON parsing failed: {jsonEx.Message}. Body: [{requestBody}]");
+                await jsonErrorResponse.WriteStringAsync("Invalid request format");
                 return jsonErrorResponse;
             }
 
             if (loginRequest == null || string.IsNullOrEmpty(loginRequest.Password))
             {
                 var badDataResponse = req.CreateResponse(HttpStatusCode.BadRequest);
-                await badDataResponse.WriteStringAsync($"Invalid request format or missing password. Parsed object: {loginRequest}, Password: '{loginRequest?.Password}'");
+                await badDataResponse.WriteStringAsync("Invalid request format or missing password");
                 return badDataResponse;
             }
 
-            // DEBUG: Log password details for troubleshooting browser encoding issues
-            _logger.LogInformation("Password debug - UserAgent: {UserAgent}", userAgent);
-            _logger.LogInformation("Received password length: {Length}", loginRequest.Password?.Length ?? 0);
-            _logger.LogInformation("Expected password length: {Length}", MASTER_PASSWORD.Length);
-            
-            if (!string.IsNullOrEmpty(loginRequest.Password))
-            {
-                // Log character codes for debugging encoding differences
-                var receivedCodes = string.Join(",", loginRequest.Password.Select(c => ((int)c).ToString()));
-                var expectedCodes = string.Join(",", MASTER_PASSWORD.Select(c => ((int)c).ToString()));
-                _logger.LogInformation("Received password char codes: [{Codes}]", receivedCodes);
-                _logger.LogInformation("Expected password char codes: [{Codes}]", expectedCodes);
-            }
 
             // Validate master password
             if (loginRequest.Password != MASTER_PASSWORD)
             {
+                var userAgent = req.Headers.FirstOrDefault(h => h.Key == "User-Agent").Value?.FirstOrDefault() ?? "Unknown";
                 _logger.LogWarning("Invalid management password attempt from {UserAgent}", userAgent);
                 
                 // Add small delay to prevent brute force attacks
                 await Task.Delay(1000);
                 
-                // Include debug info in response for troubleshooting (TEMPORARY)
-                var debugInfo = new
-                {
-                    error = "Invalid credentials",
-                    debug = new
-                    {
-                        userAgent = userAgent,
-                        receivedLength = loginRequest.Password?.Length ?? 0,
-                        expectedLength = MASTER_PASSWORD.Length,
-                        receivedCodes = loginRequest.Password?.Select(c => (int)c).ToArray() ?? new int[0],
-                        expectedCodes = MASTER_PASSWORD.Select(c => (int)c).ToArray(),
-                        receivedPassword = loginRequest.Password, // TEMPORARY - remove in production
-                        expectedPassword = MASTER_PASSWORD // TEMPORARY - remove in production
-                    }
-                };
-                
                 var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
-                await unauthorizedResponse.WriteAsJsonAsync(debugInfo);
+                await unauthorizedResponse.WriteStringAsync("Invalid credentials");
                 return unauthorizedResponse;
             }
 

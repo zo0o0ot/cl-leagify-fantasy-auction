@@ -133,15 +133,7 @@
 
         try
         {
-            // DEBUG: Log what we're about to send
-            Console.WriteLine($"About to send login request - Password length: {loginModel.Password?.Length ?? 0}");
-            Console.WriteLine($"Password value: '{loginModel.Password}'");
-            
             var response = await Http.PostAsJsonAsync("/api/management/auth/login", loginModel);
-            
-            // DEBUG: Log response details
-            Console.WriteLine($"Response status: {response.StatusCode}");
-            Console.WriteLine($"Response reason: {response.ReasonPhrase}");
             
             if (response.IsSuccessStatusCode)
             {
@@ -170,10 +162,9 @@
             
             // Login failed
             var errorContent = await response.Content.ReadAsStringAsync();
-            Console.WriteLine($"Login failed - Status: {response.StatusCode}, Content: {errorContent}");
             errorMessage = response.StatusCode == System.Net.HttpStatusCode.Unauthorized ? 
                 "Invalid password. Please try again." : 
-                $"Login failed ({response.StatusCode}): {errorContent}";
+                $"Login failed. Please try again.";
         }
         catch (Exception ex)
         {
@@ -196,17 +187,7 @@
 
     public class LoginModel
     {
-        private string _password = "";
-        
-        public string Password 
-        { 
-            get => _password;
-            set 
-            {
-                Console.WriteLine($"Password being set: '{value}' (length: {value?.Length ?? 0})");
-                _password = value ?? "";
-            }
-        }
+        public string Password { get; set; } = "";
     }
 
     public class AuthResponse
