@@ -101,13 +101,16 @@ public class AuctionManagementFunction
                 return badResponse;
             }
 
+            // Default CreatedByUserId to 0 if not provided - will be updated when user system is implemented
+            int createdByUserId = auctionDto.CreatedByUserId ?? 0;
+            
             _logger.LogInformation("Creating auction with Name: {Name}, CreatedByUserId: {CreatedByUserId}, Description: {Description}", 
-                auctionDto.Name, auctionDto.CreatedByUserId, auctionDto.Description);
+                auctionDto.Name, createdByUserId, auctionDto.Description);
 
             Auction auction;
             try
             {
-                auction = await _auctionService.CreateAuctionAsync(auctionDto.Name, auctionDto.CreatedByUserId);
+                auction = await _auctionService.CreateAuctionAsync(auctionDto.Name, createdByUserId);
             }
             catch (Exception ex)
             {
@@ -410,7 +413,7 @@ public class CreateAuctionDto
     /// Gets or sets the ID of the user creating the auction.
     /// </summary>
     /// <value>The user ID of the auction master who will manage the auction.</value>
-    public int CreatedByUserId { get; set; } = 1;
+    public int? CreatedByUserId { get; set; }
 }
 
 /// <summary>
