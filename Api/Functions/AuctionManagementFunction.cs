@@ -333,6 +333,38 @@ public class AuctionManagementFunction
     /// This endpoint is used by the management interface to display auction listings.
     /// </remarks>
     /// <summary>
+    /// Basic database connectivity test without creating entities.
+    /// </summary>
+    [Function("TestBasicDb")]
+    public async Task<HttpResponseData> TestBasicDb(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "management/test-basic")] HttpRequestData req)
+    {
+        try
+        {
+            _logger.LogInformation("Testing basic database connectivity...");
+            
+            // Test getting all auctions (read-only)
+            var auctions = await _auctionService.GetAllAuctionsAsync();
+            _logger.LogInformation("GetAllAuctions successful. Count: {Count}", auctions.Count);
+            
+            // Test join code validation (doesn't hit database write)
+            var (isValid, errorMessage) = await _auctionService.ValidateJoinCodeAsync("TEST99");
+            _logger.LogInformation("ValidateJoinCodeAsync successful. IsValid: {IsValid}, Error: {Error}", isValid, errorMessage);
+            
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteStringAsync($"Basic database test successful. Auctions: {auctions.Count}, Join code validation: {isValid}");
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Basic database test failed: {Message}", ex.Message);
+            var response = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await response.WriteStringAsync($"Basic database test failed: {ex.Message}\nStack Trace: {ex.StackTrace}");
+            return response;
+        }
+    }
+
+    /// <summary>
     /// Simple service connectivity test endpoint.
     /// </summary>
     [Function("TestService")]
