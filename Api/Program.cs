@@ -48,13 +48,13 @@ using (var scope = host.Services.CreateScope())
     var dbContext = scope.ServiceProvider.GetRequiredService<LeagifyAuctionDbContext>();
     try
     {
-        // Create database and tables if they don't exist
-        dbContext.Database.EnsureCreated();
-        Console.WriteLine("Database initialized successfully");
+        // Apply any pending migrations to create database schema
+        dbContext.Database.Migrate();
+        Console.WriteLine("Database migrations applied successfully");
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"Database initialization failed: {ex.Message}");
+        Console.WriteLine($"Database migration failed: {ex.Message}");
         // Continue running even if database init fails - for Azure deployment scenarios
     }
 }
