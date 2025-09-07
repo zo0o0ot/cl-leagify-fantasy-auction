@@ -33,27 +33,43 @@ public class ManagementAuthFunction(ILogger<ManagementAuthFunction> logger)
 
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             
+            // DEBUG: Log the exact request body received  
+            var userAgent = req.Headers.FirstOrDefault(h => h.Key == "User-Agent").Value?.FirstOrDefault() ?? "Unknown";
+            var contentType = req.Headers.FirstOrDefault(h => h.Key == "Content-Type").Value?.FirstOrDefault() ?? "Not set";
+            _logger.LogInformation("Request debug - UserAgent: {UserAgent}, ContentType: {ContentType}, Body: [{RequestBody}]", 
+                userAgent, contentType, requestBody);
+            
             if (string.IsNullOrWhiteSpace(requestBody))
             {
                 var badRequestResponse = req.CreateResponse(HttpStatusCode.BadRequest);
-                await badRequestResponse.WriteStringAsync("Empty request body");
+                await badRequestResponse.WriteStringAsync($"Empty request body. UserAgent: {userAgent}, ContentType: {contentType}");
                 return badRequestResponse;
             }
 
-            var loginRequest = JsonSerializer.Deserialize<LoginRequest>(requestBody, new JsonSerializerOptions
+            LoginRequest? loginRequest;
+            try
             {
-                PropertyNameCaseInsensitive = true
-            });
+                loginRequest = JsonSerializer.Deserialize<LoginRequest>(requestBody, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+            }
+            catch (JsonException jsonEx)
+            {
+                _logger.LogError(jsonEx, "JSON deserialization failed for request body: [{RequestBody}]", requestBody);
+                var jsonErrorResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await jsonErrorResponse.WriteStringAsync($"JSON parsing failed: {jsonEx.Message}. Body: [{requestBody}]");
+                return jsonErrorResponse;
+            }
 
             if (loginRequest == null || string.IsNullOrEmpty(loginRequest.Password))
             {
                 var badDataResponse = req.CreateResponse(HttpStatusCode.BadRequest);
-                await badDataResponse.WriteStringAsync("Invalid request format or missing password");
+                await badDataResponse.WriteStringAsync($"Invalid request format or missing password. Parsed object: {loginRequest}, Password: '{loginRequest?.Password}'");
                 return badDataResponse;
             }
 
             // DEBUG: Log password details for troubleshooting browser encoding issues
-            var userAgent = req.Headers.FirstOrDefault(h => h.Key == "User-Agent").Value?.FirstOrDefault() ?? "Unknown";
             _logger.LogInformation("Password debug - UserAgent: {UserAgent}", userAgent);
             _logger.LogInformation("Received password length: {Length}", loginRequest.Password?.Length ?? 0);
             _logger.LogInformation("Expected password length: {Length}", MASTER_PASSWORD.Length);
