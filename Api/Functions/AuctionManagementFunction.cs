@@ -333,46 +333,38 @@ public class AuctionManagementFunction
     /// This endpoint is used by the management interface to display auction listings.
     /// </remarks>
     /// <summary>
-    /// Simple database connectivity test endpoint.
+    /// Simple service connectivity test endpoint.
     /// </summary>
-    [Function("TestDbConnection")]
-    public async Task<HttpResponseData> TestDbConnection(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "management/test-db")] HttpRequestData req)
+    [Function("TestService")]
+    public async Task<HttpResponseData> TestService(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "management/test-service")] HttpRequestData req)
     {
         try
         {
-            _logger.LogInformation("Testing database connection...");
+            _logger.LogInformation("Testing auction service...");
             
-            // Try to access the database context
-            var auctionCount = await _context.Auctions.CountAsync();
-            _logger.LogInformation("Database connection successful. Auction count: {Count}", auctionCount);
+            // Test getting all auctions
+            var auctions = await _auctionService.GetAllAuctionsAsync();
+            _logger.LogInformation("Service connection successful. Auction count: {Count}", auctions.Count);
             
-            // Try to create a minimal auction directly
-            var testAuction = new Auction
-            {
-                Name = "Test Auction " + DateTime.UtcNow.Ticks,
-                JoinCode = "TEST01",
-                MasterRecoveryCode = "TestMasterCode123",
-                Status = "Draft",
-                CreatedByUserId = 0,
-                CreatedDate = DateTime.UtcNow,
-                ModifiedDate = DateTime.UtcNow
-            };
+            // Test creating an auction using the service
+            var testName = "Test Auction " + DateTime.UtcNow.Ticks;
+            _logger.LogInformation("Creating test auction with name: {Name}", testName);
             
-            _context.Auctions.Add(testAuction);
-            await _context.SaveChangesAsync();
+            var testAuction = await _auctionService.CreateAuctionAsync(testName, 0);
             
-            _logger.LogInformation("Test auction created successfully with ID: {AuctionId}", testAuction.AuctionId);
+            _logger.LogInformation("Test auction created successfully with ID: {AuctionId}, JoinCode: {JoinCode}", 
+                testAuction.AuctionId, testAuction.JoinCode);
             
             var response = req.CreateResponse(HttpStatusCode.OK);
-            await response.WriteStringAsync($"Database test successful. Auctions: {auctionCount}, Test auction ID: {testAuction.AuctionId}");
+            await response.WriteStringAsync($"Service test successful. Auctions: {auctions.Count}, Test auction ID: {testAuction.AuctionId}, JoinCode: {testAuction.JoinCode}");
             return response;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Database test failed");
+            _logger.LogError(ex, "Service test failed: {Message}", ex.Message);
             var response = req.CreateResponse(HttpStatusCode.InternalServerError);
-            await response.WriteStringAsync($"Database test failed: {ex.Message}");
+            await response.WriteStringAsync($"Service test failed: {ex.Message}\nStack Trace: {ex.StackTrace}");
             return response;
         }
     }
