@@ -1,10 +1,13 @@
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
 using System.Net;
 using System.Text.Json;
 using LeagifyFantasyAuction.Api.Services;
 using LeagifyFantasyAuction.Api.Models;
+using LeagifyFantasyAuction.Api.Data;
 
 namespace LeagifyFantasyAuction.Api.Functions;
 
@@ -21,16 +24,19 @@ public class AuctionManagementFunction
 {
     private readonly ILogger<AuctionManagementFunction> _logger;
     private readonly IAuctionService _auctionService;
+    private readonly IServiceProvider _serviceProvider;
 
     /// <summary>
     /// Initializes a new instance of the AuctionManagementFunction class.
     /// </summary>
     /// <param name="logger">The logger for function operations.</param>
     /// <param name="auctionService">The auction service for business logic operations.</param>
-    public AuctionManagementFunction(ILogger<AuctionManagementFunction> logger, IAuctionService auctionService)
+    /// <param name="serviceProvider">The service provider for accessing other services.</param>
+    public AuctionManagementFunction(ILogger<AuctionManagementFunction> logger, IAuctionService auctionService, IServiceProvider serviceProvider)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _auctionService = auctionService ?? throw new ArgumentNullException(nameof(auctionService));
+        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
     }
 
     /// <summary>
@@ -538,6 +544,84 @@ public class AuctionManagementFunction
             _logger.LogError(ex, "Service test failed: {Message}", ex.Message);
             var response = req.CreateResponse(HttpStatusCode.InternalServerError);
             await response.WriteStringAsync($"Service test failed: {ex.Message}\nStack Trace: {ex.StackTrace}");
+            return response;
+        }
+    }
+
+    /// <summary>
+    /// Diagnostic endpoint to check if database tables exist.
+    /// </summary>
+    [Function("TestDatabaseSchema")]
+    public async Task<HttpResponseData> TestDatabaseSchema(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "management/test-schema")] HttpRequestData req)
+    {
+        try
+        {
+            _logger.LogInformation("Testing database schema existence...");
+            
+            var schemaInfo = new List<string>();
+            
+            // Test if we can query information schema to see what tables exist
+            using var scope = _serviceProvider.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<LeagifyAuctionDbContext>();
+            
+            // Check if Auctions table exists by querying information schema
+            var tableExistsQuery = """
+                SELECT TABLE_NAME 
+                FROM INFORMATION_SCHEMA.TABLES 
+                WHERE TABLE_TYPE = 'BASE TABLE' 
+                AND TABLE_SCHEMA = 'dbo'
+                ORDER BY TABLE_NAME
+                """;
+                
+            var connection = dbContext.Database.GetDbConnection();
+            await connection.OpenAsync();
+            
+            using var command = connection.CreateCommand();
+            command.CommandText = tableExistsQuery;
+            
+            var tableNames = new List<string>();
+            using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                tableNames.Add(reader.GetString(0)); // TABLE_NAME is the first column
+            }
+            
+            if (tableNames.Count == 0)
+            {
+                schemaInfo.Add("❌ No tables found in database - migration likely not applied");
+            }
+            else
+            {
+                schemaInfo.Add($"✅ Found {tableNames.Count} tables:");
+                foreach (var tableName in tableNames)
+                {
+                    schemaInfo.Add($"  - {tableName}");
+                }
+                
+                // Check specifically for our expected tables
+                var expectedTables = new[] { "Auctions", "Schools", "Users", "Teams", "AuctionSchools", "RosterPositions" };
+                var missingTables = expectedTables.Except(tableNames, StringComparer.OrdinalIgnoreCase).ToList();
+                
+                if (missingTables.Any())
+                {
+                    schemaInfo.Add($"❌ Missing expected tables: {string.Join(", ", missingTables)}");
+                }
+                else
+                {
+                    schemaInfo.Add("✅ All core tables present");
+                }
+            }
+            
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteStringAsync($"Database schema diagnostic:\n" + string.Join("\n", schemaInfo));
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Schema diagnostic failed: {Message}", ex.Message);
+            var response = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await response.WriteStringAsync($"Schema diagnostic failed: {ex.Message}\nStack Trace: {ex.StackTrace}");
             return response;
         }
     }
