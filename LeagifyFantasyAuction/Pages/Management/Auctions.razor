@@ -151,6 +151,18 @@
             isLoading = true;
             errorMessage = "";
 
+            // Get token from localStorage and set it in the request header
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                errorMessage = "Authentication token missing. Please log in again.";
+                return;
+            }
+
+            // Remove any existing X-Management-Token header and add the current one
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+
             var response = await Http.GetFromJsonAsync<List<AuctionDto>>("/api/management/auctions");
             auctions = response ?? new List<AuctionDto>();
         }
@@ -192,6 +204,18 @@
         {
             isCreating = true;
             StateHasChanged();
+
+            // Get token from localStorage and set it in the request header
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Authentication token missing. Please log in again.");
+                return;
+            }
+
+            // Remove any existing X-Management-Token header and add the current one
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
 
             var response = await Http.PostAsJsonAsync("/api/management/auctions", newAuction);
             
@@ -249,6 +273,18 @@
         {
             try
             {
+                // Get token from localStorage and set it in the request header
+                var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+                if (string.IsNullOrEmpty(token))
+                {
+                    await JSRuntime.InvokeVoidAsync("alert", "Authentication token missing. Please log in again.");
+                    return;
+                }
+
+                // Remove any existing X-Management-Token header and add the current one
+                Http.DefaultRequestHeaders.Remove("X-Management-Token");
+                Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+
                 var response = await Http.DeleteAsync($"/api/management/auctions/{auction.AuctionId}");
                 if (response.IsSuccessStatusCode)
                 {
