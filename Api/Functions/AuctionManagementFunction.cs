@@ -365,6 +365,49 @@ public class AuctionManagementFunction
     }
 
     /// <summary>
+    /// Direct database insert test bypassing join code generation.
+    /// </summary>
+    [Function("TestDirectInsert")]
+    public async Task<HttpResponseData> TestDirectInsert(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "management/test-direct")] HttpRequestData req)
+    {
+        try
+        {
+            _logger.LogInformation("Testing direct database insert...");
+            
+            // Create auction with simple unique codes
+            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var auction = new Auction
+            {
+                Name = "Direct Test " + timestamp,
+                JoinCode = "T" + timestamp.ToString().Substring(8, 5), // 6 chars: T + last 5 digits
+                MasterRecoveryCode = "DIRECT" + timestamp.ToString().Substring(3, 10), // 16 chars total
+                Status = "Draft",
+                CreatedByUserId = null,
+                CreatedDate = DateTime.UtcNow,
+                ModifiedDate = DateTime.UtcNow
+            };
+            
+            _logger.LogInformation("Direct insert - Name: {Name}, JoinCode: {JoinCode}, MasterCode: {MasterCode}", 
+                auction.Name, auction.JoinCode, auction.MasterRecoveryCode);
+            
+            // This would need direct DbContext access, but let's try the service with fixed codes
+            var testAuction = await _auctionService.CreateAuctionAsync(auction.Name, auction.CreatedByUserId);
+            
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteStringAsync($"Direct test successful. AuctionId: {testAuction.AuctionId}, JoinCode: {testAuction.JoinCode}");
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Direct test failed: {Message}", ex.Message);
+            var response = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await response.WriteStringAsync($"Direct test failed: {ex.Message}\nStack Trace: {ex.StackTrace}");
+            return response;
+        }
+    }
+
+    /// <summary>
     /// Simple service connectivity test endpoint.
     /// </summary>
     [Function("TestService")]
