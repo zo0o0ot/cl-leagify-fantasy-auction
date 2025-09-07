@@ -145,34 +145,12 @@ public class AdminDashboardFunction
 
     private bool IsValidAdminRequest(HttpRequestData req)
     {
-        // Check for admin token in Authorization header
-        if (!req.Headers.TryGetValues("Authorization", out var authHeaderValues))
-            return false;
-
-        var authHeader = authHeaderValues.FirstOrDefault();
-        if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
-            return false;
-
-        var token = authHeader.Substring("Bearer ".Length);
-
-        try
+        var validation = ManagementAuthFunction.ValidateManagementToken(req);
+        if (!validation.IsValid)
         {
-            // Decode and validate token (simple implementation)
-            var decodedBytes = Convert.FromBase64String(token);
-            var decodedString = System.Text.Encoding.UTF8.GetString(decodedBytes);
-            var parts = decodedString.Split(':');
-
-            if (parts.Length == 2 && parts[0] == "admin" && DateTime.TryParse(parts[1], out var expiryDate))
-            {
-                return DateTime.UtcNow < expiryDate;
-            }
+            _logger.LogWarning("Invalid management token: {ErrorMessage}", validation.ErrorMessage);
         }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Invalid admin token format");
-        }
-
-        return false;
+        return validation.IsValid;
     }
 }
 
