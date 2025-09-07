@@ -107,8 +107,8 @@ public class AuctionManagementFunction
                 return badResponse;
             }
 
-            // Use CreatedByUserId = 0 for system-created auctions until user system is implemented
-            int createdByUserId = auctionDto.CreatedByUserId ?? 0;
+            // Use CreatedByUserId = null for system-created auctions until user system is implemented
+            int? createdByUserId = auctionDto.CreatedByUserId;
             
             _logger.LogInformation("Creating auction with Name: {Name}, CreatedByUserId: {CreatedByUserId}, Description: {Description}", 
                 auctionDto.Name, createdByUserId, auctionDto.Description);
