@@ -3,10 +3,13 @@
 ## Development Workflow Expectations
 
 **IMPORTANT:** Always commit changes after completing tasks or fixing issues. When a task is complete:
-1. Stage relevant files with `git add`
-2. Create a descriptive commit message following the project's commit style
-3. Include the standard Claude Code footer in all commits
-4. Verify the commit succeeded with `git status`
+1. **Build the project locally first** with `dotnet build` to ensure no compilation errors
+2. Stage relevant files with `git add`
+3. Create a descriptive commit message following the project's commit style
+4. Include the standard Claude Code footer in all commits
+5. Verify the commit succeeded with `git status`
+
+**CRITICAL:** Never commit without building first - Azure Static Web Apps deployment will fail on compilation errors that could have been caught locally.
 
 ## Project Overview
 This is a real-time auction draft web application for fantasy sports, specifically designed for the NFL Draft League. The system allows multiple users to participate in live auctions bidding on college schools, with real-time updates and comprehensive roster management.
