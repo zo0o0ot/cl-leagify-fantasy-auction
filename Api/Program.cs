@@ -23,8 +23,14 @@ var host = new HostBuilder()
             }
             else
             {
-                // SQL Server for Azure
-                options.UseSqlServer(connectionString);
+                // SQL Server for Azure with retry logic for transient failures
+                options.UseSqlServer(connectionString, sqlOptions =>
+                {
+                    sqlOptions.EnableRetryOnFailure(
+                        maxRetryCount: 5,
+                        maxRetryDelay: TimeSpan.FromSeconds(10),
+                        errorNumbersToAdd: null);
+                });
             }
         });
 
