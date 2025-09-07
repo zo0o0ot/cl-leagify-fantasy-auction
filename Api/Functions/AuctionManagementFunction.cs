@@ -332,6 +332,51 @@ public class AuctionManagementFunction
     /// Auctions are returned sorted by creation date (most recent first).
     /// This endpoint is used by the management interface to display auction listings.
     /// </remarks>
+    /// <summary>
+    /// Simple database connectivity test endpoint.
+    /// </summary>
+    [Function("TestDbConnection")]
+    public async Task<HttpResponseData> TestDbConnection(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "management/test-db")] HttpRequestData req)
+    {
+        try
+        {
+            _logger.LogInformation("Testing database connection...");
+            
+            // Try to access the database context
+            var auctionCount = await _context.Auctions.CountAsync();
+            _logger.LogInformation("Database connection successful. Auction count: {Count}", auctionCount);
+            
+            // Try to create a minimal auction directly
+            var testAuction = new Auction
+            {
+                Name = "Test Auction " + DateTime.UtcNow.Ticks,
+                JoinCode = "TEST01",
+                MasterRecoveryCode = "TestMasterCode123",
+                Status = "Draft",
+                CreatedByUserId = 0,
+                CreatedDate = DateTime.UtcNow,
+                ModifiedDate = DateTime.UtcNow
+            };
+            
+            _context.Auctions.Add(testAuction);
+            await _context.SaveChangesAsync();
+            
+            _logger.LogInformation("Test auction created successfully with ID: {AuctionId}", testAuction.AuctionId);
+            
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteStringAsync($"Database test successful. Auctions: {auctionCount}, Test auction ID: {testAuction.AuctionId}");
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Database test failed");
+            var response = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await response.WriteStringAsync($"Database test failed: {ex.Message}");
+            return response;
+        }
+    }
+
     [Function("GetAllAuctions")]
     public async Task<HttpResponseData> GetAllAuctions(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "management/auctions")] HttpRequestData req)
