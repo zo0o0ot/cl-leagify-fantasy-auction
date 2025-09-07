@@ -107,6 +107,12 @@ public class AuctionService : IAuctionService
     }
 
     /// <inheritdoc />
+    public async Task<List<Auction>> GetAllAuctionsAsync()
+    {
+        return await _context.Auctions.ToListAsync();
+    }
+
+    /// <inheritdoc />
     public async Task<bool> UpdateAuctionStatusAsync(int auctionId, string newStatus)
     {
         if (!ValidStatuses.Contains(newStatus))

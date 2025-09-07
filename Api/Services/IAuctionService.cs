@@ -56,6 +56,16 @@ public interface IAuctionService
     Task<Auction?> GetAuctionByIdAsync(int auctionId);
 
     /// <summary>
+    /// Retrieves all auctions in the system.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous operation. The task result contains a list of all auctions.</returns>
+    /// <remarks>
+    /// Returns all auctions regardless of status. For management interface use only.
+    /// Results are not filtered or ordered by default.
+    /// </remarks>
+    Task<List<Auction>> GetAllAuctionsAsync();
+
+    /// <summary>
     /// Updates the status of an auction.
     /// </summary>
     /// <param name="auctionId">The ID of the auction to update.</param>

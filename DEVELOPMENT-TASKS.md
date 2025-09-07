@@ -33,7 +33,7 @@ Based on the requirement: **School Management → Auction Creation → Join Auct
 **Dependencies:** Task 1.1
 
 - [x] Create School entity and database schema
-- [x] Implement School repository with CRUD operations (in-memory for now)
+- [x] Implement School repository with CRUD operations (converted to database-backed)
 - [x] Build management interface using FluentDataGrid for school management
 - [x] Add external logo URL loading with fallback to internal files using FluentTextField
 - [x] Create school search and fuzzy matching logic
@@ -44,6 +44,9 @@ Based on the requirement: **School Management → Auction Creation → Join Auct
 - [x] Implement CSV import with logo download functionality
 - [x] Add comprehensive XML documentation for all public school management APIs
 - [x] Implement unit tests using xUnit with AAA pattern for school services
+- [x] Convert to database-backed persistent storage with Azure SQL Database
+- [x] Implement local-first logo serving strategy with URL fallback
+- [x] Add database initialization and management endpoints
 
 **Deliverables:**
 - [x] School database table with sample data (130 schools from template)

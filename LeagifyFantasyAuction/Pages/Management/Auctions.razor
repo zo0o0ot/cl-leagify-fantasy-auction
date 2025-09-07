@@ -1,63 +1,373 @@
 @page "/management/auctions"
 @layout ManagementLayout
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@using System.Net.Http.Json
+@using System.Text.Json
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.FluentUI.AspNetCore.Components
 
 <PageTitle>Auction Management</PageTitle>
 
 <div class="auction-container">
     <div class="header-row">
         <h2>Auction Management</h2>
-        <button class="btn btn-primary" disabled>
-            ➕ Create Auction (Coming Soon)
-        </button>
+        <FluentButton Appearance="Appearance.Accent" IconStart="@(new Icons.Regular.Size20.Add())" OnClick="OpenCreateAuctionDialog">
+            Create Auction
+        </FluentButton>
     </div>
 
-    <div class="auction-card">
-        <div class="alert alert-info">
-            <strong>ℹ️ Auction Management Coming Soon</strong>
-            <br />
-            This will allow you to:
-            <ul style="margin-top: 10px;">
-                <li>View all auctions with status, participants, and last activity</li>
-                <li>Create new auctions by uploading CSV draft templates</li>
-                <li>Configure roster positions and team budgets</li>
-                <li>Archive completed auctions</li>
-                <li>Delete test auctions</li>
-            </ul>
+    @if (isLoading)
+    {
+        <div class="loading-container">
+            <FluentProgressRing />
+            <span>Loading auctions...</span>
         </div>
-
-        <h3>Current System Status</h3>
-        <div class="status-badges">
-            <span class="status-badge complete">✅ Authentication System - Complete</span>
-            <span class="status-badge complete">✅ School Management - Complete</span>
-            <span class="status-badge progress">🚧 Auction Creation - In Development</span>
-            <span class="status-badge planned">📋 Join Auction Flow - Planned</span>
-            <span class="status-badge planned">⚡ Real-time Bidding - Planned</span>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <FluentMessageBar Intent="MessageIntent.Error">
+            <strong>Error:</strong> @errorMessage
+        </FluentMessageBar>
+    }
+    else
+    {
+        <div class="auctions-grid">
+            @if (auctions.Any())
+            {
+                <FluentDataGrid Items="@auctions.AsQueryable()" Pagination="@pagination" GridTemplateColumns="1fr 150px 120px 150px 200px 120px">
+                    <PropertyColumn Property="@(a => a.Name)" Title="Auction Name" Sortable="true" />
+                    <TemplateColumn Title="Status" Sortable="true">
+                        <ChildContent Context="auction">
+                            <FluentBadge Appearance="@GetStatusBadgeAppearance(auction.Status)">
+                                @auction.Status
+                            </FluentBadge>
+                        </ChildContent>
+                    </TemplateColumn>
+                    <PropertyColumn Property="@(a => a.CreatedDate.ToString("MM/dd/yyyy"))" Title="Created" Sortable="true" />
+                    <TemplateColumn Title="Join Code">
+                        <ChildContent Context="auction">
+                            <div class="join-code">
+                                <code>@auction.JoinCode</code>
+                                <FluentButton Appearance="Appearance.Stealth" IconStart="@(new Icons.Regular.Size16.Copy())" 
+                                              OnClick="@(() => CopyToClipboard(auction.JoinCode))" Title="Copy join code" />
+                            </div>
+                        </ChildContent>
+                    </TemplateColumn>
+                    <TemplateColumn Title="Master Code">
+                        <ChildContent Context="auction">
+                            <div class="master-code">
+                                <code class="master-code-text">@auction.MasterCode</code>
+                                <FluentButton Appearance="Appearance.Stealth" IconStart="@(new Icons.Regular.Size16.Copy())" 
+                                              OnClick="@(() => CopyToClipboard(auction.MasterCode))" Title="Copy master code" />
+                            </div>
+                        </ChildContent>
+                    </TemplateColumn>
+                    <TemplateColumn Title="Actions" Align="@Align.Center">
+                        <ChildContent Context="auction">
+                            <FluentButton Appearance="Appearance.Stealth" IconStart="@(new Icons.Regular.Size16.Settings())" 
+                                          OnClick="@(() => EditAuction(auction))" Title="Configure auction" />
+                            <FluentButton Appearance="Appearance.Stealth" IconStart="@(new Icons.Regular.Size16.Delete())" 
+                                          OnClick="@(() => DeleteAuction(auction))" Title="Delete auction" />
+                        </ChildContent>
+                    </TemplateColumn>
+                </FluentDataGrid>
+                
+                <FluentPaginator State="@pagination" />
+            }
+            else
+            {
+                <div class="empty-state">
+                    <FluentIcon Value="@(new Icons.Regular.Size48.Database())" />
+                    <h3>No Auctions Yet</h3>
+                    <p>Create your first auction to get started with the draft system.</p>
+                    <FluentButton Appearance="Appearance.Accent" OnClick="OpenCreateAuctionDialog">
+                        Create First Auction
+                    </FluentButton>
+                </div>
+            }
         </div>
-
-        <h3>Next Steps</h3>
-        <ol>
-            <li>Implement CSV draft template upload and school matching</li>
-            <li>Create roster position configuration interface</li>
-            <li>Add auction validation and budget settings</li>
-            <li>Build user join code system</li>
-            <li>Implement real-time bidding with SignalR</li>
-        </ol>
-    </div>
+    }
 </div>
 
+<!-- Create Auction Dialog -->
+<FluentDialog @ref="createDialog" @bind-Hidden="@hideCreateDialog">
+    <FluentDialogHeader ShowDismiss="true">
+        <FluentStack VerticalAlignment="VerticalAlignment.Center">
+            <FluentIcon Value="@(new Icons.Regular.Size24.Add())" />
+            <FluentLabel Typo="Typography.PaneHeader">Create New Auction</FluentLabel>
+        </FluentStack>
+    </FluentDialogHeader>
+
+    <FluentDialogBody>
+        <FluentStack Orientation="Orientation.Vertical" VerticalGap="12">
+            <FluentTextField @bind-Value="newAuction.Name" Label="Auction Name" Required="true" 
+                            Placeholder="e.g., 2025 NFL Draft League" />
+            <FluentTextArea @bind-Value="newAuction.Description" Label="Description (Optional)" 
+                           Placeholder="Brief description of the auction rules or league" />
+            
+            <FluentMessageBar Intent="MessageIntent.Info">
+                <strong>ℹ️ Note:</strong> After creating the auction, you'll be able to upload CSV data and configure roster positions.
+            </FluentMessageBar>
+        </FluentStack>
+    </FluentDialogBody>
+
+    <FluentDialogFooter>
+        <FluentButton Appearance="Appearance.Neutral" OnClick="CancelCreateAuction">Cancel</FluentButton>
+        <FluentButton Appearance="Appearance.Accent" OnClick="CreateAuction" Loading="@isCreating">
+            @if (isCreating)
+            {
+                <text>Creating...</text>
+            }
+            else
+            {
+                <text>Create Auction</text>
+            }
+        </FluentButton>
+    </FluentDialogFooter>
+</FluentDialog>
+
+@code {
+    private List<AuctionDto> auctions = new();
+    private bool isLoading = true;
+    private bool isCreating = false;
+    private string errorMessage = "";
+    private PaginationState pagination = new() { ItemsPerPage = 10 };
+
+    // Dialog state
+    private FluentDialog? createDialog;
+    private bool hideCreateDialog = true;
+    private CreateAuctionRequest newAuction = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAuctions();
+    }
+
+    private async Task LoadAuctions()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = "";
+
+            var response = await Http.GetFromJsonAsync<List<AuctionDto>>("/api/management/auctions");
+            auctions = response ?? new List<AuctionDto>();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load auctions: {ex.Message}";
+            Console.WriteLine($"Error loading auctions: {ex}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void OpenCreateAuctionDialog()
+    {
+        newAuction = new CreateAuctionRequest();
+        hideCreateDialog = false;
+        StateHasChanged();
+    }
+
+    private void CancelCreateAuction()
+    {
+        hideCreateDialog = true;
+        newAuction = new CreateAuctionRequest();
+        StateHasChanged();
+    }
+
+    private async Task CreateAuction()
+    {
+        if (string.IsNullOrWhiteSpace(newAuction.Name))
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Please enter an auction name.");
+            return;
+        }
+
+        try
+        {
+            isCreating = true;
+            StateHasChanged();
+
+            var response = await Http.PostAsJsonAsync("/api/management/auctions", newAuction);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadAuctions(); // Refresh the list
+                hideCreateDialog = true;
+                newAuction = new CreateAuctionRequest();
+                await JSRuntime.InvokeVoidAsync("alert", "Auction created successfully!");
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                await JSRuntime.InvokeVoidAsync("alert", $"Failed to create auction: {errorContent}");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error creating auction: {ex.Message}");
+            Console.WriteLine($"Error creating auction: {ex}");
+        }
+        finally
+        {
+            isCreating = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CopyToClipboard(string text)
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", text);
+            await JSRuntime.InvokeVoidAsync("alert", $"Copied '{text}' to clipboard!");
+        }
+        catch (Exception)
+        {
+            // Fallback for browsers that don't support clipboard API
+            await JSRuntime.InvokeVoidAsync("alert", $"Join Code: {text}\n\nPlease copy this manually.");
+        }
+    }
+
+    private void EditAuction(AuctionDto auction)
+    {
+        // TODO: Implement auction configuration page
+        JSRuntime.InvokeVoidAsync("alert", $"Auction configuration for '{auction.Name}' coming soon!");
+    }
+
+    private async Task DeleteAuction(AuctionDto auction)
+    {
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", 
+            $"Are you sure you want to delete the auction '{auction.Name}'? This cannot be undone.");
+        
+        if (confirmed)
+        {
+            try
+            {
+                var response = await Http.DeleteAsync($"/api/management/auctions/{auction.AuctionId}");
+                if (response.IsSuccessStatusCode)
+                {
+                    await LoadAuctions();
+                    await JSRuntime.InvokeVoidAsync("alert", "Auction deleted successfully.");
+                }
+                else
+                {
+                    await JSRuntime.InvokeVoidAsync("alert", "Failed to delete auction.");
+                }
+            }
+            catch (Exception ex)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"Error deleting auction: {ex.Message}");
+            }
+        }
+    }
+
+    private Appearance GetStatusBadgeAppearance(string status)
+    {
+        return status?.ToLower() switch
+        {
+            "draft" => Appearance.Neutral,
+            "inprogress" => Appearance.Accent,
+            "completed" => Appearance.Lightweight,
+            _ => Appearance.Neutral
+        };
+    }
+
+    // DTOs
+    public class AuctionDto
+    {
+        public int AuctionId { get; set; }
+        public string Name { get; set; } = "";
+        public string? Description { get; set; }
+        public string Status { get; set; } = "";
+        public string JoinCode { get; set; } = "";
+        public string MasterCode { get; set; } = "";
+        public DateTime CreatedDate { get; set; }
+        public DateTime ModifiedDate { get; set; }
+    }
+
+    public class CreateAuctionRequest
+    {
+        [Required]
+        public string Name { get; set; } = "";
+        public string? Description { get; set; }
+    }
+}
+
 <style>
-    .auction-container { padding: 20px; }
-    .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    .auction-card { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 24px; }
-    .status-badges { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; }
-    .status-badge { padding: 8px 12px; border-radius: 4px; font-size: 14px; }
-    .status-badge.complete { background: #d4edda; color: #155724; }
-    .status-badge.progress { background: #fff3cd; color: #856404; }
-    .status-badge.planned { background: #f8f9fa; color: #6c757d; }
-    .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
-    .btn-primary { background: #0078d4; color: white; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .alert { padding: 12px; border-radius: 4px; margin: 10px 0; }
-    .alert-info { background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
-    ol { padding-left: 20px; }
+    .auction-container {
+        padding: 24px;
+        max-width: 1200px;
+    }
+
+    .header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+
+    .loading-container {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 40px;
+        justify-content: center;
+    }
+
+    .auctions-grid {
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 40px;
+        color: var(--neutral-foreground-rest);
+    }
+
+    .empty-state h3 {
+        margin: 16px 0 8px 0;
+        font-weight: 600;
+    }
+
+    .empty-state p {
+        margin-bottom: 24px;
+        opacity: 0.8;
+    }
+
+    .join-code, .master-code {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .join-code code {
+        background: var(--accent-fill-rest);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-family: monospace;
+        font-weight: 600;
+    }
+
+    .master-code-text {
+        background: var(--neutral-fill-stealth-rest);
+        color: var(--neutral-foreground-rest);
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 12px;
+    }
+
+    fluent-data-grid {
+        border: none;
+    }
 </style>

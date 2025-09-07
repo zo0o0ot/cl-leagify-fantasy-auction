@@ -303,6 +303,56 @@ public class AuctionManagementFunction
     }
 
     /// <summary>
+    /// Retrieves all auctions in the system with their basic information.
+    /// </summary>
+    /// <param name="req">The HTTP request containing management authentication headers.</param>
+    /// <returns>
+    /// HTTP 200 OK with an array of auction objects containing basic information on success.
+    /// HTTP 401 Unauthorized if the management token is invalid or missing.
+    /// HTTP 500 Internal Server Error if an unexpected error occurs during retrieval.
+    /// </returns>
+    /// <remarks>
+    /// Returns all auctions with their join codes, master codes, status, and creation information.
+    /// Auctions are returned sorted by creation date (most recent first).
+    /// This endpoint is used by the management interface to display auction listings.
+    /// </remarks>
+    [Function("GetAllAuctions")]
+    public async Task<HttpResponseData> GetAllAuctions(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "management/auctions")] HttpRequestData req)
+    {
+        try
+        {
+            _logger.LogInformation("=== GET ALL AUCTIONS REQUEST STARTED ===");
+
+            // Validate admin token
+            if (!IsValidAdminRequest(req))
+            {
+                _logger.LogWarning("Unauthorized request to get all auctions");
+                var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
+                await unauthorizedResponse.WriteStringAsync("Unauthorized");
+                return unauthorizedResponse;
+            }
+
+            _logger.LogInformation("Retrieving all auctions");
+
+            var auctions = await _auctionService.GetAllAuctionsAsync();
+            
+            _logger.LogInformation("Found {AuctionCount} auctions", auctions.Count);
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(auctions.OrderByDescending(a => a.CreatedDate).ToList());
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving all auctions");
+            var response = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await response.WriteStringAsync($"Error retrieving auctions: {ex.Message}");
+            return response;
+        }
+    }
+
+    /// <summary>
     /// Validates that the HTTP request contains a valid management authentication token.
     /// </summary>
     /// <param name="req">The HTTP request to validate.</param>
