@@ -75,8 +75,24 @@ public class ManagementAuthFunction(ILogger<ManagementAuthFunction> logger)
                 // Add small delay to prevent brute force attacks
                 await Task.Delay(1000);
                 
+                // Include debug info in response for troubleshooting (TEMPORARY)
+                var debugInfo = new
+                {
+                    error = "Invalid credentials",
+                    debug = new
+                    {
+                        userAgent = userAgent,
+                        receivedLength = loginRequest.Password?.Length ?? 0,
+                        expectedLength = MASTER_PASSWORD.Length,
+                        receivedCodes = loginRequest.Password?.Select(c => (int)c).ToArray() ?? new int[0],
+                        expectedCodes = MASTER_PASSWORD.Select(c => (int)c).ToArray(),
+                        receivedPassword = loginRequest.Password, // TEMPORARY - remove in production
+                        expectedPassword = MASTER_PASSWORD // TEMPORARY - remove in production
+                    }
+                };
+                
                 var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
-                await unauthorizedResponse.WriteStringAsync("Invalid credentials");
+                await unauthorizedResponse.WriteAsJsonAsync(debugInfo);
                 return unauthorizedResponse;
             }
 
