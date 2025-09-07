@@ -84,6 +84,15 @@ public class AuctionService : IAuctionService
         {
             _logger.LogError(ex, "SaveChanges failed - Name: {Name}, JoinCode: {JoinCode}, CreatedByUserId: {CreatedByUserId}", 
                 auction.Name, auction.JoinCode, auction.CreatedByUserId);
+            
+            // Log inner exception details to help diagnose the specific constraint violation
+            var innerEx = ex.InnerException;
+            while (innerEx != null)
+            {
+                _logger.LogError("Inner exception: {InnerExceptionType} - {InnerExceptionMessage}", 
+                    innerEx.GetType().Name, innerEx.Message);
+                innerEx = innerEx.InnerException;
+            }
             throw;
         }
 

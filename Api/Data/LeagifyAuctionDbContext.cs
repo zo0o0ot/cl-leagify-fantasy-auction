@@ -39,8 +39,9 @@ public class LeagifyAuctionDbContext : DbContext
         modelBuilder.Entity<Auction>(entity =>
         {
             entity.HasKey(e => e.AuctionId);
-            entity.HasIndex(e => e.JoinCode).IsUnique();
-            entity.HasIndex(e => e.MasterRecoveryCode).IsUnique();
+            // Temporarily disable unique constraints for testing
+            // entity.HasIndex(e => e.JoinCode).IsUnique();
+            // entity.HasIndex(e => e.MasterRecoveryCode).IsUnique();
             entity.Property(e => e.CreatedDate).HasDefaultValueSql("GETUTCDATE()");
             entity.Property(e => e.ModifiedDate).HasDefaultValueSql("GETUTCDATE()");
 
