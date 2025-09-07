@@ -489,3 +489,43 @@ public class AuctionResponseDto
     /// </summary>
     public DateTime ModifiedDate { get; set; }
 }
+
+/// <summary>
+/// Data transfer object for creating new auctions.
+/// </summary>
+/// <remarks>
+/// This class is used to deserialize JSON data from HTTP requests when creating new auctions.
+/// All validation should be performed on the server side after deserialization.
+/// </remarks>
+public class CreateAuctionDto
+{
+    /// <summary>
+    /// Gets or sets the name of the auction to be created.
+    /// </summary>
+    /// <value>The display name for the auction. This field is required and cannot be empty.</value>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the optional description of the auction.
+    /// </summary>
+    /// <value>A brief description of the auction rules or league details.</value>
+    public string? Description { get; set; }
+
+    /// <summary>
+    /// Gets or sets the ID of the user creating this auction.
+    /// </summary>
+    /// <value>The user ID who will be the auction master. Defaults to 1 for admin user.</value>
+    public int CreatedByUserId { get; set; } = 1;
+}
+
+/// <summary>
+/// Data transfer object for updating auction status.
+/// </summary>
+public class UpdateAuctionStatusDto
+{
+    /// <summary>
+    /// Gets or sets the new status for the auction.
+    /// </summary>
+    /// <value>Must be one of: "Draft", "InProgress", "Complete", "Archived".</value>
+    public string Status { get; set; } = string.Empty;
+}
