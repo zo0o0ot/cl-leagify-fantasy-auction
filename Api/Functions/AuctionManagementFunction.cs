@@ -333,6 +333,68 @@ public class AuctionManagementFunction
     /// This endpoint is used by the management interface to display auction listings.
     /// </remarks>
     /// <summary>
+    /// Advanced database diagnostic test to understand schema and constraints.
+    /// </summary>
+    [Function("TestDatabaseDiagnostic")]
+    public async Task<HttpResponseData> TestDatabaseDiagnostic(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "management/test-diagnostic")] HttpRequestData req)
+    {
+        try
+        {
+            _logger.LogInformation("Starting comprehensive database diagnostic...");
+            
+            var diagnosticInfo = new List<string>();
+            
+            // Test 1: Count existing auctions
+            var auctions = await _auctionService.GetAllAuctionsAsync();
+            diagnosticInfo.Add($"Existing auctions: {auctions.Count}");
+            _logger.LogInformation("✅ GetAllAuctions works: {Count} records", auctions.Count);
+            
+            // Test 2: Try join code validation (involves database query)
+            var (isValid, errorMsg) = await _auctionService.ValidateJoinCodeAsync("DIAGNO");
+            diagnosticInfo.Add($"Join code validation: {isValid}, Error: {errorMsg ?? "none"}");
+            _logger.LogInformation("✅ ValidateJoinCodeAsync works: {IsValid}", isValid);
+            
+            // Test 3: Try to understand what happens during join code generation
+            try
+            {
+                var joinCode = await _auctionService.GenerateUniqueJoinCodeAsync();
+                diagnosticInfo.Add($"✅ Join code generation works: {joinCode}");
+                _logger.LogInformation("✅ GenerateUniqueJoinCodeAsync works: {JoinCode}", joinCode);
+            }
+            catch (Exception ex)
+            {
+                diagnosticInfo.Add($"❌ Join code generation failed: {ex.Message}");
+                _logger.LogError(ex, "❌ GenerateUniqueJoinCodeAsync failed");
+            }
+            
+            // Test 4: Try to understand what happens during master code generation
+            try
+            {
+                var masterCode = await _auctionService.GenerateUniqueMasterRecoveryCodeAsync();
+                diagnosticInfo.Add($"✅ Master code generation works: {masterCode}");
+                _logger.LogInformation("✅ GenerateUniqueMasterRecoveryCodeAsync works: {MasterCode}", masterCode);
+            }
+            catch (Exception ex)
+            {
+                diagnosticInfo.Add($"❌ Master code generation failed: {ex.Message}");
+                _logger.LogError(ex, "❌ GenerateUniqueMasterRecoveryCodeAsync failed");
+            }
+            
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteStringAsync($"Database diagnostic results:\n" + string.Join("\n", diagnosticInfo));
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Database diagnostic failed completely");
+            var response = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await response.WriteStringAsync($"Diagnostic failed: {ex.Message}\nStack: {ex.StackTrace}");
+            return response;
+        }
+    }
+
+    /// <summary>
     /// Basic database connectivity test without creating entities.
     /// </summary>
     [Function("TestBasicDb")]
