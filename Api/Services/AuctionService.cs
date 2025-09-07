@@ -53,7 +53,10 @@ public class AuctionService : IAuctionService
         _logger.LogInformation("Creating new auction '{AuctionName}' for user {UserId}", name, createdByUserId);
 
         var joinCode = await GenerateUniqueJoinCodeAsync();
+        _logger.LogInformation("Generated join code: {JoinCode}", joinCode);
+        
         var masterRecoveryCode = await GenerateUniqueMasterRecoveryCodeAsync();
+        _logger.LogInformation("Generated master recovery code: {MasterCode}", masterRecoveryCode);
 
         var auction = new Auction
         {
@@ -66,8 +69,23 @@ public class AuctionService : IAuctionService
             ModifiedDate = DateTime.UtcNow
         };
 
+        _logger.LogInformation("Adding auction to context: Name={Name}, JoinCode={JoinCode}, MasterCode={MasterCode}, CreatedByUserId={CreatedByUserId}", 
+            auction.Name, auction.JoinCode, auction.MasterRecoveryCode, auction.CreatedByUserId);
+        
         _context.Auctions.Add(auction);
-        await _context.SaveChangesAsync();
+        
+        _logger.LogInformation("Calling SaveChangesAsync...");
+        try
+        {
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("SaveChanges completed successfully");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "SaveChanges failed - Name: {Name}, JoinCode: {JoinCode}, CreatedByUserId: {CreatedByUserId}", 
+                auction.Name, auction.JoinCode, auction.CreatedByUserId);
+            throw;
+        }
 
         _logger.LogInformation("Created auction {AuctionId} with join code {JoinCode}", 
             auction.AuctionId, auction.JoinCode);
