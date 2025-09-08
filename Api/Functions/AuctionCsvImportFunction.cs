@@ -89,27 +89,32 @@ public class AuctionCsvImportFunction
                 for (int i = 0; i < lines.Length; i++)
                 {
                     var line = lines[i].Trim();
+                    _logger.LogInformation("Line {Index}: '{Line}' (Length: {Length}, IsEmpty: {IsEmpty})", 
+                        i, line.Length > 100 ? line.Substring(0, 100) + "..." : line, line.Length, string.IsNullOrEmpty(line));
                     
                     // Look for Content-Disposition with name=csvFile (standard HTML InputFile pattern)
                     if (line.Contains("Content-Disposition:") && line.Contains("name=csvFile"))
                     {
                         foundContentType = true;
-                        _logger.LogInformation("Found csvFile field at line {Index}", i);
+                        _logger.LogInformation("✅ Found csvFile field at line {Index}: {Line}", i, line);
                     }
                     // CSV content starts after the empty line following Content-Disposition
                     else if (foundContentType && string.IsNullOrEmpty(line))
                     {
                         csvStartIndex = i + 1;
-                        _logger.LogInformation("CSV content starts at line {Index}", csvStartIndex);
+                        _logger.LogInformation("✅ CSV content starts at line {Index} (after empty line at {EmptyLineIndex})", csvStartIndex, i);
                     }
                     // End boundary found (ends with --)
                     else if (csvStartIndex > 0 && line.StartsWith("--") && line.EndsWith("--"))
                     {
                         csvEndIndex = i;
-                        _logger.LogInformation("End boundary found at line {Index}", i);
+                        _logger.LogInformation("✅ End boundary found at line {Index}: {Line}", i, line);
                         break;
                     }
                 }
+                
+                _logger.LogInformation("Parsing complete: foundContentType={Found}, csvStartIndex={Start}, csvEndIndex={End}", 
+                    foundContentType, csvStartIndex, csvEndIndex);
 
                 if (csvStartIndex < 0)
                 {
@@ -127,15 +132,36 @@ public class AuctionCsvImportFunction
                     _logger.LogInformation("No end boundary found, using all remaining lines until {Index}", csvEndIndex);
                 }
 
-                // Extract CSV content, removing carriage returns and empty lines
-                var csvLines = lines.Skip(csvStartIndex).Take(csvEndIndex - csvStartIndex)
+                // Extract CSV content with detailed logging
+                var rawCsvLines = lines.Skip(csvStartIndex).Take(csvEndIndex - csvStartIndex).ToArray();
+                _logger.LogInformation("Raw CSV extraction: taking lines {Start} to {End} ({Count} lines)", 
+                    csvStartIndex, csvEndIndex - 1, rawCsvLines.Length);
+                
+                for (int i = 0; i < Math.Min(rawCsvLines.Length, 5); i++)
+                {
+                    _logger.LogInformation("Raw CSV line {Index}: '{Line}' (Length: {Length})", 
+                        i, rawCsvLines[i].Length > 100 ? rawCsvLines[i].Substring(0, 100) + "..." : rawCsvLines[i], rawCsvLines[i].Length);
+                }
+                
+                var csvLines = rawCsvLines
                     .Where(line => !string.IsNullOrWhiteSpace(line) && !line.Trim().StartsWith("--"))
-                    .Select(line => line.TrimEnd('\r')) // Remove carriage returns from debug output
+                    .Select(line => line.TrimEnd('\r'))
                     .ToArray();
+                
+                _logger.LogInformation("After filtering: {FilteredCount} lines remain", csvLines.Length);
+                
                 var csvContent = string.Join("\n", csvLines).Trim();
                 
-                _logger.LogInformation("Extracted CSV content length: {Length}, First 200 chars: {Content}", 
-                    csvContent.Length, csvContent.Length > 200 ? csvContent.Substring(0, 200) : csvContent);
+                _logger.LogInformation("Final CSV content length: {Length}", csvContent.Length);
+                if (csvContent.Length > 0)
+                {
+                    _logger.LogInformation("First 300 chars of CSV: {Content}", 
+                        csvContent.Length > 300 ? csvContent.Substring(0, 300) : csvContent);
+                }
+                else
+                {
+                    _logger.LogWarning("❌ CSV content is EMPTY after extraction!");
+                }
                 
                 if (string.IsNullOrEmpty(csvContent))
                 {
