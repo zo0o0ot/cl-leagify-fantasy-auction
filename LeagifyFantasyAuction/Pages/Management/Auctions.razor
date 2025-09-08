@@ -396,8 +396,15 @@
             Http.DefaultRequestHeaders.Add("X-Management-Token", token);
 
             // Upload CSV for preview
+            // First, read the file content into a byte array
+            using var memoryStream = new MemoryStream();
+            await (file.Stream ?? Stream.Null).CopyToAsync(memoryStream);
+            var fileBytes = memoryStream.ToArray();
+            
+            Console.WriteLine($"File upload: {file.Name}, Size: {fileBytes.Length} bytes");
+            
             using var content = new MultipartFormDataContent();
-            var fileContent = new StreamContent(file.Stream ?? Stream.Null);
+            var fileContent = new ByteArrayContent(fileBytes);
             fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/csv");
             content.Add(fileContent, "csvFile", file.Name ?? "upload.csv");
 
