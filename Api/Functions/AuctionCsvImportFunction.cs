@@ -262,6 +262,52 @@ public class AuctionCsvImportFunction
     }
 
     /// <summary>
+    /// Debug endpoint to show exact multipart structure received
+    /// </summary>
+    [Function("DebugMultipart")]
+    public async Task<HttpResponseData> DebugMultipart(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "debug/multipart")] HttpRequestData req)
+    {
+        try
+        {
+            _logger.LogInformation("Debug multipart request received");
+
+            // Read body content
+            using var bodyReader = new StreamReader(req.Body);
+            var bodyContent = await bodyReader.ReadToEndAsync();
+            
+            var lines = bodyContent.Split('\n');
+            var debugInfo = new
+            {
+                Message = "Multipart Debug Analysis",
+                ContentLength = bodyContent.Length,
+                ContentType = req.Headers.TryGetValues("Content-Type", out var ctValues) ? string.Join(", ", ctValues) : "None",
+                LineCount = lines.Length,
+                FirstFewLines = lines.Take(20).ToArray(),
+                LastFewLines = lines.TakeLast(10).ToArray(),
+                ContainsNameCsvFile = bodyContent.Contains("name=\"csvFile\""),
+                ContainsNameCsvFileNoQuotes = bodyContent.Contains("name=csvFile"),
+                ContainsFilename = bodyContent.Contains("filename="),
+                ContainsSchoolHeader = bodyContent.Contains("School,Conference"),
+                BoundaryPattern = lines.FirstOrDefault(l => l.StartsWith("--"))?.Trim(),
+                ContentDispositionLines = lines.Where(l => l.Contains("Content-Disposition")).ToArray(),
+                ContentTypeLines = lines.Where(l => l.Contains("Content-Type")).ToArray()
+            };
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(debugInfo);
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in debug multipart");
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync($"Debug failed: {ex.Message}");
+            return errorResponse;
+        }
+    }
+
+    /// <summary>
     /// Test endpoint to verify multipart form data handling without processing
     /// </summary>
     [Function("TestCsvUpload")]

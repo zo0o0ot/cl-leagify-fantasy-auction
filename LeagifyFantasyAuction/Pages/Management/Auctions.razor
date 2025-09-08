@@ -482,7 +482,21 @@
                 Console.WriteLine($"Standard content preview: {preview}");
             }
 
-            // Use same upload logic as FluentUI version
+            // First, send to debug endpoint to see exact multipart structure
+            using var debugContent = new MultipartFormDataContent();
+            var debugFileContent = new ByteArrayContent(fileBytes);
+            debugFileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/csv");
+            debugContent.Add(debugFileContent, "csvFile", file.Name ?? "upload.csv");
+
+            Console.WriteLine("=== SENDING TO DEBUG ENDPOINT ===");
+            var debugResponse = await Http.PostAsync("/api/debug/multipart", debugContent);
+            if (debugResponse.IsSuccessStatusCode)
+            {
+                var debugResult = await debugResponse.Content.ReadAsStringAsync();
+                Console.WriteLine($"Debug endpoint result: {debugResult}");
+            }
+
+            // Now send to actual endpoint
             using var content = new MultipartFormDataContent();
             var fileContent = new ByteArrayContent(fileBytes);
             fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/csv");
