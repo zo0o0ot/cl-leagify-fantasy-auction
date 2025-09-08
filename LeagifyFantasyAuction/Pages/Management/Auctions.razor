@@ -396,12 +396,29 @@
             Http.DefaultRequestHeaders.Add("X-Management-Token", token);
 
             // Upload CSV for preview
-            // First, read the file content into a byte array
-            using var memoryStream = new MemoryStream();
-            await (file.Stream ?? Stream.Null).CopyToAsync(memoryStream);
-            var fileBytes = memoryStream.ToArray();
+            // Read file content directly from Stream property
+            byte[] fileBytes;
             
-            Console.WriteLine($"File upload: {file.Name}, Size: {fileBytes.Length} bytes");
+            if (file.Stream == null)
+            {
+                csvUploadMessage = "Error: File stream is null.";
+                return;
+            }
+            
+            using (var fileStream = file.Stream)
+            {
+                // Reset position to start if possible
+                if (fileStream.CanSeek)
+                {
+                    fileStream.Position = 0;
+                }
+                
+                using var memoryStream = new MemoryStream();
+                await fileStream.CopyToAsync(memoryStream);
+                fileBytes = memoryStream.ToArray();
+            }
+            
+            Console.WriteLine($"File upload: {file.Name}, Size: {fileBytes.Length} bytes, Content preview: {System.Text.Encoding.UTF8.GetString(fileBytes.Take(100).ToArray())}");
             
             using var content = new MultipartFormDataContent();
             var fileContent = new ByteArrayContent(fileBytes);
