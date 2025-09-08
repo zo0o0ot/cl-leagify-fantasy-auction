@@ -104,8 +104,8 @@ public class AuctionCsvImportFunction
                         csvStartIndex = i + 1;
                         _logger.LogInformation("✅ CSV content starts at line {Index} (after empty line at {EmptyLineIndex})", csvStartIndex, i);
                     }
-                    // End boundary found (ends with --)
-                    else if (csvStartIndex > 0 && line.StartsWith("--") && line.EndsWith("--"))
+                    // End boundary found (ends with -- after trimming)
+                    else if (csvStartIndex > 0 && line.StartsWith("--") && line.TrimEnd('\r').EndsWith("--"))
                     {
                         csvEndIndex = i;
                         _logger.LogInformation("✅ End boundary found at line {Index}: {Line}", i, line);
@@ -125,11 +125,26 @@ public class AuctionCsvImportFunction
                     return badResponse;
                 }
 
-                // If no end boundary found, use the rest of the content
+                // If no end boundary found, look for it more carefully
                 if (csvEndIndex < 0)
                 {
-                    csvEndIndex = lines.Length;
-                    _logger.LogInformation("No end boundary found, using all remaining lines until {Index}", csvEndIndex);
+                    // Look for any boundary line starting from CSV content
+                    for (int i = csvStartIndex; i < lines.Length; i++)
+                    {
+                        var line = lines[i].Trim();
+                        if (line.StartsWith("--") && (line.EndsWith("--") || line.TrimEnd('\r').EndsWith("--")))
+                        {
+                            csvEndIndex = i;
+                            _logger.LogInformation("✅ Found end boundary at line {Index} during second pass: {Line}", i, line);
+                            break;
+                        }
+                    }
+                    
+                    if (csvEndIndex < 0)
+                    {
+                        csvEndIndex = lines.Length;
+                        _logger.LogInformation("No end boundary found after second pass, using all remaining lines until {Index}", csvEndIndex);
+                    }
                 }
 
                 // Extract CSV content with detailed logging
