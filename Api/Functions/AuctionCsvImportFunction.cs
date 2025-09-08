@@ -89,22 +89,22 @@ public class AuctionCsvImportFunction
                 for (int i = 0; i < lines.Length; i++)
                 {
                     var line = lines[i].Trim();
-                    _logger.LogInformation("Line {Index}: '{Line}'", i, line.Length > 100 ? line.Substring(0, 100) + "..." : line);
                     
-                    if (line.Contains("Content-Type:") && (line.Contains("text/csv") || line.Contains("application/")))
+                    // Look for Content-Disposition with name=csvFile (standard HTML InputFile pattern)
+                    if (line.Contains("Content-Disposition:") && line.Contains("name=csvFile"))
                     {
                         foundContentType = true;
-                        _logger.LogInformation("Found content type at line {Index}", i);
+                        _logger.LogInformation("Found csvFile field at line {Index}", i);
                     }
+                    // CSV content starts after the empty line following Content-Disposition
                     else if (foundContentType && string.IsNullOrEmpty(line))
                     {
-                        // CSV content starts after the empty line following Content-Type
                         csvStartIndex = i + 1;
                         _logger.LogInformation("CSV content starts at line {Index}", csvStartIndex);
                     }
-                    else if (csvStartIndex > 0 && line.StartsWith("--"))
+                    // End boundary found (ends with --)
+                    else if (csvStartIndex > 0 && line.StartsWith("--") && line.EndsWith("--"))
                     {
-                        // End boundary found
                         csvEndIndex = i;
                         _logger.LogInformation("End boundary found at line {Index}", i);
                         break;
@@ -113,10 +113,10 @@ public class AuctionCsvImportFunction
 
                 if (csvStartIndex < 0)
                 {
-                    _logger.LogWarning("Could not find CSV content start in multipart data for auction {AuctionId}. Lines count: {Count}", 
-                        auctionId, lines.Length);
+                    _logger.LogWarning("Could not find CSV content for auction {AuctionId}. Found csvFile field: {FoundCsvFile}", 
+                        auctionId, foundContentType);
                     var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
-                    await badResponse.WriteStringAsync($"CSV content not found in upload. Found {lines.Length} lines, Content-Type found: {foundContentType}");
+                    await badResponse.WriteStringAsync($"CSV content not found. Found csvFile field: {foundContentType}");
                     return badResponse;
                 }
 
@@ -127,9 +127,10 @@ public class AuctionCsvImportFunction
                     _logger.LogInformation("No end boundary found, using all remaining lines until {Index}", csvEndIndex);
                 }
 
-                // Extract CSV content
+                // Extract CSV content, removing carriage returns and empty lines
                 var csvLines = lines.Skip(csvStartIndex).Take(csvEndIndex - csvStartIndex)
                     .Where(line => !string.IsNullOrWhiteSpace(line) && !line.Trim().StartsWith("--"))
+                    .Select(line => line.TrimEnd('\r')) // Remove carriage returns from debug output
                     .ToArray();
                 var csvContent = string.Join("\n", csvLines).Trim();
                 
