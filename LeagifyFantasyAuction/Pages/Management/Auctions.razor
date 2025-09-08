@@ -175,41 +175,104 @@
                         }
                         else
                         {
-                            <!-- School Matching Interface -->
-                            <FluentStack Orientation="Orientation.Vertical" VerticalGap="12">
-                                <FluentLabel Typo="Typography.Body">Review and confirm school matches:</FluentLabel>
+                            <!-- School Matching Interface with Summary -->
+                            <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+                                <FluentLabel Typo="Typography.Subject">CSV Import Preview</FluentLabel>
                                 
-                                <div style="max-height: 300px; overflow-y: auto;">
-                                    @foreach (var match in schoolMatches)
+                                <!-- Summary Statistics -->
+                                <FluentCard Style="padding: 16px; background-color: #f8f9fa; border: 2px solid #0078d4;">
+                                    <FluentStack Orientation="Orientation.Vertical" VerticalGap="12">
+                                        <FluentLabel Weight="FontWeight.Bold" Typo="Typography.Body">Import Summary</FluentLabel>
+                                        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="32">
+                                            <div style="text-align: center;">
+                                                <FluentLabel Style="font-size: 32px; font-weight: 700; color: #28a745; line-height: 1;">
+                                                    @schoolMatches.Count(m => m.MatchType == SchoolMatchType.Exact)
+                                                </FluentLabel>
+                                                <FluentLabel Style="font-size: 14px; color: #666;">Exact Matches</FluentLabel>
+                                            </div>
+                                            <div style="text-align: center;">
+                                                <FluentLabel Style="font-size: 32px; font-weight: 700; color: #ffc107; line-height: 1;">
+                                                    @schoolMatches.Count(m => m.MatchType == SchoolMatchType.Fuzzy)
+                                                </FluentLabel>
+                                                <FluentLabel Style="font-size: 14px; color: #666;">Fuzzy Matches</FluentLabel>
+                                            </div>
+                                            <div style="text-align: center;">
+                                                <FluentLabel Style="font-size: 32px; font-weight: 700; color: #dc3545; line-height: 1;">
+                                                    @schoolMatches.Count(m => m.MatchType == SchoolMatchType.NoMatch)
+                                                </FluentLabel>
+                                                <FluentLabel Style="font-size: 14px; color: #666;">New Schools</FluentLabel>
+                                            </div>
+                                            <div style="text-align: center;">
+                                                <FluentLabel Style="font-size: 32px; font-weight: 700; color: #6c757d; line-height: 1;">
+                                                    @schoolMatches.Count
+                                                </FluentLabel>
+                                                <FluentLabel Style="font-size: 14px; color: #666;">Total Schools</FluentLabel>
+                                            </div>
+                                        </FluentStack>
+                                    </FluentStack>
+                                </FluentCard>
+
+                                @if (schoolMatches.Count(m => m.MatchType == SchoolMatchType.NoMatch) > 0)
+                                {
+                                    <FluentMessageBar Intent="MessageIntent.Warning">
+                                        <strong>@schoolMatches.Count(m => m.MatchType == SchoolMatchType.NoMatch) new schools</strong> will be created and added to the database.
+                                    </FluentMessageBar>
+                                }
+                                
+                                <!-- Filter Buttons -->
+                                <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" VerticalAlignment="VerticalAlignment.Center">
+                                    <FluentLabel>Show:</FluentLabel>
+                                    <FluentButton Appearance="@(currentFilter == MatchFilter.All ? Appearance.Accent : Appearance.Neutral)" 
+                                                Size="Size.Small" OnClick="() => SetMatchFilter(MatchFilter.All)">
+                                        All (@schoolMatches.Count)
+                                    </FluentButton>
+                                    <FluentButton Appearance="@(currentFilter == MatchFilter.Exact ? Appearance.Accent : Appearance.Neutral)" 
+                                                Size="Size.Small" OnClick="() => SetMatchFilter(MatchFilter.Exact)">
+                                        Exact (@schoolMatches.Count(m => m.MatchType == SchoolMatchType.Exact))
+                                    </FluentButton>
+                                    <FluentButton Appearance="@(currentFilter == MatchFilter.Fuzzy ? Appearance.Accent : Appearance.Neutral)" 
+                                                Size="Size.Small" OnClick="() => SetMatchFilter(MatchFilter.Fuzzy)">
+                                        Fuzzy (@schoolMatches.Count(m => m.MatchType == SchoolMatchType.Fuzzy))
+                                    </FluentButton>
+                                    <FluentButton Appearance="@(currentFilter == MatchFilter.New ? Appearance.Accent : Appearance.Neutral)" 
+                                                Size="Size.Small" OnClick="() => SetMatchFilter(MatchFilter.New)">
+                                        New (@schoolMatches.Count(m => m.MatchType == SchoolMatchType.NoMatch))
+                                    </FluentButton>
+                                </FluentStack>
+                                
+                                <!-- Filtered School List -->
+                                <div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px;">
+                                    @foreach (var match in GetFilteredMatches())
                                     {
-                                        <FluentCard Style="margin-bottom: 8px; padding: 12px;">
-                                            <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="12">
-                                                <FluentStack Orientation="Orientation.Vertical" Style="flex: 1;">
-                                                    <FluentLabel Weight="FontWeight.Bold">@match.CsvData.Name</FluentLabel>
-                                                    <FluentLabel Style="font-size: 12px;">@match.CsvData.Conference - @match.CsvData.LeagifyPosition</FluentLabel>
+                                        <FluentCard Style="@($"margin: 0; padding: 16px; border-radius: 0; border-bottom: 1px solid #eee; background-color: {GetMatchCardColor(match)};")">
+                                            <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="16">
+                                                <FluentStack Orientation="Orientation.Vertical" Style="flex: 1;" VerticalGap="4">
+                                                    <FluentLabel Weight="FontWeight.Bold" Style="font-size: 16px;">@match.CsvData.Name</FluentLabel>
+                                                    <FluentLabel Style="font-size: 14px; color: #666;">@match.CsvData.Conference • @match.CsvData.LeagifyPosition</FluentLabel>
+                                                    @if (match.MatchType == SchoolMatchType.Fuzzy && match.MatchedSchool != null)
+                                                    {
+                                                        <FluentLabel Style="font-size: 13px; color: #495057;">→ Matches: <strong>@match.MatchedSchool.Name</strong></FluentLabel>
+                                                    }
                                                 </FluentStack>
                                                 
                                                 @if (match.MatchType == SchoolMatchType.Exact)
                                                 {
-                                                    <FluentBadge Appearance="Appearance.Accent">Exact Match</FluentBadge>
+                                                    <FluentBadge Appearance="Appearance.Accent">EXACT</FluentBadge>
                                                 }
                                                 else if (match.MatchType == SchoolMatchType.Fuzzy)
                                                 {
-                                                    <FluentStack Orientation="Orientation.Vertical" VerticalGap="4">
-                                                        <FluentBadge Appearance="Appearance.Neutral">Fuzzy Match (@(Math.Round(match.Confidence * 100))%)</FluentBadge>
-                                                        <FluentLabel Style="font-size: 12px;">→ @match.MatchedSchool?.Name</FluentLabel>
-                                                    </FluentStack>
+                                                    <FluentBadge Appearance="Appearance.Neutral">FUZZY @(Math.Round(match.Confidence * 100))%</FluentBadge>
                                                 }
                                                 else
                                                 {
-                                                    <FluentBadge Appearance="Appearance.Stealth">No Match - Will Create New</FluentBadge>
+                                                    <FluentBadge BackgroundColor="#dc3545" Color="#fff">NEW</FluentBadge>
                                                 }
                                             </FluentStack>
                                         </FluentCard>
                                     }
                                 </div>
                                 
-                                <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12">
+                                <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12" HorizontalAlignment="HorizontalAlignment.Center">
                                     <FluentButton Appearance="Appearance.Accent" OnClick="@ConfirmCsvImport">
                                         Confirm Import (@schoolMatches.Count schools)
                                     </FluentButton>
@@ -260,6 +323,17 @@
     private string csvUploadMessage = "";
     private List<SchoolMatchPreview> schoolMatches = new();
     private bool showSchoolMatching = false;
+    
+    // Match filtering
+    private MatchFilter currentFilter = MatchFilter.All;
+
+    public enum MatchFilter
+    {
+        All,
+        Exact,
+        Fuzzy,
+        New
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -595,7 +669,37 @@
         showSchoolMatching = false;
         schoolMatches.Clear();
         csvUploadMessage = "";
+        currentFilter = MatchFilter.All;
         StateHasChanged();
+    }
+
+    // Match filtering methods
+    private void SetMatchFilter(MatchFilter filter)
+    {
+        currentFilter = filter;
+        StateHasChanged();
+    }
+
+    private IEnumerable<SchoolMatchPreview> GetFilteredMatches()
+    {
+        return currentFilter switch
+        {
+            MatchFilter.Exact => schoolMatches.Where(m => m.MatchType == SchoolMatchType.Exact),
+            MatchFilter.Fuzzy => schoolMatches.Where(m => m.MatchType == SchoolMatchType.Fuzzy),
+            MatchFilter.New => schoolMatches.Where(m => m.MatchType == SchoolMatchType.NoMatch),
+            _ => schoolMatches
+        };
+    }
+
+    private string GetMatchCardColor(SchoolMatchPreview match)
+    {
+        return match.MatchType switch
+        {
+            SchoolMatchType.Exact => "#d4edda",   // Light green
+            SchoolMatchType.Fuzzy => "#fff3cd",   // Light yellow
+            SchoolMatchType.NoMatch => "#f8d7da", // Light red
+            _ => "#ffffff"
+        };
     }
 
     private async Task CopyToClipboard(string text)
