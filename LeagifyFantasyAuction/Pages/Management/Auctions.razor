@@ -149,24 +149,13 @@
                         
                         @if (!showSchoolMatching)
                         {
-                            <!-- Primary: FluentUI File Upload -->
-                            <FluentInputFile @ref="csvFileInput" 
-                                           Accept=".csv"
-                                           OnCompleted="@HandleCsvUpload" 
-                                           Style="width: 100%;" />
-                            
-                            <!-- Fallback: Standard HTML File Input (for testing) -->
-                            <div style="margin-top: 8px; padding: 8px; border: 1px dashed #ccc; border-radius: 4px;">
-                                <FluentLabel Typo="Typography.Body">Fallback HTML Input (for debugging):</FluentLabel>
-                                <InputFile OnChange="HandleStandardFileUpload" accept=".csv" style="width: 100%;" />
-                            </div>
-                            
-                            <!-- Strategy 3: Test endpoint button -->
-                            <div style="margin-top: 8px; padding: 8px; background-color: #f5f5f5; border-radius: 4px;">
-                                <FluentLabel Typo="Typography.Body">Strategy 3: Backend Test</FluentLabel>
-                                <FluentButton OnClick="TestBackendConnection" Appearance="Appearance.Neutral" Size="Size.Small">
-                                    Test Backend Connection
-                                </FluentButton>
+                            <!-- Use Standard HTML File Input (FluentUI version has null Stream/Buffer issue) -->
+                            <div style="padding: 12px; border: 2px dashed #0078d4; border-radius: 8px; background-color: #f8f9fa;">
+                                <FluentLabel Typo="Typography.Body">Select CSV file to upload:</FluentLabel>
+                                <InputFile OnChange="HandleStandardFileUpload" accept=".csv" style="width: 100%; margin-top: 8px; padding: 8px;" />
+                                <FluentLabel Typo="Typography.Body" style="color: #666; margin-top: 4px; font-size: 0.85em;">
+                                    Supported format: CSV files with school data (.csv)
+                                </FluentLabel>
                             </div>
                             
                             @if (isCsvUploading)
@@ -266,7 +255,7 @@
     private int selectedAuctionId;
 
     // CSV import state
-    private FluentInputFile? csvFileInput;
+    // Removed csvFileInput reference - using standard HTML InputFile instead
     private bool isCsvUploading = false;
     private string csvUploadMessage = "";
     private List<SchoolMatchPreview> schoolMatches = new();
@@ -387,116 +376,8 @@
         StateHasChanged();
     }
 
-    private async Task HandleCsvUpload(IEnumerable<FluentInputFileEventArgs> files)
-    {
-        var file = files.FirstOrDefault();
-        if (file == null || selectedAuction == null) return;
-
-        try
-        {
-            isCsvUploading = true;
-            csvUploadMessage = "";
-            StateHasChanged();
-
-            // DEBUG: Log file properties
-            Console.WriteLine($"=== FILE UPLOAD DEBUG ===");
-            Console.WriteLine($"File Name: {file.Name}");
-            Console.WriteLine($"File Size: {file.Size}");
-            Console.WriteLine($"File Type: {file.ContentType}");
-            Console.WriteLine($"File Stream: {(file.Stream == null ? "NULL" : "NOT NULL")}");
-            Console.WriteLine($"File Buffer: {(file.Buffer == null ? "NULL" : $"{file.Buffer.Data?.Length ?? 0} bytes")}");
-
-            // Get token from localStorage and set it in the request header
-            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
-            if (string.IsNullOrEmpty(token))
-            {
-                csvUploadMessage = "Error: Authentication token missing. Please log in again.";
-                return;
-            }
-
-            // Remove any existing X-Management-Token header and add the current one
-            Http.DefaultRequestHeaders.Remove("X-Management-Token");
-            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
-
-            // Strategy 1: Try Buffer property first (most reliable for FluentUI)
-            byte[] fileBytes;
-            
-            if (file.Buffer?.Data != null && file.Buffer.Data.Length > 0)
-            {
-                Console.WriteLine($"Using Buffer property - Size: {file.Buffer.Data.Length} bytes");
-                fileBytes = file.Buffer.Data;
-            }
-            else if (file.Stream != null)
-            {
-                Console.WriteLine("Buffer is null/empty, trying Stream property");
-                using (var fileStream = file.Stream)
-                {
-                    if (fileStream.CanSeek)
-                    {
-                        Console.WriteLine($"Stream CanSeek: true, Position: {fileStream.Position}, Length: {fileStream.Length}");
-                        fileStream.Position = 0;
-                    }
-                    else
-                    {
-                        Console.WriteLine("Stream CanSeek: false");
-                    }
-                    
-                    using var memoryStream = new MemoryStream();
-                    await fileStream.CopyToAsync(memoryStream);
-                    fileBytes = memoryStream.ToArray();
-                }
-            }
-            else
-            {
-                Console.WriteLine("Both Buffer and Stream are null/empty");
-                csvUploadMessage = "Error: Cannot read file content. Both Buffer and Stream are unavailable.";
-                return;
-            }
-            
-            Console.WriteLine($"Final file bytes length: {fileBytes.Length}");
-            if (fileBytes.Length > 0)
-            {
-                var preview = System.Text.Encoding.UTF8.GetString(fileBytes.Take(100).ToArray());
-                Console.WriteLine($"Content preview: {preview}");
-            }
-            
-            using var content = new MultipartFormDataContent();
-            var fileContent = new ByteArrayContent(fileBytes);
-            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/csv");
-            content.Add(fileContent, "csvFile", file.Name ?? "upload.csv");
-
-            var response = await Http.PostAsync($"/api/management/auctions/{selectedAuction.AuctionId}/csv/preview", content);
-
-            if (response.IsSuccessStatusCode)
-            {
-                var previewResult = await response.Content.ReadFromJsonAsync<AuctionCsvPreviewResult>();
-                if (previewResult?.IsSuccess == true)
-                {
-                    schoolMatches = previewResult.SchoolMatches;
-                    showSchoolMatching = true;
-                    csvUploadMessage = $"Preview ready: {previewResult.TotalSchools} schools found";
-                }
-                else
-                {
-                    csvUploadMessage = $"Error: {string.Join(", ", previewResult?.Errors ?? new List<string> { "Unknown error" })}";
-                }
-            }
-            else
-            {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                csvUploadMessage = $"Error: {errorContent}";
-            }
-        }
-        catch (Exception ex)
-        {
-            csvUploadMessage = $"Error: {ex.Message}";
-        }
-        finally
-        {
-            isCsvUploading = false;
-            StateHasChanged();
-        }
-    }
+    // FluentUI file upload - removed due to null Stream/Buffer issue
+    // Using standard HTML InputFile instead (HandleStandardFileUpload method)
 
     private async Task ConfirmCsvImport()
     {
@@ -558,7 +439,7 @@
         }
     }
 
-    // Strategy 2: Standard HTML file input handler for comparison
+    // Primary CSV file upload handler using standard HTML InputFile
     private async Task HandleStandardFileUpload(InputFileChangeEventArgs e)
     {
         var file = e.File;
@@ -609,6 +490,8 @@
 
             var response = await Http.PostAsync($"/api/management/auctions/{selectedAuction.AuctionId}/csv/preview", content);
 
+            Console.WriteLine($"Standard upload response: {response.StatusCode}");
+            
             if (response.IsSuccessStatusCode)
             {
                 var previewResult = await response.Content.ReadFromJsonAsync<AuctionCsvPreviewResult>();
@@ -616,17 +499,19 @@
                 {
                     schoolMatches = previewResult.SchoolMatches;
                     showSchoolMatching = true;
-                    csvUploadMessage = $"Preview ready (standard): {previewResult.TotalSchools} schools found";
+                    csvUploadMessage = $"Preview ready: {previewResult.TotalSchools} schools found";
                 }
                 else
                 {
-                    csvUploadMessage = $"Error: {string.Join(", ", previewResult?.Errors ?? new List<string> { "Unknown error" })}";
+                    csvUploadMessage = $"Preview failed: {string.Join(", ", previewResult?.Errors ?? new List<string> { "Unknown error" })}";
+                    Console.WriteLine($"Preview result errors: {string.Join(", ", previewResult?.Errors ?? new List<string>())}");
                 }
             }
             else
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                csvUploadMessage = $"Error: {errorContent}";
+                csvUploadMessage = $"Upload failed ({response.StatusCode}): {errorContent}";
+                Console.WriteLine($"Upload error response: {errorContent}");
             }
         }
         catch (Exception ex)
