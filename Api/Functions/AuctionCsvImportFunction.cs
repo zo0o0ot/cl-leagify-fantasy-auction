@@ -53,29 +53,95 @@ public class AuctionCsvImportFunction
                 return unauthorizedResponse;
             }
 
-            // Get CSV file from the request
-            using var csvStream = new MemoryStream();
-            await req.Body.CopyToAsync(csvStream);
-            csvStream.Position = 0;
-
-            if (csvStream.Length == 0)
+            // Parse multipart form data to extract CSV file
+            if (!req.Headers.TryGetValues("Content-Type", out var contentTypeValues) ||
+                !contentTypeValues.Any(ct => ct.StartsWith("multipart/form-data")))
             {
-                _logger.LogWarning("Empty CSV file received for auction {AuctionId}", auctionId);
+                _logger.LogWarning("Invalid content type for CSV upload for auction {AuctionId}", auctionId);
                 var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
-                await badResponse.WriteStringAsync("CSV file is empty");
+                await badResponse.WriteStringAsync("Expected multipart/form-data content type");
+                return badResponse;
+            }
+
+            Stream? csvStream = null;
+            try
+            {
+                // For now, we'll read the raw body and extract CSV content manually
+                // This is a simplified approach - in production you might want to use a proper multipart parser
+                using var bodyReader = new StreamReader(req.Body);
+                var bodyContent = await bodyReader.ReadToEndAsync();
+                
+                // Find the CSV content between multipart boundaries
+                var lines = bodyContent.Split('\n');
+                var csvStartIndex = -1;
+                var csvEndIndex = -1;
+                
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    var line = lines[i].Trim();
+                    if (line.StartsWith("Content-Type: text/csv") || line.StartsWith("Content-Type: application/"))
+                    {
+                        // CSV content starts after the next empty line
+                        csvStartIndex = i + 2;
+                    }
+                    else if (csvStartIndex > 0 && line.StartsWith("--") && line.Contains("-"))
+                    {
+                        // End boundary found
+                        csvEndIndex = i;
+                        break;
+                    }
+                }
+
+                if (csvStartIndex < 0 || csvEndIndex < 0)
+                {
+                    _logger.LogWarning("Could not find CSV content in multipart data for auction {AuctionId}", auctionId);
+                    var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                    await badResponse.WriteStringAsync("CSV content not found in upload");
+                    return badResponse;
+                }
+
+                // Extract CSV content
+                var csvLines = lines.Skip(csvStartIndex).Take(csvEndIndex - csvStartIndex).ToArray();
+                var csvContent = string.Join("\n", csvLines).Trim();
+                
+                if (string.IsNullOrEmpty(csvContent))
+                {
+                    _logger.LogWarning("Empty CSV content extracted for auction {AuctionId}", auctionId);
+                    var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                    await badResponse.WriteStringAsync("CSV file is empty");
+                    return badResponse;
+                }
+
+                csvStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(csvContent));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error parsing multipart form data for auction {AuctionId}", auctionId);
+                var errorResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await errorResponse.WriteStringAsync($"Error parsing uploaded file: {ex.Message}");
+                return errorResponse;
+            }
+
+            if (csvStream == null)
+            {
+                var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await badResponse.WriteStringAsync("No CSV content found");
                 return badResponse;
             }
 
             // Generate preview
-            var previewResult = await _auctionCsvImportService.PreviewCsvImportAsync(csvStream, auctionId);
+            using (csvStream)
+            {
+                var previewResult = await _auctionCsvImportService.PreviewCsvImportAsync(csvStream, auctionId);
 
-            var response = req.CreateResponse(HttpStatusCode.OK);
-            await response.WriteAsJsonAsync(previewResult);
+                var response = req.CreateResponse(HttpStatusCode.OK);
+                await response.WriteAsJsonAsync(previewResult);
 
-            _logger.LogInformation("CSV preview completed for auction {AuctionId}. Success: {Success}, Schools: {Count}",
-                auctionId, previewResult.IsSuccess, previewResult.TotalSchools);
+                _logger.LogInformation("CSV preview completed for auction {AuctionId}. Success: {Success}, Schools: {Count}",
+                    auctionId, previewResult.IsSuccess, previewResult.TotalSchools);
 
-            return response;
+                return response;
+            }
         }
         catch (Exception ex)
         {
