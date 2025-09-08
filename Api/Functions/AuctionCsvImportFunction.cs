@@ -99,7 +99,7 @@ public class AuctionCsvImportFunction
                         _logger.LogInformation("✅ Found csvFile field at line {Index}: {Line}", i, line);
                     }
                     // CSV content starts after the empty line following Content-Disposition
-                    else if (foundContentType && string.IsNullOrEmpty(line))
+                    else if (foundContentType && csvStartIndex < 0 && string.IsNullOrEmpty(line))
                     {
                         csvStartIndex = i + 1;
                         _logger.LogInformation("✅ CSV content starts at line {Index} (after empty line at {EmptyLineIndex})", csvStartIndex, i);
