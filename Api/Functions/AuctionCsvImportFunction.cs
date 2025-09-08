@@ -71,38 +71,65 @@ public class AuctionCsvImportFunction
                 using var bodyReader = new StreamReader(req.Body);
                 var bodyContent = await bodyReader.ReadToEndAsync();
                 
+                _logger.LogInformation("Raw multipart body length: {Length}", bodyContent.Length);
+                _logger.LogInformation("First 500 chars of body: {Body}", 
+                    bodyContent.Length > 500 ? bodyContent.Substring(0, 500) : bodyContent);
+                
                 // Find the CSV content between multipart boundaries
                 var lines = bodyContent.Split('\n');
                 var csvStartIndex = -1;
                 var csvEndIndex = -1;
+                bool foundContentType = false;
                 
                 for (int i = 0; i < lines.Length; i++)
                 {
                     var line = lines[i].Trim();
-                    if (line.StartsWith("Content-Type: text/csv") || line.StartsWith("Content-Type: application/"))
+                    _logger.LogInformation("Line {Index}: '{Line}'", i, line.Length > 100 ? line.Substring(0, 100) + "..." : line);
+                    
+                    if (line.Contains("Content-Type:") && (line.Contains("text/csv") || line.Contains("application/")))
                     {
-                        // CSV content starts after the next empty line
-                        csvStartIndex = i + 2;
+                        foundContentType = true;
+                        _logger.LogInformation("Found content type at line {Index}", i);
                     }
-                    else if (csvStartIndex > 0 && line.StartsWith("--") && line.Contains("-"))
+                    else if (foundContentType && string.IsNullOrEmpty(line))
+                    {
+                        // CSV content starts after the empty line following Content-Type
+                        csvStartIndex = i + 1;
+                        _logger.LogInformation("CSV content starts at line {Index}", csvStartIndex);
+                    }
+                    else if (csvStartIndex > 0 && line.StartsWith("--"))
                     {
                         // End boundary found
                         csvEndIndex = i;
+                        _logger.LogInformation("End boundary found at line {Index}", i);
                         break;
                     }
                 }
 
-                if (csvStartIndex < 0 || csvEndIndex < 0)
+                if (csvStartIndex < 0)
                 {
-                    _logger.LogWarning("Could not find CSV content in multipart data for auction {AuctionId}", auctionId);
+                    _logger.LogWarning("Could not find CSV content start in multipart data for auction {AuctionId}. Lines count: {Count}", 
+                        auctionId, lines.Length);
                     var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
-                    await badResponse.WriteStringAsync("CSV content not found in upload");
+                    await badResponse.WriteStringAsync($"CSV content not found in upload. Found {lines.Length} lines, Content-Type found: {foundContentType}");
                     return badResponse;
                 }
 
+                // If no end boundary found, use the rest of the content
+                if (csvEndIndex < 0)
+                {
+                    csvEndIndex = lines.Length;
+                    _logger.LogInformation("No end boundary found, using all remaining lines until {Index}", csvEndIndex);
+                }
+
                 // Extract CSV content
-                var csvLines = lines.Skip(csvStartIndex).Take(csvEndIndex - csvStartIndex).ToArray();
+                var csvLines = lines.Skip(csvStartIndex).Take(csvEndIndex - csvStartIndex)
+                    .Where(line => !string.IsNullOrWhiteSpace(line) && !line.Trim().StartsWith("--"))
+                    .ToArray();
                 var csvContent = string.Join("\n", csvLines).Trim();
+                
+                _logger.LogInformation("Extracted CSV content length: {Length}, First 200 chars: {Content}", 
+                    csvContent.Length, csvContent.Length > 200 ? csvContent.Substring(0, 200) : csvContent);
                 
                 if (string.IsNullOrEmpty(csvContent))
                 {
