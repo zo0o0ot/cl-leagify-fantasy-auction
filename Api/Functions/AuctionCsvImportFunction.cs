@@ -66,14 +66,19 @@ public class AuctionCsvImportFunction
             Stream? csvStream = null;
             try
             {
-                // For now, we'll read the raw body and extract CSV content manually
-                // This is a simplified approach - in production you might want to use a proper multipart parser
+                // Read and debug the raw multipart body from standard HTML InputFile
                 using var bodyReader = new StreamReader(req.Body);
                 var bodyContent = await bodyReader.ReadToEndAsync();
                 
                 _logger.LogInformation("Raw multipart body length: {Length}", bodyContent.Length);
-                _logger.LogInformation("First 500 chars of body: {Body}", 
-                    bodyContent.Length > 500 ? bodyContent.Substring(0, 500) : bodyContent);
+                _logger.LogInformation("Full body content (first 1000 chars): {Body}", 
+                    bodyContent.Length > 1000 ? bodyContent.Substring(0, 1000) : bodyContent);
+                
+                // Check for different multipart patterns
+                _logger.LogInformation("Contains 'name=\"csvFile\"': {Contains}", bodyContent.Contains("name=\"csvFile\""));
+                _logger.LogInformation("Contains 'name=csvFile': {Contains}", bodyContent.Contains("name=csvFile"));
+                _logger.LogInformation("Contains 'filename=': {Contains}", bodyContent.Contains("filename="));
+                _logger.LogInformation("Contains 'School,Conference': {Contains}", bodyContent.Contains("School,Conference"));
                 
                 // Find the CSV content between multipart boundaries
                 var lines = bodyContent.Split('\n');
