@@ -257,6 +257,53 @@ public class AuctionCsvImportFunction
     }
 
     /// <summary>
+    /// Test endpoint to verify multipart form data handling without processing
+    /// </summary>
+    [Function("TestCsvUpload")]
+    public async Task<HttpResponseData> TestCsvUpload(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "test/csv-upload")] HttpRequestData req)
+    {
+        try
+        {
+            _logger.LogInformation("Test CSV upload request received");
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            
+            // Log all headers
+            foreach (var header in req.Headers)
+            {
+                _logger.LogInformation("Header: {Key} = {Value}", header.Key, string.Join(", ", header.Value));
+            }
+
+            // Read and log body content
+            using var bodyReader = new StreamReader(req.Body);
+            var bodyContent = await bodyReader.ReadToEndAsync();
+            
+            var testResult = new
+            {
+                Message = "Test endpoint working",
+                ContentLength = bodyContent.Length,
+                ContentType = req.Headers.TryGetValues("Content-Type", out var ctValues) ? string.Join(", ", ctValues) : "None",
+                BodyPreview = bodyContent.Length > 200 ? bodyContent.Substring(0, 200) + "..." : bodyContent,
+                HasMultipartBoundary = bodyContent.Contains("Content-Disposition"),
+                HasCsvContent = bodyContent.ToLower().Contains("school") || bodyContent.ToLower().Contains("conference")
+            };
+
+            _logger.LogInformation("Test result: {@TestResult}", testResult);
+            
+            await response.WriteAsJsonAsync(testResult);
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in test CSV upload");
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync($"Test failed: {ex.Message}");
+            return errorResponse;
+        }
+    }
+
+    /// <summary>
     /// Gets the current school list for an auction.
     /// Useful for previewing what schools are already imported.
     /// </summary>

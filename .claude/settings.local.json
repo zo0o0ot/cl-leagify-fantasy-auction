@@ -28,7 +28,8 @@
       "Bash(dotnet dotnet-ef migrations:*)",
       "Bash(dotnet dotnet-ef:*)",
       "Bash(git config:*)",
-      "Read(//home/woo/code/**)"
+      "Read(//home/woo/code/**)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []
