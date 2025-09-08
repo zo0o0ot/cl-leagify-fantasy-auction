@@ -192,7 +192,7 @@
                                                 else if (match.MatchType == SchoolMatchType.Fuzzy)
                                                 {
                                                     <FluentStack Orientation="Orientation.Vertical" VerticalGap="4">
-                                                        <FluentBadge Appearance="Appearance.Neutral">Fuzzy Match (@((match.Confidence * 100):F0)%)</FluentBadge>
+                                                        <FluentBadge Appearance="Appearance.Neutral">Fuzzy Match (@(Math.Round(match.Confidence * 100))%)</FluentBadge>
                                                         <FluentLabel Style="font-size: 12px;">→ @match.MatchedSchool?.Name</FluentLabel>
                                                     </FluentStack>
                                                 }
@@ -397,9 +397,9 @@
 
             // Upload CSV for preview
             using var content = new MultipartFormDataContent();
-            var fileContent = new StreamContent(file.Stream);
+            var fileContent = new StreamContent(file.Stream ?? Stream.Null);
             fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/csv");
-            content.Add(fileContent, "csvFile", file.Name);
+            content.Add(fileContent, "csvFile", file.Name ?? "upload.csv");
 
             var response = await Http.PostAsync($"/api/management/auctions/{selectedAuction.AuctionId}/csv/preview", content);
 
