@@ -324,10 +324,34 @@
                                         
                                         <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12" Wrap="true">
                                             <div style="flex: 1; min-width: 200px;">
-                                                <FluentTextField @bind-Value="newPosition.PositionName" 
-                                                                 Label="Position Name" 
-                                                                 Placeholder="e.g., Power Conference, SEC, Flex"
-                                                                 Required="true" />
+                                                @if (availablePositions.Any())
+                                                {
+                                                    <FluentSelect @bind-Value="newPosition.PositionName"
+                                                                  Label="Position Name"
+                                                                  Items="@GetPositionOptions()"
+                                                                  OptionText="@(item => item)"
+                                                                  OptionValue="@(item => item)"
+                                                                  Required="true" />
+                                                    
+                                                    @if (newPosition.PositionName == "Custom")
+                                                    {
+                                                        <FluentTextField @bind-Value="newPosition.CustomPositionName" 
+                                                                         Label="Custom Position Name" 
+                                                                         Placeholder="Enter custom position name"
+                                                                         Style="margin-top: 8px;"
+                                                                         Required="true" />
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <FluentTextField @bind-Value="newPosition.PositionName" 
+                                                                     Label="Position Name" 
+                                                                     Placeholder="Import schools first to see position options"
+                                                                     Required="true" />
+                                                    <FluentLabel Style="color: #666; font-size: 0.85em; margin-top: 4px;">
+                                                        Import schools via CSV to populate position options from LeagifyPosition column
+                                                    </FluentLabel>
+                                                }
                                             </div>
                                             <div style="width: 120px;">
                                                 <FluentNumberField @bind-Value="newPosition.SlotsPerTeam" 
@@ -351,7 +375,7 @@
                                         <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8">
                                             <FluentButton Appearance="Appearance.Accent" 
                                                           OnClick="@AddRosterPosition"
-                                                          Disabled="@(string.IsNullOrWhiteSpace(newPosition.PositionName) || newPosition.SlotsPerTeam <= 0)"
+                                                          Disabled="@(IsAddPositionDisabled())"
                                                           Loading="isAddingPosition">
                                                 Add Position
                                             </FluentButton>
@@ -470,6 +494,7 @@
     private int? deletingPositionId = null;
     private List<RosterPositionDto> rosterPositions = new();
     private NewRosterPosition newPosition = new();
+    private List<string> availablePositions = new();
 
     public enum MatchFilter
     {
@@ -595,6 +620,7 @@
         // Reset roster design state
         showRosterDesign = false;
         rosterPositions.Clear();
+        availablePositions.Clear();
         ResetNewPosition();
         
         StateHasChanged();
@@ -934,8 +960,9 @@
             isLoadingRosterConfig = true;
             StateHasChanged();
             
-            // Load existing roster positions for this auction
+            // Load existing roster positions and available positions for this auction
             await LoadRosterPositions();
+            await LoadAvailablePositions();
             showRosterDesign = true;
         }
         catch (Exception ex)
@@ -992,7 +1019,12 @@
 
     private async Task AddRosterPosition()
     {
-        if (selectedAuction == null || string.IsNullOrWhiteSpace(newPosition.PositionName) || newPosition.SlotsPerTeam <= 0) return;
+        // Validate position name (either from dropdown or custom input)
+        var actualPositionName = newPosition.PositionName == "Custom" 
+            ? newPosition.CustomPositionName.Trim() 
+            : newPosition.PositionName.Trim();
+            
+        if (selectedAuction == null || string.IsNullOrWhiteSpace(actualPositionName) || newPosition.SlotsPerTeam <= 0) return;
         
         try
         {
@@ -1009,10 +1041,15 @@
             Http.DefaultRequestHeaders.Remove("X-Management-Token");
             Http.DefaultRequestHeaders.Add("X-Management-Token", token);
 
+            // Determine the final position name to use
+            var finalPositionName = newPosition.PositionName == "Custom" 
+                ? newPosition.CustomPositionName.Trim() 
+                : newPosition.PositionName.Trim();
+
             var request = new CreateRosterPositionRequest
             {
                 AuctionId = selectedAuction.AuctionId,
-                PositionName = newPosition.PositionName.Trim(),
+                PositionName = finalPositionName,
                 SlotsPerTeam = newPosition.SlotsPerTeam,
                 ColorCode = newPosition.ColorCode,
                 IsFlexPosition = newPosition.IsFlexPosition,
@@ -1144,6 +1181,69 @@
         };
     }
 
+    private async Task LoadAvailablePositions()
+    {
+        if (selectedAuction == null) return;
+        
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                availablePositions = new List<string>();
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+
+            var response = await Http.GetAsync($"/api/management/auctions/{selectedAuction.AuctionId}/available-positions");
+            if (response.IsSuccessStatusCode)
+            {
+                var positions = await response.Content.ReadFromJsonAsync<List<string>>();
+                availablePositions = positions ?? new List<string>();
+            }
+            else
+            {
+                availablePositions = new List<string>();
+            }
+        }
+        catch (Exception ex)
+        {
+            availablePositions = new List<string>();
+            Console.WriteLine($"Error loading available positions: {ex.Message}");
+        }
+    }
+
+    private List<string> GetPositionOptions()
+    {
+        var options = new List<string>();
+        
+        // Add LeagifyPosition values from imported schools
+        options.AddRange(availablePositions);
+        
+        // Add common flex positions
+        if (!options.Contains("Flex"))
+            options.Add("Flex");
+            
+        // Add custom option as last resort
+        options.Add("Custom");
+        
+        return options;
+    }
+
+    private bool IsAddPositionDisabled()
+    {
+        if (newPosition.SlotsPerTeam <= 0) return true;
+        
+        if (string.IsNullOrWhiteSpace(newPosition.PositionName)) return true;
+        
+        if (newPosition.PositionName == "Custom" && string.IsNullOrWhiteSpace(newPosition.CustomPositionName))
+            return true;
+            
+        return false;
+    }
+
     // DTOs
     public class AuctionDto
     {
@@ -1246,6 +1346,7 @@
     public class NewRosterPosition
     {
         public string PositionName { get; set; } = string.Empty;
+        public string CustomPositionName { get; set; } = string.Empty;
         public int SlotsPerTeam { get; set; } = 1;
         public string ColorCode { get; set; } = "#0078d4";
         public bool IsFlexPosition { get; set; } = false;

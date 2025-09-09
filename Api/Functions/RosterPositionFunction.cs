@@ -24,6 +24,63 @@ public class RosterPositionFunction(ILogger<RosterPositionFunction> logger,
     private readonly LeagifyAuctionDbContext _context = context;
 
     /// <summary>
+    /// Retrieves available LeagifyPosition values from imported schools for dropdown options.
+    /// </summary>
+    /// <param name="req">The HTTP request containing auction ID in route.</param>
+    /// <param name="auctionId">The auction ID from the route parameters.</param>
+    /// <returns>JSON array of distinct LeagifyPosition values from imported schools.</returns>
+    [Function("GetAvailableLeagifyPositions")]
+    public async Task<HttpResponseData> GetAvailableLeagifyPositions(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "management/auctions/{auctionId:int}/available-positions")] HttpRequestData req,
+        int auctionId)
+    {
+        _logger.LogInformation("Getting available LeagifyPosition values for auction {AuctionId}", auctionId);
+
+        try
+        {
+            // Authenticate request
+            if (!IsValidAdminRequest(req))
+            {
+                var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
+                await unauthorizedResponse.WriteStringAsync("Unauthorized");
+                return unauthorizedResponse;
+            }
+
+            // Verify auction exists
+            var auctionExists = await _context.Auctions.AnyAsync(a => a.AuctionId == auctionId);
+            if (!auctionExists)
+            {
+                var notFoundResponse = req.CreateResponse(HttpStatusCode.NotFound);
+                await notFoundResponse.WriteStringAsync("Auction not found");
+                return notFoundResponse;
+            }
+
+            // Get distinct LeagifyPosition values from auction schools
+            var availablePositions = await _context.AuctionSchools
+                .Where(aas => aas.AuctionId == auctionId)
+                .Select(aas => aas.LeagifyPosition)
+                .Distinct()
+                .Where(pos => !string.IsNullOrEmpty(pos))
+                .OrderBy(pos => pos)
+                .ToListAsync();
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            response.Headers.Add("Content-Type", "application/json; charset=utf-8");
+            await response.WriteStringAsync(JsonSerializer.Serialize(availablePositions));
+
+            _logger.LogInformation("Successfully retrieved {Count} available LeagifyPositions for auction {AuctionId}", availablePositions.Count, auctionId);
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting available LeagifyPositions for auction {AuctionId}", auctionId);
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync($"Error retrieving available positions: {ex.Message}");
+            return errorResponse;
+        }
+    }
+
+    /// <summary>
     /// Retrieves all roster positions for a specific auction.
     /// </summary>
     /// <param name="req">The HTTP request containing auction ID in route.</param>
