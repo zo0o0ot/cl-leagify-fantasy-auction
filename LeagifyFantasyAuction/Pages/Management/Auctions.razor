@@ -2,6 +2,7 @@
 @layout ManagementLayout
 @inject HttpClient Http
 @inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
 @using System.Net.Http.Json
 @using System.Text.Json
 @using System.ComponentModel.DataAnnotations
@@ -475,7 +476,6 @@
     private FluentDialog? configureDialog;
     private bool hideConfigureDialog = true;
     private AuctionDto? selectedAuction;
-    private int selectedAuctionId;
 
     // CSV import state
     // Removed csvFileInput reference - using standard HTML InputFile instead
@@ -894,10 +894,8 @@
 
     private void EditAuction(AuctionDto auction)
     {
-        selectedAuction = auction;
-        selectedAuctionId = auction.AuctionId;
-        hideConfigureDialog = false;
-        StateHasChanged();
+        // Navigate to the new setup wizard instead of opening old dialog
+        Navigation.NavigateTo($"/management/auctions/{auction.AuctionId}/setup");
     }
 
     private async Task DeleteAuction(AuctionDto auction)

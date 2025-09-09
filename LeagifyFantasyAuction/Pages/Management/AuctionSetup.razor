@@ -1,0 +1,441 @@
+@page "/management/auctions/{auctionId:int}/setup"
+@page "/management/auctions/{auctionId:int}/setup/{currentStep}"
+@using System.Net.Http.Json
+@using LeagifyFantasyAuction.Components
+@using LeagifyFantasyAuction.Models
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+
+<PageTitle>Setup Auction - Leagify Fantasy Auction</PageTitle>
+
+<div class="auction-setup-container">
+    
+    <!-- Header Section -->
+    <div class="setup-header">
+        <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="16">
+            <FluentButton IconStart="@(new Icons.Regular.Size20.ArrowLeft())" 
+                          Appearance="Appearance.Neutral" 
+                          OnClick="@NavigateBack">
+                Back to Auctions
+            </FluentButton>
+            
+            <FluentStack Orientation="Orientation.Vertical" Style="flex: 1;">
+                <FluentLabel Typo="Typography.Header" Style="margin: 0;">
+                    Setup Auction: @(auction?.Name ?? "Loading...")
+                </FluentLabel>
+                <FluentLabel Style="color: #666; margin: 0;">
+                    Configure your auction settings step by step
+                </FluentLabel>
+            </FluentStack>
+        </FluentStack>
+    </div>
+
+    <!-- Progress Breadcrumb -->
+    <div class="setup-progress">
+        <FluentBreadcrumb>
+            <FluentBreadcrumbItem Href="#" 
+                                  OnClick="@(() => NavigateToStep(1))"
+                                  Current="@(CurrentStepNumber == 1)"
+                                  Disabled="@(CurrentStepNumber < 1)">
+                <FluentIcon Value="@(new Icons.Regular.Size16.DatabaseArrowUp())" Style="margin-right: 8px;" />
+                1. Import Schools
+                @if (schoolImportCompleted)
+                {
+                    <FluentIcon Value="@(new Icons.Regular.Size16.CheckmarkCircle())" 
+                                Style="margin-left: 8px; color: #28a745;" />
+                }
+            </FluentBreadcrumbItem>
+            
+            <FluentBreadcrumbItem Href="#" 
+                                  OnClick="@(() => NavigateToStep(2))"
+                                  Current="@(CurrentStepNumber == 2)"
+                                  Disabled="@(CurrentStepNumber < 2 || !schoolImportCompleted)">
+                <FluentIcon Value="@(new Icons.Regular.Size20.Grid())" Style="margin-right: 8px;" />
+                2. Configure Roster
+                @if (rosterConfigCompleted)
+                {
+                    <FluentIcon Value="@(new Icons.Regular.Size16.CheckmarkCircle())" 
+                                Style="margin-left: 8px; color: #28a745;" />
+                }
+            </FluentBreadcrumbItem>
+            
+            <FluentBreadcrumbItem Href="#" 
+                                  OnClick="@(() => NavigateToStep(3))"
+                                  Current="@(CurrentStepNumber == 3)"
+                                  Disabled="@(CurrentStepNumber < 3 || !rosterConfigCompleted)">
+                <FluentIcon Value="@(new Icons.Regular.Size20.Clipboard())" Style="margin-right: 8px;" />
+                3. Review & Finalize
+            </FluentBreadcrumbItem>
+        </FluentBreadcrumb>
+    </div>
+
+    <!-- Loading State -->
+    @if (isLoading)
+    {
+        <div class="loading-container">
+            <FluentProgressRing />
+            <FluentLabel>Loading auction configuration...</FluentLabel>
+        </div>
+    }
+    else if (auction == null)
+    {
+        <FluentMessageBar Intent="MessageIntent.Error">
+            Auction not found or you don't have permission to access it.
+        </FluentMessageBar>
+    }
+    else
+    {
+        <!-- Step Content -->
+        <div class="step-content">
+            @switch (CurrentStepNumber)
+            {
+                case 1:
+                    <SchoolImportStep AuctionId="@auctionId" 
+                                      Auction="@auction"
+                                      OnCompleted="@OnSchoolImportCompleted" />
+                    break;
+                case 2:
+                    <RosterConfigStep AuctionId="@auctionId" 
+                                      Auction="@auction"
+                                      OnCompleted="@OnRosterConfigCompleted" />
+                    break;
+                case 3:
+                    <ReviewStep AuctionId="@auctionId" 
+                                Auction="@auction"
+                                OnCompleted="@OnSetupCompleted" />
+                    break;
+                default:
+                    <FluentMessageBar Intent="MessageIntent.Warning">
+                        Invalid step. Redirecting to first step...
+                    </FluentMessageBar>
+                    break;
+            }
+        </div>
+
+        <!-- Navigation Footer -->
+        <div class="setup-footer">
+            <FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.SpaceBetween">
+                <div>
+                    @if (CurrentStepNumber > 1)
+                    {
+                        <FluentButton Appearance="Appearance.Neutral" 
+                                      IconStart="@(new Icons.Regular.Size16.ArrowLeft())"
+                                      OnClick="@NavigatePrevious">
+                            Previous Step
+                        </FluentButton>
+                    }
+                </div>
+                
+                <div>
+                    @if (CurrentStepNumber < 3)
+                    {
+                        <FluentButton Appearance="Appearance.Accent" 
+                                      IconEnd="@(new Icons.Regular.Size16.ArrowRight())"
+                                      OnClick="@NavigateNext"
+                                      Disabled="@(!CanAdvanceToNextStep())">
+                            Next Step
+                        </FluentButton>
+                    }
+                    else
+                    {
+                        <FluentButton Appearance="Appearance.Accent" 
+                                      IconEnd="@(new Icons.Regular.Size16.Checkmark())"
+                                      OnClick="@CompleteSetup"
+                                      Loading="@isCompleting">
+                            Complete Setup
+                        </FluentButton>
+                    }
+                </div>
+            </FluentStack>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int AuctionId { get; set; }
+    [Parameter] public string? CurrentStep { get; set; }
+
+    private int auctionId;
+    private AuctionDto? auction;
+    private bool isLoading = true;
+    private bool isCompleting = false;
+    
+    // Step completion tracking
+    private bool schoolImportCompleted = false;
+    private bool rosterConfigCompleted = false;
+
+    // Current step logic
+    private int CurrentStepNumber => CurrentStep switch
+    {
+        "import" or "1" => 1,
+        "roster" or "2" => 2,
+        "review" or "3" => 3,
+        _ => 1
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        auctionId = AuctionId;
+        await LoadAuction();
+        await CheckCompletionStatus();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Handle route parameter changes
+        if (auctionId != AuctionId)
+        {
+            auctionId = AuctionId;
+            await LoadAuction();
+            await CheckCompletionStatus();
+        }
+    }
+
+    private async Task LoadAuction()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                Navigation.NavigateTo("/management/login");
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+
+            var response = await Http.GetAsync($"/api/management/auctions/{auctionId}");
+            if (response.IsSuccessStatusCode)
+            {
+                auction = await response.Content.ReadFromJsonAsync<AuctionDto>();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading auction: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("alert", $"Error loading auction: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CheckCompletionStatus()
+    {
+        if (auction == null) return;
+
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(token)) return;
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+
+            // Check if schools are imported
+            var schoolsResponse = await Http.GetAsync($"/api/management/auctions/{auctionId}/schools/count");
+            if (schoolsResponse.IsSuccessStatusCode)
+            {
+                var schoolCount = await schoolsResponse.Content.ReadFromJsonAsync<int>();
+                schoolImportCompleted = schoolCount > 0;
+            }
+
+            // Check if roster is configured
+            var rosterResponse = await Http.GetAsync($"/api/management/auctions/{auctionId}/roster-positions");
+            if (rosterResponse.IsSuccessStatusCode)
+            {
+                var positions = await rosterResponse.Content.ReadFromJsonAsync<List<object>>();
+                rosterConfigCompleted = positions?.Count > 0;
+            }
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error checking completion status: {ex.Message}");
+        }
+    }
+
+    private void NavigateToStep(int stepNumber)
+    {
+        if (!CanNavigateToStep(stepNumber)) return;
+
+        var stepName = stepNumber switch
+        {
+            1 => "import",
+            2 => "roster", 
+            3 => "review",
+            _ => "import"
+        };
+
+        Navigation.NavigateTo($"/management/auctions/{auctionId}/setup/{stepName}");
+    }
+
+    private bool CanNavigateToStep(int stepNumber)
+    {
+        return stepNumber switch
+        {
+            1 => true, // Can always go to first step
+            2 => schoolImportCompleted, // Need schools imported
+            3 => schoolImportCompleted && rosterConfigCompleted, // Need both steps
+            _ => false
+        };
+    }
+
+    private void NavigatePrevious()
+    {
+        if (CurrentStepNumber > 1)
+        {
+            NavigateToStep(CurrentStepNumber - 1);
+        }
+    }
+
+    private void NavigateNext()
+    {
+        if (CurrentStepNumber < 3 && CanAdvanceToNextStep())
+        {
+            NavigateToStep(CurrentStepNumber + 1);
+        }
+    }
+
+    private bool CanAdvanceToNextStep()
+    {
+        return CurrentStepNumber switch
+        {
+            1 => schoolImportCompleted,
+            2 => rosterConfigCompleted,
+            _ => false
+        };
+    }
+
+    private void NavigateBack()
+    {
+        Navigation.NavigateTo("/management/auctions");
+    }
+
+    // Step completion handlers
+    private async Task OnSchoolImportCompleted()
+    {
+        schoolImportCompleted = true;
+        StateHasChanged();
+        
+        // Auto-advance to next step after brief delay
+        await Task.Delay(500);
+        NavigateToStep(2);
+    }
+
+    private async Task OnRosterConfigCompleted()
+    {
+        rosterConfigCompleted = true;
+        StateHasChanged();
+        
+        // Auto-advance to review step
+        await Task.Delay(500);
+        NavigateToStep(3);
+    }
+
+    private async Task OnSetupCompleted()
+    {
+        // Mark auction as ready and navigate back to main list
+        try
+        {
+            isCompleting = true;
+            StateHasChanged();
+
+            // You could add an API call here to mark the auction as configured
+            await Task.Delay(1000); // Simulate API call
+            
+            await JSRuntime.InvokeVoidAsync("alert", "Auction setup completed successfully!");
+            Navigation.NavigateTo("/management/auctions");
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error completing setup: {ex.Message}");
+        }
+        finally
+        {
+            isCompleting = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CompleteSetup()
+    {
+        await OnSetupCompleted();
+    }
+
+}
+
+<style>
+    .auction-setup-container {
+        padding: 24px;
+        max-width: 1200px;
+        margin: 0 auto;
+        min-height: calc(100vh - 100px);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .setup-header {
+        background: white;
+        padding: 24px;
+        border-radius: 8px;
+        border: 1px solid #e1e1e1;
+        margin-bottom: 24px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .setup-progress {
+        background: #f8f9fa;
+        padding: 16px 24px;
+        border-radius: 8px;
+        border: 1px solid #e1e1e1;
+        margin-bottom: 24px;
+    }
+
+    .step-content {
+        flex: 1;
+        background: white;
+        border-radius: 8px;
+        border: 1px solid #e1e1e1;
+        margin-bottom: 24px;
+        overflow: hidden;
+    }
+
+    .setup-footer {
+        background: white;
+        padding: 20px 24px;
+        border-radius: 8px;
+        border: 1px solid #e1e1e1;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .loading-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 60px;
+        gap: 16px;
+    }
+
+    /* Breadcrumb styling enhancements */
+    fluent-breadcrumb-item[current] {
+        background-color: #0078d4;
+        color: white;
+        border-radius: 4px;
+        padding: 8px 12px;
+    }
+
+    fluent-breadcrumb-item[disabled] {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+</style>

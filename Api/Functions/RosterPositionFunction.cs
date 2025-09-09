@@ -443,6 +443,120 @@ public class RosterPositionFunction(ILogger<RosterPositionFunction> logger,
         }
         return validation.IsValid;
     }
+
+    /// <summary>
+    /// Gets summary statistics for schools in an auction.
+    /// </summary>
+    /// <param name="req">The HTTP request containing auction ID in route.</param>
+    /// <param name="auctionId">The auction ID from the route parameters.</param>
+    /// <returns>JSON object with school count and position breakdown.</returns>
+    [Function("GetAuctionSchoolsSummary")]
+    public async Task<HttpResponseData> GetAuctionSchoolsSummary(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "management/auctions/{auctionId:int}/schools/summary")] HttpRequestData req,
+        int auctionId)
+    {
+        _logger.LogInformation("Getting schools summary for auction {AuctionId}", auctionId);
+
+        try
+        {
+            // Authenticate request
+            if (!IsValidAdminRequest(req))
+            {
+                var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
+                await unauthorizedResponse.WriteStringAsync("Unauthorized");
+                return unauthorizedResponse;
+            }
+
+            // Verify auction exists
+            var auctionExists = await _context.Auctions.AnyAsync(a => a.AuctionId == auctionId);
+            if (!auctionExists)
+            {
+                var notFoundResponse = req.CreateResponse(HttpStatusCode.NotFound);
+                await notFoundResponse.WriteStringAsync("Auction not found");
+                return notFoundResponse;
+            }
+
+            // Get school count and position breakdown
+            var schools = await _context.AuctionSchools
+                .Where(aas => aas.AuctionId == auctionId)
+                .GroupBy(aas => aas.LeagifyPosition)
+                .Select(g => new { Position = g.Key, Count = g.Count() })
+                .ToListAsync();
+
+            var summary = new
+            {
+                TotalCount = schools.Sum(s => s.Count),
+                PositionBreakdown = schools.ToDictionary(s => s.Position, s => s.Count)
+            };
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            response.Headers.Add("Content-Type", "application/json; charset=utf-8");
+            await response.WriteStringAsync(JsonSerializer.Serialize(summary));
+
+            _logger.LogInformation("Successfully retrieved schools summary for auction {AuctionId}: {TotalCount} schools", auctionId, summary.TotalCount);
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting schools summary for auction {AuctionId}", auctionId);
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync($"Error retrieving schools summary: {ex.Message}");
+            return errorResponse;
+        }
+    }
+
+    /// <summary>
+    /// Gets count of schools in an auction.
+    /// </summary>
+    /// <param name="req">The HTTP request containing auction ID in route.</param>
+    /// <param name="auctionId">The auction ID from the route parameters.</param>
+    /// <returns>JSON number with school count.</returns>
+    [Function("GetAuctionSchoolsCount")]
+    public async Task<HttpResponseData> GetAuctionSchoolsCount(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "management/auctions/{auctionId:int}/schools/count")] HttpRequestData req,
+        int auctionId)
+    {
+        _logger.LogInformation("Getting schools count for auction {AuctionId}", auctionId);
+
+        try
+        {
+            // Authenticate request
+            if (!IsValidAdminRequest(req))
+            {
+                var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
+                await unauthorizedResponse.WriteStringAsync("Unauthorized");
+                return unauthorizedResponse;
+            }
+
+            // Verify auction exists
+            var auctionExists = await _context.Auctions.AnyAsync(a => a.AuctionId == auctionId);
+            if (!auctionExists)
+            {
+                var notFoundResponse = req.CreateResponse(HttpStatusCode.NotFound);
+                await notFoundResponse.WriteStringAsync("Auction not found");
+                return notFoundResponse;
+            }
+
+            // Get school count
+            var schoolCount = await _context.AuctionSchools
+                .Where(aas => aas.AuctionId == auctionId)
+                .CountAsync();
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            response.Headers.Add("Content-Type", "application/json; charset=utf-8");
+            await response.WriteStringAsync(schoolCount.ToString());
+
+            _logger.LogInformation("Successfully retrieved schools count for auction {AuctionId}: {Count}", auctionId, schoolCount);
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting schools count for auction {AuctionId}", auctionId);
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync($"Error retrieving schools count: {ex.Message}");
+            return errorResponse;
+        }
+    }
 }
 
 /// <summary>

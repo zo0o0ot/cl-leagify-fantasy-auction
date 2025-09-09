@@ -1,0 +1,409 @@
+@using System.Net.Http.Json
+@using LeagifyFantasyAuction.Models
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+
+<div class="review-step">
+    <!-- Step Header -->
+    <div class="step-header">
+        <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
+            <FluentLabel Typo="Typography.Subject">Review & Finalize</FluentLabel>
+            <FluentLabel Style="color: #666;">
+                Review your auction configuration and validate the setup before finalizing. Check for any warnings or issues.
+            </FluentLabel>
+        </FluentStack>
+    </div>
+
+    <div class="step-body">
+        @if (isLoading)
+        {
+            <div class="loading-section">
+                <FluentProgressRing />
+                <FluentLabel>Loading auction summary...</FluentLabel>
+            </div>
+        }
+        else
+        {
+            <div class="review-container">
+                
+                <!-- Validation Status -->
+                @if (validationWarnings.Any() || validationErrors.Any())
+                {
+                    <FluentCard Style="margin-bottom: 24px;">
+                        <div style="padding: 20px;">
+                            <FluentLabel Weight="FontWeight.Bold" Style="margin-bottom: 16px;">Validation Results</FluentLabel>
+                            
+                            @if (validationErrors.Any())
+                            {
+                                @foreach (var error in validationErrors)
+                                {
+                                    <FluentMessageBar Intent="MessageIntent.Error" Style="margin-bottom: 8px;">
+                                        @error
+                                    </FluentMessageBar>
+                                }
+                            }
+                            
+                            @if (validationWarnings.Any())
+                            {
+                                @foreach (var warning in validationWarnings)
+                                {
+                                    <FluentMessageBar Intent="MessageIntent.Warning" Style="margin-bottom: 8px;">
+                                        @warning
+                                    </FluentMessageBar>
+                                }
+                            }
+                        </div>
+                    </FluentCard>
+                }
+                else
+                {
+                    <FluentCard Style="background-color: #e8f5e8; border: 1px solid #28a745; margin-bottom: 24px;">
+                        <div style="padding: 20px;">
+                            <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="12">
+                                <FluentIcon Value="@(new Icons.Regular.Size24.CheckmarkCircle())" Style="color: #28a745;" />
+                                <FluentLabel Weight="FontWeight.Bold" Style="color: #155724;">
+                                    Auction configuration is valid and ready to proceed!
+                                </FluentLabel>
+                            </FluentStack>
+                        </div>
+                    </FluentCard>
+                }
+
+                <!-- School Import Summary -->
+                <FluentCard Style="margin-bottom: 24px;">
+                    <div style="padding: 20px;">
+                        <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+                            <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="12">
+                                <FluentIcon Value="@(new Icons.Regular.Size20.DatabaseArrowUp())" Style="color: #0078d4;" />
+                                <FluentLabel Weight="FontWeight.Bold">School Import Summary</FluentLabel>
+                            </FluentStack>
+                            
+                            <div style="background: #f8f9fa; padding: 16px; border-radius: 8px;">
+                                <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="32" Wrap="true">
+                                    <div style="text-align: center;">
+                                        <FluentLabel Style="font-size: 24px; font-weight: 700; color: #0078d4;">
+                                            @schoolCount
+                                        </FluentLabel>
+                                        <FluentLabel Style="font-size: 14px; color: #666;">Total Schools</FluentLabel>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <FluentLabel Style="font-size: 24px; font-weight: 700; color: #6c757d;">
+                                            @distinctPositions.Count
+                                        </FluentLabel>
+                                        <FluentLabel Style="font-size: 14px; color: #666;">Position Types</FluentLabel>
+                                    </div>
+                                </FluentStack>
+                            </div>
+                            
+                            @if (distinctPositions.Any())
+                            {
+                                <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
+                                    <FluentLabel Weight="FontWeight.Bold">Available Position Types:</FluentLabel>
+                                    <FluentStack Orientation="Orientation.Horizontal" Wrap="true" HorizontalGap="8">
+                                        @foreach (var position in distinctPositions)
+                                        {
+                                            <FluentBadge Fill="someValue" BackgroundColor="#e3f2fd" Color="#1976d2">
+                                                @position.Key (@position.Value school@(position.Value != 1 ? "s" : ""))
+                                            </FluentBadge>
+                                        }
+                                    </FluentStack>
+                                </FluentStack>
+                            }
+                        </FluentStack>
+                    </div>
+                </FluentCard>
+
+                <!-- Roster Configuration Summary -->
+                <FluentCard Style="margin-bottom: 24px;">
+                    <div style="padding: 20px;">
+                        <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+                            <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="12">
+                                <FluentIcon Value="@(new Icons.Regular.Size20.Grid())" Style="color: #0078d4;" />
+                                <FluentLabel Weight="FontWeight.Bold">Roster Configuration Summary</FluentLabel>
+                            </FluentStack>
+                            
+                            @if (rosterPositions.Any())
+                            {
+                                <div style="background: #f8f9fa; padding: 16px; border-radius: 8px;">
+                                    <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="32" Wrap="true">
+                                        <div style="text-align: center;">
+                                            <FluentLabel Style="font-size: 24px; font-weight: 700; color: #0078d4;">
+                                                @rosterPositions.Sum(p => p.SlotsPerTeam)
+                                            </FluentLabel>
+                                            <FluentLabel Style="font-size: 14px; color: #666;">Total Slots per Team</FluentLabel>
+                                        </div>
+                                        <div style="text-align: center;">
+                                            <FluentLabel Style="font-size: 24px; font-weight: 700; color: #6c757d;">
+                                                @rosterPositions.Count
+                                            </FluentLabel>
+                                            <FluentLabel Style="font-size: 14px; color: #666;">Position Types</FluentLabel>
+                                        </div>
+                                        <div style="text-align: center;">
+                                            <FluentLabel Style="font-size: 24px; font-weight: 700; color: #28a745;">
+                                                @rosterPositions.Count(p => p.IsFlexPosition)
+                                            </FluentLabel>
+                                            <FluentLabel Style="font-size: 14px; color: #666;">Flex Positions</FluentLabel>
+                                        </div>
+                                    </FluentStack>
+                                </div>
+                                
+                                <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
+                                    <FluentLabel Weight="FontWeight.Bold">Roster Positions:</FluentLabel>
+                                    <div style="display: grid; gap: 8px;">
+                                        @foreach (var position in rosterPositions.OrderBy(p => p.DisplayOrder))
+                                        {
+                                            <div style="@($"padding: 12px; border-radius: 6px; background-color: {position.ColorCode}20; border-left: 4px solid {position.ColorCode};")"
+                                                 @key="position.RosterPositionId">
+                                                <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="12">
+                                                    <div style="@($"width: 16px; height: 16px; background-color: {position.ColorCode}; border-radius: 2px;")"></div>
+                                                    <FluentStack Orientation="Orientation.Vertical">
+                                                        <FluentLabel Weight="FontWeight.Bold">@position.PositionName</FluentLabel>
+                                                        <FluentLabel Style="font-size: 13px; color: #666;">
+                                                            @position.SlotsPerTeam slot@(position.SlotsPerTeam != 1 ? "s" : "") per team
+                                                            @if (position.IsFlexPosition) { <text> • Flex Position</text> }
+                                                        </FluentLabel>
+                                                    </FluentStack>
+                                                </FluentStack>
+                                            </div>
+                                        }
+                                    </div>
+                                </FluentStack>
+                            }
+                            else
+                            {
+                                <FluentMessageBar Intent="MessageIntent.Warning">
+                                    No roster positions configured. Teams will have no roster structure.
+                                </FluentMessageBar>
+                            }
+                        </FluentStack>
+                    </div>
+                </FluentCard>
+
+                <!-- Action Buttons -->
+                <div style="text-align: center; padding-top: 24px;">
+                    <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="16" HorizontalAlignment="HorizontalAlignment.Center">
+                        @if (validationErrors.Any())
+                        {
+                            <FluentButton Appearance="Appearance.Neutral" 
+                                          OnClick="@(() => RefreshValidation())">
+                                Refresh Validation
+                            </FluentButton>
+                        }
+                        else
+                        {
+                            <FluentButton Appearance="Appearance.Accent" 
+                                          OnClick="@CompleteSetup"
+                                          Loading="@isCompleting"
+                                          IconEnd="@(new Icons.Regular.Size16.Checkmark())">
+                                Complete Auction Setup
+                            </FluentButton>
+                        }
+                    </FluentStack>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public int AuctionId { get; set; }
+    [Parameter] public AuctionDto? Auction { get; set; }
+    [Parameter] public EventCallback OnCompleted { get; set; }
+
+    private bool isLoading = true;
+    private bool isCompleting = false;
+    private int schoolCount = 0;
+    private Dictionary<string, int> distinctPositions = new();
+    private List<RosterPositionDto> rosterPositions = new();
+    private List<string> validationWarnings = new();
+    private List<string> validationErrors = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSummaryData();
+        await ValidateConfiguration();
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task LoadSummaryData()
+    {
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(token)) return;
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+
+            // Load school count and position breakdown
+            var schoolsResponse = await Http.GetAsync($"/api/management/auctions/{AuctionId}/schools/summary");
+            if (schoolsResponse.IsSuccessStatusCode)
+            {
+                var summary = await schoolsResponse.Content.ReadFromJsonAsync<SchoolSummary>();
+                schoolCount = summary?.TotalCount ?? 0;
+                distinctPositions = summary?.PositionBreakdown ?? new Dictionary<string, int>();
+            }
+
+            // Load roster positions
+            var rosterResponse = await Http.GetAsync($"/api/management/auctions/{AuctionId}/roster-positions");
+            if (rosterResponse.IsSuccessStatusCode)
+            {
+                var positions = await rosterResponse.Content.ReadFromJsonAsync<List<RosterPositionDto>>();
+                rosterPositions = positions ?? new List<RosterPositionDto>();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading summary data: {ex.Message}");
+        }
+    }
+
+    private async Task ValidateConfiguration()
+    {
+        validationWarnings.Clear();
+        validationErrors.Clear();
+
+        // Validate school import
+        if (schoolCount == 0)
+        {
+            validationErrors.Add("No schools have been imported. Import schools before proceeding.");
+        }
+
+        // Validate roster configuration
+        if (!rosterPositions.Any())
+        {
+            validationWarnings.Add("No roster positions configured. Teams will have no roster structure.");
+        }
+        else
+        {
+            var totalSlotsPerTeam = rosterPositions.Sum(p => p.SlotsPerTeam);
+            
+            // Check if there are enough schools for all teams
+            if (totalSlotsPerTeam > 0 && schoolCount > 0)
+            {
+                var maxPossibleTeams = schoolCount / totalSlotsPerTeam;
+                if (maxPossibleTeams < 2)
+                {
+                    validationErrors.Add($"Not enough schools for viable teams. With {schoolCount} schools and {totalSlotsPerTeam} slots per team, only {maxPossibleTeams} team(s) are possible. Consider reducing roster size or importing more schools.");
+                }
+                else if (maxPossibleTeams < 6)
+                {
+                    validationWarnings.Add($"Limited team capacity. With current configuration, maximum {maxPossibleTeams} teams can participate.");
+                }
+            }
+
+            // Check for position mismatches
+            var configuredPositions = rosterPositions.Where(p => !p.IsFlexPosition).Select(p => p.PositionName).ToList();
+            var availablePositions = distinctPositions.Keys.ToList();
+            
+            foreach (var configPos in configuredPositions)
+            {
+                if (!availablePositions.Contains(configPos))
+                {
+                    validationWarnings.Add($"Position '{configPos}' is configured but no schools with this position were imported.");
+                }
+            }
+
+            // Check for over-constrained positions
+            foreach (var rosterPos in rosterPositions.Where(p => !p.IsFlexPosition))
+            {
+                if (distinctPositions.ContainsKey(rosterPos.PositionName))
+                {
+                    var availableSchools = distinctPositions[rosterPos.PositionName];
+                    var requiredPerTeam = rosterPos.SlotsPerTeam;
+                    
+                    if (availableSchools < requiredPerTeam * 2) // Need at least 2 teams worth
+                    {
+                        validationWarnings.Add($"Position '{rosterPos.PositionName}' may be over-constrained: only {availableSchools} schools available for {requiredPerTeam} slots per team.");
+                    }
+                }
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task RefreshValidation()
+    {
+        isLoading = true;
+        StateHasChanged();
+        
+        await LoadSummaryData();
+        await ValidateConfiguration();
+        
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task CompleteSetup()
+    {
+        if (validationErrors.Any()) return;
+
+        try
+        {
+            isCompleting = true;
+            StateHasChanged();
+
+            await OnCompleted.InvokeAsync();
+        }
+        finally
+        {
+            isCompleting = false;
+            StateHasChanged();
+        }
+    }
+
+    // DTOs
+    public class SchoolSummary
+    {
+        public int TotalCount { get; set; }
+        public Dictionary<string, int> PositionBreakdown { get; set; } = new();
+    }
+
+    public class RosterPositionDto
+    {
+        public int RosterPositionId { get; set; }
+        public int AuctionId { get; set; }
+        public string PositionName { get; set; } = string.Empty;
+        public int SlotsPerTeam { get; set; }
+        public string ColorCode { get; set; } = string.Empty;
+        public int DisplayOrder { get; set; }
+        public bool IsFlexPosition { get; set; }
+    }
+
+}
+
+<style>
+    .review-step {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .step-header {
+        padding: 24px 24px 16px 24px;
+        border-bottom: 1px solid #e1e1e1;
+        background: #f8f9fa;
+    }
+
+    .step-body {
+        padding: 24px;
+        flex: 1;
+        overflow-y: auto;
+    }
+
+    .review-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .loading-section {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 60px;
+        gap: 16px;
+    }
+</style>
