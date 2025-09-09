@@ -338,6 +338,83 @@ public class AuctionManagementFunction
     /// Auctions are returned sorted by creation date (most recent first).
     /// This endpoint is used by the management interface to display auction listings.
     /// </remarks>
+
+    /// <summary>
+    /// Retrieves a specific auction by its ID.
+    /// </summary>
+    /// <param name="req">The HTTP request containing management authentication headers.</param>
+    /// <param name="auctionId">The unique integer ID of the auction to retrieve.</param>
+    /// <returns>
+    /// HTTP 200 OK with the auction object if found.
+    /// HTTP 404 Not Found if no auction exists with the specified ID.
+    /// HTTP 401 Unauthorized if the management token is invalid or missing.
+    /// HTTP 500 Internal Server Error if an unexpected error occurs during retrieval.
+    /// </returns>
+    /// <remarks>
+    /// Returns the complete auction information including current status and bidding state if applicable.
+    /// This endpoint is used by the auction setup wizard to load auction details.
+    /// </remarks>
+    [Function("GetAuctionById")]
+    public async Task<HttpResponseData> GetAuctionById(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "management/auctions/{auctionId:int}")] HttpRequestData req,
+        int auctionId)
+    {
+        try
+        {
+            _logger.LogInformation("=== GET AUCTION BY ID REQUEST STARTED === AuctionId: {AuctionId}", auctionId);
+
+            // Validate admin token
+            if (!IsValidAdminRequest(req))
+            {
+                _logger.LogWarning("Unauthorized request to get auction by ID");
+                var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
+                await unauthorizedResponse.WriteStringAsync("Unauthorized");
+                return unauthorizedResponse;
+            }
+
+            _logger.LogInformation("Looking up auction with ID: {AuctionId}", auctionId);
+
+            var auction = await _auctionService.GetAuctionByIdAsync(auctionId);
+            
+            if (auction == null)
+            {
+                _logger.LogWarning("No auction found with ID: {AuctionId}", auctionId);
+                var notFoundResponse = req.CreateResponse(HttpStatusCode.NotFound);
+                await notFoundResponse.WriteStringAsync("Auction not found");
+                return notFoundResponse;
+            }
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(new AuctionResponseDto
+            {
+                AuctionId = auction.AuctionId,
+                Name = auction.Name,
+                JoinCode = auction.JoinCode,
+                MasterRecoveryCode = auction.MasterRecoveryCode,
+                Status = auction.Status,
+                CreatedByUserId = auction.CreatedByUserId,
+                CreatedDate = auction.CreatedDate,
+                StartedDate = auction.StartedDate,
+                CompletedDate = auction.CompletedDate,
+                CurrentNominatorUserId = auction.CurrentNominatorUserId,
+                CurrentSchoolId = auction.CurrentSchoolId,
+                CurrentHighBid = auction.CurrentHighBid,
+                CurrentHighBidderUserId = auction.CurrentHighBidderUserId,
+                ModifiedDate = auction.ModifiedDate
+            });
+            
+            _logger.LogInformation("=== GET AUCTION BY ID REQUEST COMPLETED SUCCESSFULLY ===");
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "=== GET AUCTION BY ID REQUEST FAILED === AuctionId: {AuctionId}", auctionId);
+            var response = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await response.WriteStringAsync($"Error retrieving auction: {ex.Message}");
+            return response;
+        }
+    }
+
     /// <summary>
     /// Advanced database diagnostic test to understand schema and constraints.
     /// </summary>
