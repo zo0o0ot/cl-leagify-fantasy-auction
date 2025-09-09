@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSV Route Test</title>
+</head>
+<body>
+    <h1>CSV Route Test Results</h1>
+    <div id="results"></div>
+
+    <script>
+        async function testRoutes() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>Testing CSV routes...</p>';
+
+            const tests = [
+                { 
+                    name: 'CSV Preview Endpoint',
+                    url: 'https://jolly-meadow-0b4450210.2.azurestaticapps.net/api/management/auctions/1/csv/preview',
+                    method: 'POST'
+                },
+                { 
+                    name: 'CSV Confirm Endpoint',
+                    url: 'https://jolly-meadow-0b4450210.2.azurestaticapps.net/api/management/auctions/1/csv/confirm',
+                    method: 'POST'
+                }
+            ];
+
+            let output = '<h2>Test Results:</h2>';
+
+            for (const test of tests) {
+                try {
+                    const response = await fetch(test.url, { method: test.method });
+                    const status = response.status;
+                    const statusText = response.statusText;
+                    
+                    if (status === 401) {
+                        output += `<p>✅ ${test.name}: EXISTS (${status} ${statusText}) - needs authentication</p>`;
+                    } else if (status === 404) {
+                        output += `<p>❌ ${test.name}: NOT FOUND (${status} ${statusText})</p>`;
+                    } else {
+                        output += `<p>? ${test.name}: ${status} ${statusText}</p>`;
+                    }
+                } catch (error) {
+                    output += `<p>❌ ${test.name}: Error - ${error.message}</p>`;
+                }
+            }
+
+            output += '<h2>Conclusion:</h2>';
+            output += '<p>If both endpoints show "EXISTS (401)" then CSV upload should work in the wizard.</p>';
+            
+            results.innerHTML = output;
+        }
+
+        // Run tests when page loads
+        window.addEventListener('load', testRoutes);
+    </script>
+</body>
+</html>
