@@ -224,7 +224,7 @@
             Http.DefaultRequestHeaders.Remove("X-Management-Token");
             Http.DefaultRequestHeaders.Add("X-Management-Token", token);
 
-            var response = await Http.PostAsync($"/api/management/auctions/{AuctionId}/csv-import/preview", content);
+            var response = await Http.PostAsync($"/api/management/auctions/{AuctionId}/csv/preview", content);
 
             if (response.IsSuccessStatusCode)
             {
@@ -285,7 +285,7 @@
             Http.DefaultRequestHeaders.Remove("X-Management-Token");
             Http.DefaultRequestHeaders.Add("X-Management-Token", token);
 
-            var response = await Http.PostAsJsonAsync($"/api/management/auctions/{AuctionId}/csv-import/confirm", confirmRequest);
+            var response = await Http.PostAsJsonAsync($"/api/management/auctions/{AuctionId}/csv/confirm", confirmRequest);
 
             if (response.IsSuccessStatusCode)
             {
