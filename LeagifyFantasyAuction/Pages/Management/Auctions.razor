@@ -285,10 +285,146 @@
                     </FluentStack>
                 </FluentCard>
 
-                <!-- Future configuration sections would go here -->
-                <FluentMessageBar Intent="MessageIntent.Info">
-                    <strong>Coming Soon:</strong> Roster position configuration, team settings, and more.
-                </FluentMessageBar>
+                <!-- Roster Design Section -->
+                <FluentCard>
+                    <FluentStack Orientation="Orientation.Vertical" VerticalGap="12">
+                        <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="8">
+                            <FluentIcon Value="@(new Icons.Regular.Size20.Grid())" />
+                            <FluentLabel Typo="Typography.Subject">Roster Configuration</FluentLabel>
+                        </FluentStack>
+                        <FluentLabel Style="color: #666;">Define the structure of fantasy teams for this auction.</FluentLabel>
+                        
+                        @if (!showRosterDesign)
+                        {
+                            <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12">
+                                <FluentButton Appearance="Appearance.Accent" 
+                                              OnClick="@ShowRosterDesign"
+                                              IconStart="@(new Icons.Regular.Size16.Add())"
+                                              Loading="isLoadingRosterConfig">
+                                    Configure Roster Positions
+                                </FluentButton>
+                                
+                                @if (rosterPositions.Any())
+                                {
+                                    <FluentLabel Style="color: #28a745; align-self: center;">
+                                        ✓ @rosterPositions.Count position(s) configured
+                                    </FluentLabel>
+                                }
+                            </FluentStack>
+                        }
+                        else
+                        {
+                            <!-- Roster Position Configuration Interface -->
+                            <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+                                
+                                <!-- Add New Position Section -->
+                                <FluentCard Style="background-color: #f8f9fa; border: 1px solid #dee2e6;">
+                                    <FluentStack Orientation="Orientation.Vertical" VerticalGap="12">
+                                        <FluentLabel Weight="FontWeight.Bold">Add New Position</FluentLabel>
+                                        
+                                        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12" Wrap="true">
+                                            <div style="flex: 1; min-width: 200px;">
+                                                <FluentTextField @bind-Value="newPosition.PositionName" 
+                                                                 Label="Position Name" 
+                                                                 Placeholder="e.g., Power Conference, SEC, Flex"
+                                                                 Required="true" />
+                                            </div>
+                                            <div style="width: 120px;">
+                                                <FluentNumberField @bind-Value="newPosition.SlotsPerTeam" 
+                                                                   Label="Slots per Team" 
+                                                                   Min="1" 
+                                                                   Max="10"
+                                                                   Required="true" />
+                                            </div>
+                                            <div style="width: 100px;">
+                                                <FluentLabel Style="margin-bottom: 4px;">Color</FluentLabel>
+                                                <input type="color" @bind="newPosition.ColorCode" 
+                                                       style="width: 100%; height: 32px; border: 1px solid #ccc; border-radius: 4px;" />
+                                            </div>
+                                        </FluentStack>
+                                        
+                                        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" VerticalAlignment="VerticalAlignment.Center">
+                                            <FluentCheckbox @bind-Value="newPosition.IsFlexPosition" Label="Flex Position" />
+                                            <FluentLabel Style="color: #666; font-size: 0.9em;">(accepts any school type)</FluentLabel>
+                                        </FluentStack>
+                                        
+                                        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8">
+                                            <FluentButton Appearance="Appearance.Accent" 
+                                                          OnClick="@AddRosterPosition"
+                                                          Disabled="@(string.IsNullOrWhiteSpace(newPosition.PositionName) || newPosition.SlotsPerTeam <= 0)"
+                                                          Loading="isAddingPosition">
+                                                Add Position
+                                            </FluentButton>
+                                        </FluentStack>
+                                    </FluentStack>
+                                </FluentCard>
+                                
+                                <!-- Current Positions List -->
+                                @if (rosterPositions.Any())
+                                {
+                                    <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
+                                        <FluentLabel Weight="FontWeight.Bold">Current Roster Positions</FluentLabel>
+                                        
+                                        <div style="border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden;">
+                                            @foreach (var position in rosterPositions.OrderBy(p => p.DisplayOrder))
+                                            {
+                                                <div style="@($"padding: 12px; border-bottom: 1px solid #eee; background-color: {position.ColorCode}20;")"
+                                                     @key="position.RosterPositionId">
+                                                    <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="12">
+                                                        <div style="@($"width: 20px; height: 20px; background-color: {position.ColorCode}; border-radius: 3px; border: 1px solid #ccc;")"></div>
+                                                        <FluentStack Orientation="Orientation.Vertical" Style="flex: 1;">
+                                                            <FluentLabel Weight="FontWeight.Bold">@position.PositionName</FluentLabel>
+                                                            <FluentLabel Style="font-size: 0.9em; color: #666;">
+                                                                @position.SlotsPerTeam slot@(position.SlotsPerTeam != 1 ? "s" : "") per team
+                                                                @if (position.IsFlexPosition) { <text> • Flex Position</text> }
+                                                            </FluentLabel>
+                                                        </FluentStack>
+                                                        
+                                                        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="4">
+                                                            <FluentButton Appearance="Appearance.Neutral" 
+                                                                          IconStart="@(new Icons.Regular.Size16.ArrowUp())"
+                                                                          OnClick="@(() => MovePositionUp(position))"
+                                                                          Disabled="@(rosterPositions.OrderBy(p => p.DisplayOrder).First() == position)"
+                                                                          Title="Move up" />
+                                                            <FluentButton Appearance="Appearance.Neutral" 
+                                                                          IconStart="@(new Icons.Regular.Size16.ArrowDown())"
+                                                                          OnClick="@(() => MovePositionDown(position))"
+                                                                          Disabled="@(rosterPositions.OrderBy(p => p.DisplayOrder).Last() == position)"
+                                                                          Title="Move down" />
+                                                            <FluentButton Appearance="Appearance.Neutral" 
+                                                                          IconStart="@(new Icons.Regular.Size16.Delete())"
+                                                                          OnClick="@(() => RemoveRosterPosition(position))"
+                                                                          Loading="@(deletingPositionId == position.RosterPositionId)"
+                                                                          Title="Delete" />
+                                                        </FluentStack>
+                                                    </FluentStack>
+                                                </div>
+                                            }
+                                        </div>
+                                        
+                                        <!-- Roster Summary -->
+                                        <FluentCard Style="background-color: #e3f2fd; border: 1px solid #2196f3;">
+                                            <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
+                                                <FluentLabel Weight="FontWeight.Bold" Style="color: #1976d2;">Team Composition Summary</FluentLabel>
+                                                <FluentLabel Style="color: #1976d2;">
+                                                    Each team will have <strong>@rosterPositions.Sum(p => p.SlotsPerTeam) schools</strong> total
+                                                    (@rosterPositions.Count(p => !p.IsFlexPosition) specific position@(rosterPositions.Count(p => !p.IsFlexPosition) != 1 ? "s" : ""), 
+                                                     @rosterPositions.Where(p => p.IsFlexPosition).Sum(p => p.SlotsPerTeam) flex slot@(rosterPositions.Where(p => p.IsFlexPosition).Sum(p => p.SlotsPerTeam) != 1 ? "s" : ""))
+                                                </FluentLabel>
+                                            </FluentStack>
+                                        </FluentCard>
+                                    </FluentStack>
+                                }
+                                
+                                <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8">
+                                    <FluentButton Appearance="Appearance.Neutral" OnClick="@HideRosterDesign">
+                                        Done Configuring
+                                    </FluentButton>
+                                </FluentStack>
+                            </FluentStack>
+                        }
+                    </FluentStack>
+                </FluentCard>
                 
             </FluentStack>
         }
@@ -326,6 +462,14 @@
     
     // Match filtering
     private MatchFilter currentFilter = MatchFilter.All;
+    
+    // Roster design state
+    private bool showRosterDesign = false;
+    private bool isLoadingRosterConfig = false;
+    private bool isAddingPosition = false;
+    private int? deletingPositionId = null;
+    private List<RosterPositionDto> rosterPositions = new();
+    private NewRosterPosition newPosition = new();
 
     public enum MatchFilter
     {
@@ -447,6 +591,12 @@
         showSchoolMatching = false;
         schoolMatches.Clear();
         csvUploadMessage = "";
+        
+        // Reset roster design state
+        showRosterDesign = false;
+        rosterPositions.Clear();
+        ResetNewPosition();
+        
         StateHasChanged();
     }
 
@@ -774,6 +924,226 @@
         };
     }
 
+    // Roster design methods
+    private async Task ShowRosterDesign()
+    {
+        if (selectedAuction == null) return;
+        
+        try
+        {
+            isLoadingRosterConfig = true;
+            StateHasChanged();
+            
+            // Load existing roster positions for this auction
+            await LoadRosterPositions();
+            showRosterDesign = true;
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error loading roster configuration: {ex.Message}");
+        }
+        finally
+        {
+            isLoadingRosterConfig = false;
+            StateHasChanged();
+        }
+    }
+
+    private void HideRosterDesign()
+    {
+        showRosterDesign = false;
+        ResetNewPosition();
+        StateHasChanged();
+    }
+
+    private async Task LoadRosterPositions()
+    {
+        if (selectedAuction == null) return;
+        
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Authentication token missing. Please log in again.");
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+
+            var response = await Http.GetAsync($"/api/management/auctions/{selectedAuction.AuctionId}/roster-positions");
+            if (response.IsSuccessStatusCode)
+            {
+                var positions = await response.Content.ReadFromJsonAsync<List<RosterPositionDto>>();
+                rosterPositions = positions ?? new List<RosterPositionDto>();
+            }
+            else
+            {
+                rosterPositions = new List<RosterPositionDto>();
+            }
+        }
+        catch (Exception ex)
+        {
+            rosterPositions = new List<RosterPositionDto>();
+            Console.WriteLine($"Error loading roster positions: {ex.Message}");
+        }
+    }
+
+    private async Task AddRosterPosition()
+    {
+        if (selectedAuction == null || string.IsNullOrWhiteSpace(newPosition.PositionName) || newPosition.SlotsPerTeam <= 0) return;
+        
+        try
+        {
+            isAddingPosition = true;
+            StateHasChanged();
+
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Authentication token missing. Please log in again.");
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+
+            var request = new CreateRosterPositionRequest
+            {
+                AuctionId = selectedAuction.AuctionId,
+                PositionName = newPosition.PositionName.Trim(),
+                SlotsPerTeam = newPosition.SlotsPerTeam,
+                ColorCode = newPosition.ColorCode,
+                IsFlexPosition = newPosition.IsFlexPosition,
+                DisplayOrder = rosterPositions.Count + 1
+            };
+
+            var response = await Http.PostAsJsonAsync("/api/management/roster-positions", request);
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadRosterPositions();
+                ResetNewPosition();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                await JSRuntime.InvokeVoidAsync("alert", $"Error adding roster position: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error adding roster position: {ex.Message}");
+        }
+        finally
+        {
+            isAddingPosition = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RemoveRosterPosition(RosterPositionDto position)
+    {
+        if (selectedAuction == null) return;
+        
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to delete the '{position.PositionName}' position?");
+        if (!confirmed) return;
+
+        try
+        {
+            deletingPositionId = position.RosterPositionId;
+            StateHasChanged();
+
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Authentication token missing. Please log in again.");
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+
+            var response = await Http.DeleteAsync($"/api/management/roster-positions/{position.RosterPositionId}");
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadRosterPositions();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                await JSRuntime.InvokeVoidAsync("alert", $"Error removing roster position: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error removing roster position: {ex.Message}");
+        }
+        finally
+        {
+            deletingPositionId = null;
+            StateHasChanged();
+        }
+    }
+
+    private async Task MovePositionUp(RosterPositionDto position)
+    {
+        await ReorderPosition(position, -1);
+    }
+
+    private async Task MovePositionDown(RosterPositionDto position)
+    {
+        await ReorderPosition(position, 1);
+    }
+
+    private async Task ReorderPosition(RosterPositionDto position, int direction)
+    {
+        if (selectedAuction == null) return;
+        
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Authentication token missing. Please log in again.");
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+
+            var request = new ReorderPositionRequest
+            {
+                RosterPositionId = position.RosterPositionId,
+                Direction = direction
+            };
+
+            var response = await Http.PostAsJsonAsync($"/api/management/roster-positions/{position.RosterPositionId}/reorder", request);
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadRosterPositions();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                await JSRuntime.InvokeVoidAsync("alert", $"Error reordering positions: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error reordering positions: {ex.Message}");
+        }
+    }
+
+    private void ResetNewPosition()
+    {
+        newPosition = new NewRosterPosition
+        {
+            ColorCode = "#0078d4",
+            SlotsPerTeam = 1
+        };
+    }
+
     // DTOs
     public class AuctionDto
     {
@@ -860,6 +1230,41 @@
         Exact,
         Fuzzy,
         NoMatch
+    }
+
+    public class RosterPositionDto
+    {
+        public int RosterPositionId { get; set; }
+        public int AuctionId { get; set; }
+        public string PositionName { get; set; } = string.Empty;
+        public int SlotsPerTeam { get; set; }
+        public string ColorCode { get; set; } = string.Empty;
+        public int DisplayOrder { get; set; }
+        public bool IsFlexPosition { get; set; }
+    }
+
+    public class NewRosterPosition
+    {
+        public string PositionName { get; set; } = string.Empty;
+        public int SlotsPerTeam { get; set; } = 1;
+        public string ColorCode { get; set; } = "#0078d4";
+        public bool IsFlexPosition { get; set; } = false;
+    }
+
+    public class CreateRosterPositionRequest
+    {
+        public int AuctionId { get; set; }
+        public string PositionName { get; set; } = string.Empty;
+        public int SlotsPerTeam { get; set; }
+        public string ColorCode { get; set; } = string.Empty;
+        public int DisplayOrder { get; set; }
+        public bool IsFlexPosition { get; set; }
+    }
+
+    public class ReorderPositionRequest
+    {
+        public int RosterPositionId { get; set; }
+        public int Direction { get; set; }
     }
 }
 
