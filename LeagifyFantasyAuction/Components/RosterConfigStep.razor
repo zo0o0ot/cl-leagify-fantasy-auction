@@ -221,6 +221,7 @@
     {
         await LoadRosterPositions();
         await LoadAvailablePositions();
+        ResetNewPosition(); // Initialize with default position after loading available positions
         isLoading = false;
         StateHasChanged();
     }
@@ -405,8 +406,12 @@
 
     private void ResetNewPosition()
     {
+        // Set default position name to first available option or "Flex" if none available
+        var defaultPositionName = availablePositions.Any() ? availablePositions.First() : "Flex";
+        
         newPosition = new NewRosterPosition
         {
+            PositionName = defaultPositionName,
             ColorCode = "#0078d4",
             SlotsPerTeam = 1
         };
