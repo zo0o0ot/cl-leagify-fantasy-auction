@@ -152,10 +152,10 @@
                                     <div style="display: grid; gap: 8px;">
                                         @foreach (var position in rosterPositions.OrderBy(p => p.DisplayOrder))
                                         {
-                                            <div style="@($"padding: 12px; border-radius: 6px; background-color: {position.ColorCode}20; border-left: 4px solid {position.ColorCode};")"
+                                            <div style="@($"padding: 12px; border-radius: 6px; background-color: {(string.IsNullOrEmpty(position.ColorCode) ? "#0078d4" : position.ColorCode)}20; border-left: 4px solid {(string.IsNullOrEmpty(position.ColorCode) ? "#0078d4" : position.ColorCode)};")"
                                                  @key="position.RosterPositionId">
                                                 <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="12">
-                                                    <div style="@($"width: 16px; height: 16px; background-color: {position.ColorCode}; border-radius: 2px;")"></div>
+                                                    <div style="@($"width: 16px; height: 16px; background-color: {(string.IsNullOrEmpty(position.ColorCode) ? "#0078d4" : position.ColorCode)}; border-radius: 2px;")"></div>
                                                     <FluentStack Orientation="Orientation.Vertical">
                                                         <FluentLabel Weight="FontWeight.Bold">@position.PositionName</FluentLabel>
                                                         <FluentLabel Style="font-size: 13px; color: #666;">
