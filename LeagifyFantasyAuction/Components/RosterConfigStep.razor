@@ -295,6 +295,11 @@
                 ? newPosition.CustomPositionName.Trim() 
                 : newPosition.PositionName.Trim();
 
+            // Debug logging for API request
+            Console.WriteLine($"AddRosterPosition: newPosition.PositionName = '{newPosition.PositionName}'");
+            Console.WriteLine($"AddRosterPosition: newPosition.CustomPositionName = '{newPosition.CustomPositionName}'");
+            Console.WriteLine($"AddRosterPosition: finalPositionName = '{finalPositionName}'");
+
             var request = new CreateRosterPositionRequest
             {
                 AuctionId = AuctionId,
@@ -406,8 +411,21 @@
 
     private void ResetNewPosition()
     {
-        // Set default position name to first available option or "Flex" if none available
-        var defaultPositionName = availablePositions.Any() ? availablePositions.First() : "Flex";
+        // Always ensure we have a valid default position name
+        var defaultPositionName = "Flex"; // Start with safe default
+        
+        if (availablePositions.Any())
+        {
+            defaultPositionName = availablePositions.First();
+        }
+        
+        // Debug logging
+        Console.WriteLine($"ResetNewPosition: availablePositions.Count = {availablePositions.Count}");
+        if (availablePositions.Any())
+        {
+            Console.WriteLine($"ResetNewPosition: available positions = [{string.Join(", ", availablePositions)}]");
+        }
+        Console.WriteLine($"ResetNewPosition: defaultPositionName = '{defaultPositionName}'");
         
         newPosition = new NewRosterPosition
         {
@@ -415,6 +433,12 @@
             ColorCode = "#0078d4",
             SlotsPerTeam = 1
         };
+        
+        // Verify the position was set
+        Console.WriteLine($"ResetNewPosition: newPosition.PositionName = '{newPosition.PositionName}'");
+        
+        // Force UI update
+        StateHasChanged();
     }
 
     private List<string> GetPositionOptions()
