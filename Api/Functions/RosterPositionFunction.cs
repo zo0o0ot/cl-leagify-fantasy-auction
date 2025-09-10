@@ -167,7 +167,10 @@ public class RosterPositionFunction(ILogger<RosterPositionFunction> logger,
 
             // Parse request body
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            var createRequest = JsonSerializer.Deserialize<CreateRosterPositionRequest>(requestBody);
+            var createRequest = JsonSerializer.Deserialize<CreateRosterPositionRequest>(requestBody, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
 
             if (createRequest == null)
             {
@@ -347,7 +350,10 @@ public class RosterPositionFunction(ILogger<RosterPositionFunction> logger,
 
             // Parse request body
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            var reorderRequest = JsonSerializer.Deserialize<ReorderPositionRequest>(requestBody);
+            var reorderRequest = JsonSerializer.Deserialize<ReorderPositionRequest>(requestBody, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
 
             if (reorderRequest == null)
             {
