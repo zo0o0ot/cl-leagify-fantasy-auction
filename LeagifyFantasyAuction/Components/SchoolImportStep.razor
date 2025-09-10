@@ -276,16 +276,11 @@
                 MatchType = m.MatchType
             }).ToList();
 
-            var confirmRequest = new AuctionCsvConfirmRequest
-            {
-                AuctionId = AuctionId,
-                ConfirmedMatches = confirmedMatches
-            };
-
             Http.DefaultRequestHeaders.Remove("X-Management-Token");
             Http.DefaultRequestHeaders.Add("X-Management-Token", token);
 
-            var response = await Http.PostAsJsonAsync($"/api/management/auctions/{AuctionId}/csv/confirm", confirmRequest);
+            // Send the list directly, not wrapped in a request object
+            var response = await Http.PostAsJsonAsync($"/api/management/auctions/{AuctionId}/csv/confirm", confirmedMatches);
 
             if (response.IsSuccessStatusCode)
             {
@@ -396,11 +391,6 @@
         public SchoolMatchType MatchType { get; set; }
     }
 
-    public class AuctionCsvConfirmRequest
-    {
-        public int AuctionId { get; set; }
-        public List<ConfirmedSchoolMatch> ConfirmedMatches { get; set; } = new();
-    }
 
     public enum SchoolMatchType
     {
