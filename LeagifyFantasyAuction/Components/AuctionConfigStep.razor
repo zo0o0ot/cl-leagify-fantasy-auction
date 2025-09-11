@@ -169,18 +169,20 @@
                                 </FluentStack>
                                 
                                 <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="16">
-                                    <FluentSelect @bind-Value="nominationOrderType"
-                                                  Label="Order Type"
-                                                  Items="@nominationOrderOptions"
-                                                  OptionText="@(item => item.Text)"
-                                                  OptionValue="@(item => item.Value)"
-                                                  Style="width: 200px;" />
+                                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                                        <FluentLabel>Order Type</FluentLabel>
+                                        <select @bind="nominationOrderType" style="width: 200px; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                                            <option value="random">Random</option>
+                                            <option value="alphabetical">Alphabetical</option>
+                                            <option value="reverse_alphabetical">Reverse Alphabetical</option>
+                                            <option value="manual">Manual (Custom Order)</option>
+                                        </select>
+                                    </div>
                                                   
                                     <FluentButton Appearance="Appearance.Neutral" 
                                                   OnClick="@GenerateNominationOrder"
-                                                  IconStart="@(new Icons.Regular.Size16.ArrowClockwise())"
-                                                  Disabled="@(nominationOrderType == "manual")">
-                                        @(nominationOrderType == "manual" ? "Manual Order" : $"Generate {ToTitleCase(nominationOrderType.Replace("_", " "))} Order")
+                                                  IconStart="@(new Icons.Regular.Size16.ArrowClockwise())">
+                                        @(nominationOrderType == "manual" ? "Generate Manual Order" : $"Generate {ToTitleCase(nominationOrderType.Replace("_", " "))} Order")
                                     </FluentButton>
                                 </FluentStack>
                                 
@@ -192,48 +194,45 @@
                                         @if (nominationOrderType == "manual")
                                         {
                                             <!-- Manual ordering with up/down buttons -->
-                                            <div style="display: grid; gap: 8px;">
-                                                @{
-                                                    var manualOrderCopy = nominationOrder?.ToList() ?? new List<string>();
-                                                }
-                                                @for (int i = 0; i < manualOrderCopy.Count; i++)
-                                                {
-                                                    var index = i;
-                                                    @if (index < manualOrderCopy.Count && !string.IsNullOrEmpty(manualOrderCopy[index]))
+                                            @if (!nominationOrder.Any())
+                                            {
+                                                <FluentMessageBar Intent="MessageIntent.Info">
+                                                    Click "Generate Manual Order" to create an initial order that you can customize.
+                                                </FluentMessageBar>
+                                            }
+                                            else
+                                            {
+                                                <div style="display: grid; gap: 8px;">
+                                                    @for (int i = 0; i < nominationOrder.Count; i++)
                                                     {
+                                                        var index = i;
                                                         <div style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid #dee2e6; border-radius: 6px; background: white;">
                                                             <FluentLabel Style="min-width: 40px; font-weight: 600;">@(index + 1).</FluentLabel>
-                                                            <FluentLabel Style="flex: 1;">@manualOrderCopy[index]</FluentLabel>
-                                                        <FluentButton Appearance="Appearance.Neutral" 
-                                                                      IconStart="@(new Icons.Regular.Size16.ArrowUp())"
-                                                                      OnClick="@(() => MoveTeamUp(index))"
-                                                                      Disabled="@(index == 0)"
-                                                                      Title="Move up" />
+                                                            <FluentLabel Style="flex: 1;">@nominationOrder[index]</FluentLabel>
+                                                            <FluentButton Appearance="Appearance.Neutral" 
+                                                                          IconStart="@(new Icons.Regular.Size16.ArrowUp())"
+                                                                          OnClick="@(() => MoveTeamUp(index))"
+                                                                          Disabled="@(index == 0)"
+                                                                          Title="Move up" />
                                                             <FluentButton Appearance="Appearance.Neutral" 
                                                                           IconStart="@(new Icons.Regular.Size16.ArrowDown())"
                                                                           OnClick="@(() => MoveTeamDown(index))"
-                                                                          Disabled="@(index == manualOrderCopy.Count - 1)"
+                                                                          Disabled="@(index == nominationOrder.Count - 1)"
                                                                           Title="Move down" />
                                                         </div>
                                                     }
-                                                }
-                                            </div>
+                                                </div>
+                                            }
                                         }
                                         else
                                         {
                                             <!-- Read-only order display -->
                                             <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                                                @{
-                                                    var orderCopy = nominationOrder?.ToList() ?? new List<string>();
-                                                }
-                                                @for (int i = 0; i < orderCopy.Count; i++)
+                                                @for (int i = 0; i < nominationOrder.Count; i++)
                                                 {
-                                                    @if (i < orderCopy.Count && !string.IsNullOrEmpty(orderCopy[i]))
-                                                    {
-                                                        <FluentBadge Fill="someValue" BackgroundColor="#0078d4" Color="white">
-                                                            @(i + 1). @orderCopy[i]
-                                                        </FluentBadge>
-                                                    }
+                                                    <FluentBadge Fill="someValue" BackgroundColor="#0078d4" Color="white">
+                                                        @(i + 1). @nominationOrder[i]
+                                                    </FluentBadge>
                                                 }
                                             </div>
                                         }
@@ -308,13 +307,6 @@
     private bool enableBudgetWarnings = true;
     private bool shuffleNominationOrder = false;
 
-    private readonly List<NominationOrderOption> nominationOrderOptions = new()
-    {
-        new("random", "Random"),
-        new("alphabetical", "Alphabetical"),
-        new("reverse_alphabetical", "Reverse Alphabetical"),
-        new("manual", "Manual (Custom Order)")
-    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -570,7 +562,6 @@
         public bool IsFlexPosition { get; set; }
     }
 
-    public record NominationOrderOption(string Value, string Text);
 }
 
 <style>
