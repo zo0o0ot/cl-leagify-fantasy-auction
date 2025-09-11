@@ -34,8 +34,7 @@
     <!-- Progress Breadcrumb -->
     <div class="setup-progress">
         <FluentBreadcrumb>
-            <FluentBreadcrumbItem Href="#" 
-                                  OnClick="@(() => NavigateToStep(1))"
+            <FluentBreadcrumbItem OnClick="@(() => NavigateToStep(1))"
                                   Current="@(CurrentStepNumber == 1)"
                                   Disabled="@(CurrentStepNumber < 1)">
                 <FluentIcon Value="@(new Icons.Regular.Size16.DatabaseArrowUp())" Style="margin-right: 8px;" />
@@ -47,8 +46,7 @@
                 }
             </FluentBreadcrumbItem>
             
-            <FluentBreadcrumbItem Href="#" 
-                                  OnClick="@(() => NavigateToStep(2))"
+            <FluentBreadcrumbItem OnClick="@(() => NavigateToStep(2))"
                                   Current="@(CurrentStepNumber == 2)"
                                   Disabled="@(CurrentStepNumber < 2 || !schoolImportCompleted)">
                 <FluentIcon Value="@(new Icons.Regular.Size20.Grid())" Style="margin-right: 8px;" />
@@ -60,8 +58,7 @@
                 }
             </FluentBreadcrumbItem>
             
-            <FluentBreadcrumbItem Href="#" 
-                                  OnClick="@(() => NavigateToStep(3))"
+            <FluentBreadcrumbItem OnClick="@(() => NavigateToStep(3))"
                                   Current="@(CurrentStepNumber == 3)"
                                   Disabled="@(CurrentStepNumber < 3 || !rosterConfigCompleted)">
                 <FluentIcon Value="@(new Icons.Regular.Size20.Settings())" Style="margin-right: 8px;" />
@@ -73,8 +70,7 @@
                 }
             </FluentBreadcrumbItem>
             
-            <FluentBreadcrumbItem Href="#" 
-                                  OnClick="@(() => NavigateToStep(4))"
+            <FluentBreadcrumbItem OnClick="@(() => NavigateToStep(4))"
                                   Current="@(CurrentStepNumber == 4)"
                                   Disabled="@(CurrentStepNumber < 4 || !auctionConfigCompleted)">
                 <FluentIcon Value="@(new Icons.Regular.Size20.Clipboard())" Style="margin-right: 8px;" />

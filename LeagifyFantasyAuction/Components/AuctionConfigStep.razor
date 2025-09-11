@@ -66,53 +66,103 @@
                     </div>
                 </FluentCard>
 
-                <!-- Nomination Order Configuration -->
+                <!-- Team Count Configuration -->
                 <FluentCard Style="margin-bottom: 24px;">
                     <div style="padding: 20px;">
                         <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
                             <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="12">
-                                <FluentIcon Value="@(new Icons.Regular.Size20.ArrowSort())" Style="color: #0078d4;" />
-                                <FluentLabel Weight="FontWeight.Bold">Nomination Order</FluentLabel>
+                                <FluentIcon Value="@(new Icons.Regular.Size20.People())" Style="color: #0078d4;" />
+                                <FluentLabel Weight="FontWeight.Bold">Team Configuration</FluentLabel>
                             </FluentStack>
                             
-                            <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="16">
-                                <FluentSelect @bind-Value="nominationOrderType"
-                                              Label="Order Type"
-                                              Items="@nominationOrderOptions"
-                                              OptionText="@(item => item.Text)"
-                                              OptionValue="@(item => item.Value)"
-                                              Style="width: 200px;" />
-                                              
-                                <FluentButton Appearance="Appearance.Neutral" 
-                                              OnClick="@GenerateNominationOrder"
-                                              IconStart="@(new Icons.Regular.Size16.ArrowClockwise())">
-                                    Generate Order
-                                </FluentButton>
+                            <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="16" Wrap="true">
+                                <div style="width: 200px;">
+                                    <FluentNumberField @bind-Value="expectedTeamCount" 
+                                                       Label="Number of Teams" 
+                                                       Min="2" 
+                                                       Max="20"
+                                                       Required="true" />
+                                </div>
+                                <div style="flex: 1; min-width: 300px;">
+                                    <FluentLabel Style="color: #666; font-size: 14px;">
+                                        Number of teams expected to participate in the auction. 
+                                        This will determine draft order and budget calculations.
+                                    </FluentLabel>
+                                </div>
                             </FluentStack>
                             
-                            @if (nominationOrder.Any())
+                            @if (expectedTeamCount > 0 && totalRosterSlots > 0)
                             {
                                 <div style="background: #f8f9fa; padding: 16px; border-radius: 8px;">
-                                    <FluentLabel Weight="FontWeight.Bold" Style="margin-bottom: 8px;">Current Nomination Order:</FluentLabel>
-                                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                                        @for (int i = 0; i < nominationOrder.Count; i++)
+                                    <FluentLabel Style="font-size: 14px; color: #666;">
+                                        <strong>Team Analysis:</strong> 
+                                        @expectedTeamCount teams × @totalRosterSlots slots = @(expectedTeamCount * totalRosterSlots) total schools needed.
+                                        Available schools: @availableSchoolCount
+                                        @if (availableSchoolCount < expectedTeamCount * totalRosterSlots)
                                         {
-                                            <FluentBadge Fill="someValue" BackgroundColor="#0078d4" Color="white">
-                                                @(i + 1). @nominationOrder[i]
-                                            </FluentBadge>
+                                            <span style="color: #d13438;"> (⚠️ Not enough schools imported!)</span>
                                         }
-                                    </div>
+                                        else
+                                        {
+                                            <span style="color: #107c10;"> (✅ Sufficient schools available)</span>
+                                        }
+                                    </FluentLabel>
                                 </div>
-                            }
-                            else
-                            {
-                                <FluentMessageBar Intent="MessageIntent.Warning">
-                                    No nomination order configured. Generate an order before proceeding.
-                                </FluentMessageBar>
                             }
                         </FluentStack>
                     </div>
                 </FluentCard>
+
+                <!-- Nomination Order Configuration -->
+                @if (expectedTeamCount > 0)
+                {
+                    <FluentCard Style="margin-bottom: 24px;">
+                        <div style="padding: 20px;">
+                            <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+                                <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="12">
+                                    <FluentIcon Value="@(new Icons.Regular.Size20.ArrowSort())" Style="color: #0078d4;" />
+                                    <FluentLabel Weight="FontWeight.Bold">Nomination Order</FluentLabel>
+                                </FluentStack>
+                                
+                                <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="16">
+                                    <FluentSelect @bind-Value="nominationOrderType"
+                                                  Label="Order Type"
+                                                  Items="@nominationOrderOptions"
+                                                  OptionText="@(item => item.Text)"
+                                                  OptionValue="@(item => item.Value)"
+                                                  Style="width: 200px;" />
+                                                  
+                                    <FluentButton Appearance="Appearance.Neutral" 
+                                                  OnClick="@GenerateNominationOrder"
+                                                  IconStart="@(new Icons.Regular.Size16.ArrowClockwise())">
+                                        Generate Order for @expectedTeamCount Teams
+                                    </FluentButton>
+                                </FluentStack>
+                                
+                                @if (nominationOrder.Any())
+                                {
+                                    <div style="background: #f8f9fa; padding: 16px; border-radius: 8px;">
+                                        <FluentLabel Weight="FontWeight.Bold" Style="margin-bottom: 8px;">Current Nomination Order:</FluentLabel>
+                                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                            @for (int i = 0; i < nominationOrder.Count; i++)
+                                            {
+                                                <FluentBadge Fill="someValue" BackgroundColor="#0078d4" Color="white">
+                                                    @(i + 1). @nominationOrder[i]
+                                                </FluentBadge>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <FluentMessageBar Intent="MessageIntent.Warning">
+                                        Set team count and generate nomination order before proceeding.
+                                    </FluentMessageBar>
+                                }
+                            </FluentStack>
+                        </div>
+                    </FluentCard>
+                }
 
                 <!-- Additional Settings -->
                 <FluentCard Style="margin-bottom: 24px;">
@@ -163,6 +213,8 @@
     private bool isSaving = false;
     private int budgetPerTeam = 1000;
     private int totalRosterSlots = 0;
+    private int expectedTeamCount = 8; // Default to 8 teams
+    private int availableSchoolCount = 0;
     private string nominationOrderType = "random";
     private List<string> nominationOrder = new();
     private bool allowProxyBidding = true;
@@ -181,6 +233,7 @@
     {
         await LoadCurrentConfiguration();
         await LoadRosterSlotCount();
+        await LoadAvailableSchoolCount();
         isLoading = false;
         StateHasChanged();
     }
@@ -239,6 +292,29 @@
         }
     }
 
+    private async Task LoadAvailableSchoolCount()
+    {
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(token)) return;
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+
+            var response = await Http.GetAsync($"/api/management/auctions/{AuctionId}/schools/count");
+            if (response.IsSuccessStatusCode)
+            {
+                var count = await response.Content.ReadFromJsonAsync<int>();
+                availableSchoolCount = count;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading school count: {ex.Message}");
+        }
+    }
+
     private int GetRecommendedBudget()
     {
         if (totalRosterSlots == 0) return 1000;
@@ -250,10 +326,11 @@
 
     private void GenerateNominationOrder()
     {
-        // For now, generate a simple placeholder order
-        // In a real implementation, this would be based on team names from the database
+        if (expectedTeamCount <= 0) return;
+        
+        // Generate team names based on expected count
         var teamNames = new List<string>();
-        for (int i = 1; i <= 8; i++) // Default to 8 teams
+        for (int i = 1; i <= expectedTeamCount; i++)
         {
             teamNames.Add($"Team {i}");
         }
@@ -272,7 +349,7 @@
 
     private bool IsConfigurationValid()
     {
-        return budgetPerTeam > 0 && nominationOrder.Any();
+        return budgetPerTeam > 0 && expectedTeamCount > 0 && nominationOrder.Any() && nominationOrder.Count == expectedTeamCount;
     }
 
     private async Task SaveConfiguration()
