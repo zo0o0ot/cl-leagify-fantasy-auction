@@ -1,0 +1,381 @@
+@using System.Net.Http.Json
+@using LeagifyFantasyAuction.Models
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+
+<div class="auction-config-step">
+    <!-- Step Header -->
+    <div class="step-header">
+        <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
+            <FluentLabel Typo="Typography.Subject">Auction Configuration</FluentLabel>
+            <FluentLabel Style="color: #666;">
+                Configure team budgets, nomination order, and other auction settings before starting.
+            </FluentLabel>
+        </FluentStack>
+    </div>
+
+    <div class="step-body">
+        @if (isLoading)
+        {
+            <div class="loading-section">
+                <FluentProgressRing />
+                <FluentLabel>Loading auction configuration...</FluentLabel>
+            </div>
+        }
+        else
+        {
+            <div class="config-container">
+                
+                <!-- Budget Configuration -->
+                <FluentCard Style="margin-bottom: 24px;">
+                    <div style="padding: 20px;">
+                        <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+                            <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="12">
+                                <FluentIcon Value="@(new Icons.Regular.Size20.Money())" Style="color: #0078d4;" />
+                                <FluentLabel Weight="FontWeight.Bold">Budget Configuration</FluentLabel>
+                            </FluentStack>
+                            
+                            <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="16" Wrap="true">
+                                <div style="width: 200px;">
+                                    <FluentNumberField @bind-Value="budgetPerTeam" 
+                                                       Label="Budget per Team ($)" 
+                                                       Min="100" 
+                                                       Max="10000"
+                                                       Step="50"
+                                                       Required="true" />
+                                </div>
+                                <div style="flex: 1; min-width: 300px;">
+                                    <FluentLabel Style="color: #666; font-size: 14px;">
+                                        Each team will start with this budget for bidding. 
+                                        Recommended: $@GetRecommendedBudget() based on @totalRosterSlots roster slots.
+                                    </FluentLabel>
+                                </div>
+                            </FluentStack>
+                            
+                            @if (budgetPerTeam > 0 && totalRosterSlots > 0)
+                            {
+                                <div style="background: #f8f9fa; padding: 16px; border-radius: 8px;">
+                                    <FluentLabel Style="font-size: 14px; color: #666;">
+                                        <strong>Budget Analysis:</strong> 
+                                        Average $@Math.Round((double)budgetPerTeam / totalRosterSlots, 2) per school, 
+                                        with minimum $1 reserve for final roster slot.
+                                    </FluentLabel>
+                                </div>
+                            }
+                        </FluentStack>
+                    </div>
+                </FluentCard>
+
+                <!-- Nomination Order Configuration -->
+                <FluentCard Style="margin-bottom: 24px;">
+                    <div style="padding: 20px;">
+                        <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+                            <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="12">
+                                <FluentIcon Value="@(new Icons.Regular.Size20.ArrowSort())" Style="color: #0078d4;" />
+                                <FluentLabel Weight="FontWeight.Bold">Nomination Order</FluentLabel>
+                            </FluentStack>
+                            
+                            <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="16">
+                                <FluentSelect @bind-Value="nominationOrderType"
+                                              Label="Order Type"
+                                              Items="@nominationOrderOptions"
+                                              OptionText="@(item => item.Text)"
+                                              OptionValue="@(item => item.Value)"
+                                              Style="width: 200px;" />
+                                              
+                                <FluentButton Appearance="Appearance.Neutral" 
+                                              OnClick="@GenerateNominationOrder"
+                                              IconStart="@(new Icons.Regular.Size16.ArrowClockwise())">
+                                    Generate Order
+                                </FluentButton>
+                            </FluentStack>
+                            
+                            @if (nominationOrder.Any())
+                            {
+                                <div style="background: #f8f9fa; padding: 16px; border-radius: 8px;">
+                                    <FluentLabel Weight="FontWeight.Bold" Style="margin-bottom: 8px;">Current Nomination Order:</FluentLabel>
+                                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                        @for (int i = 0; i < nominationOrder.Count; i++)
+                                        {
+                                            <FluentBadge Fill="someValue" BackgroundColor="#0078d4" Color="white">
+                                                @(i + 1). @nominationOrder[i]
+                                            </FluentBadge>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <FluentMessageBar Intent="MessageIntent.Warning">
+                                    No nomination order configured. Generate an order before proceeding.
+                                </FluentMessageBar>
+                            }
+                        </FluentStack>
+                    </div>
+                </FluentCard>
+
+                <!-- Additional Settings -->
+                <FluentCard Style="margin-bottom: 24px;">
+                    <div style="padding: 20px;">
+                        <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+                            <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="12">
+                                <FluentIcon Value="@(new Icons.Regular.Size20.Settings())" Style="color: #0078d4;" />
+                                <FluentLabel Weight="FontWeight.Bold">Auction Settings</FluentLabel>
+                            </FluentStack>
+                            
+                            <FluentStack Orientation="Orientation.Vertical" VerticalGap="12">
+                                <FluentCheckbox @bind-Value="allowProxyBidding"
+                                                Label="Allow proxy bidding (one person can bid for multiple teams)" />
+                                
+                                <FluentCheckbox @bind-Value="enableBudgetWarnings"
+                                                Label="Show budget warnings when teams approach their limit" />
+                                
+                                <FluentCheckbox @bind-Value="shuffleNominationOrder"
+                                                Label="Shuffle nomination order for each round" />
+                            </FluentStack>
+                        </FluentStack>
+                    </div>
+                </FluentCard>
+
+                <!-- Action Buttons -->
+                <div style="text-align: center; padding-top: 24px;">
+                    <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="16" HorizontalAlignment="HorizontalAlignment.Center">
+                        <FluentButton Appearance="Appearance.Accent" 
+                                      OnClick="@SaveConfiguration"
+                                      Loading="@isSaving"
+                                      Disabled="@(!IsConfigurationValid())"
+                                      IconEnd="@(new Icons.Regular.Size16.Save())">
+                            Save Configuration
+                        </FluentButton>
+                    </FluentStack>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public int AuctionId { get; set; }
+    [Parameter] public AuctionDto? Auction { get; set; }
+    [Parameter] public EventCallback OnCompleted { get; set; }
+
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private int budgetPerTeam = 1000;
+    private int totalRosterSlots = 0;
+    private string nominationOrderType = "random";
+    private List<string> nominationOrder = new();
+    private bool allowProxyBidding = true;
+    private bool enableBudgetWarnings = true;
+    private bool shuffleNominationOrder = false;
+
+    private readonly List<NominationOrderOption> nominationOrderOptions = new()
+    {
+        new("random", "Random"),
+        new("alphabetical", "Alphabetical"),
+        new("reverse_alphabetical", "Reverse Alphabetical"),
+        new("manual", "Manual (Custom Order)")
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCurrentConfiguration();
+        await LoadRosterSlotCount();
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task LoadCurrentConfiguration()
+    {
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(token)) return;
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+
+            // Load existing auction configuration if available
+            var response = await Http.GetAsync($"/api/management/auctions/{AuctionId}/configuration");
+            if (response.IsSuccessStatusCode)
+            {
+                var config = await response.Content.ReadFromJsonAsync<AuctionConfiguration>();
+                if (config != null)
+                {
+                    budgetPerTeam = config.BudgetPerTeam;
+                    nominationOrder = config.NominationOrder ?? new List<string>();
+                    allowProxyBidding = config.AllowProxyBidding;
+                    enableBudgetWarnings = config.EnableBudgetWarnings;
+                    shuffleNominationOrder = config.ShuffleNominationOrder;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading configuration: {ex.Message}");
+        }
+    }
+
+    private async Task LoadRosterSlotCount()
+    {
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(token)) return;
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+
+            var response = await Http.GetAsync($"/api/management/auctions/{AuctionId}/roster-positions");
+            if (response.IsSuccessStatusCode)
+            {
+                var positions = await response.Content.ReadFromJsonAsync<List<RosterPositionDto>>();
+                totalRosterSlots = positions?.Sum(p => p.SlotsPerTeam) ?? 0;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading roster slots: {ex.Message}");
+        }
+    }
+
+    private int GetRecommendedBudget()
+    {
+        if (totalRosterSlots == 0) return 1000;
+        
+        // Recommend $50-100 per roster slot, rounded to nearest $50
+        var baseRecommendation = totalRosterSlots * 75;
+        return ((baseRecommendation + 25) / 50) * 50;
+    }
+
+    private void GenerateNominationOrder()
+    {
+        // For now, generate a simple placeholder order
+        // In a real implementation, this would be based on team names from the database
+        var teamNames = new List<string>();
+        for (int i = 1; i <= 8; i++) // Default to 8 teams
+        {
+            teamNames.Add($"Team {i}");
+        }
+
+        nominationOrder = nominationOrderType switch
+        {
+            "random" => teamNames.OrderBy(x => Guid.NewGuid()).ToList(),
+            "alphabetical" => teamNames.OrderBy(x => x).ToList(),
+            "reverse_alphabetical" => teamNames.OrderByDescending(x => x).ToList(),
+            "manual" => teamNames, // Keep current order for manual
+            _ => teamNames.OrderBy(x => Guid.NewGuid()).ToList()
+        };
+
+        StateHasChanged();
+    }
+
+    private bool IsConfigurationValid()
+    {
+        return budgetPerTeam > 0 && nominationOrder.Any();
+    }
+
+    private async Task SaveConfiguration()
+    {
+        if (!IsConfigurationValid()) return;
+
+        try
+        {
+            isSaving = true;
+            StateHasChanged();
+
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(token)) return;
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+
+            var config = new AuctionConfiguration
+            {
+                AuctionId = AuctionId,
+                BudgetPerTeam = budgetPerTeam,
+                NominationOrder = nominationOrder,
+                AllowProxyBidding = allowProxyBidding,
+                EnableBudgetWarnings = enableBudgetWarnings,
+                ShuffleNominationOrder = shuffleNominationOrder
+            };
+
+            var response = await Http.PostAsJsonAsync($"/api/management/auctions/{AuctionId}/configuration", config);
+            if (response.IsSuccessStatusCode)
+            {
+                await OnCompleted.InvokeAsync();
+            }
+            else
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"Failed to save configuration: {await response.Content.ReadAsStringAsync()}");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error saving configuration: {ex.Message}");
+        }
+        finally
+        {
+            isSaving = false;
+            StateHasChanged();
+        }
+    }
+
+    // DTOs
+    public class AuctionConfiguration
+    {
+        public int AuctionId { get; set; }
+        public int BudgetPerTeam { get; set; } = 1000;
+        public List<string>? NominationOrder { get; set; }
+        public bool AllowProxyBidding { get; set; } = true;
+        public bool EnableBudgetWarnings { get; set; } = true;
+        public bool ShuffleNominationOrder { get; set; } = false;
+    }
+
+    public class RosterPositionDto
+    {
+        public int RosterPositionId { get; set; }
+        public int AuctionId { get; set; }
+        public string PositionName { get; set; } = string.Empty;
+        public int SlotsPerTeam { get; set; }
+        public string ColorCode { get; set; } = string.Empty;
+        public int DisplayOrder { get; set; }
+        public bool IsFlexPosition { get; set; }
+    }
+
+    public record NominationOrderOption(string Value, string Text);
+}
+
+<style>
+    .auction-config-step {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .step-header {
+        padding: 24px 24px 16px 24px;
+        border-bottom: 1px solid #e1e1e1;
+        background: #f8f9fa;
+    }
+
+    .step-body {
+        padding: 24px;
+        flex: 1;
+        overflow-y: auto;
+    }
+
+    .config-container {
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+
+    .loading-section {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 60px;
+        gap: 16px;
+    }
+</style>

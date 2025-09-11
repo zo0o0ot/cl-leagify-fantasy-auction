@@ -64,8 +64,21 @@
                                   OnClick="@(() => NavigateToStep(3))"
                                   Current="@(CurrentStepNumber == 3)"
                                   Disabled="@(CurrentStepNumber < 3 || !rosterConfigCompleted)">
+                <FluentIcon Value="@(new Icons.Regular.Size20.Settings())" Style="margin-right: 8px;" />
+                3. Auction Configuration
+                @if (auctionConfigCompleted)
+                {
+                    <FluentIcon Value="@(new Icons.Regular.Size16.CheckmarkCircle())" 
+                                Style="margin-left: 8px; color: #28a745;" />
+                }
+            </FluentBreadcrumbItem>
+            
+            <FluentBreadcrumbItem Href="#" 
+                                  OnClick="@(() => NavigateToStep(4))"
+                                  Current="@(CurrentStepNumber == 4)"
+                                  Disabled="@(CurrentStepNumber < 4 || !auctionConfigCompleted)">
                 <FluentIcon Value="@(new Icons.Regular.Size20.Clipboard())" Style="margin-right: 8px;" />
-                3. Review & Finalize
+                4. Review & Finalize
             </FluentBreadcrumbItem>
         </FluentBreadcrumb>
     </div>
@@ -101,6 +114,11 @@
                                       OnCompleted="@OnRosterConfigCompleted" />
                     break;
                 case 3:
+                    <AuctionConfigStep AuctionId="@auctionId" 
+                                       Auction="@auction"
+                                       OnCompleted="@OnAuctionConfigCompleted" />
+                    break;
+                case 4:
                     <ReviewStep AuctionId="@auctionId" 
                                 Auction="@auction"
                                 OnCompleted="@OnSetupCompleted" />
@@ -128,7 +146,7 @@
                 </div>
                 
                 <div>
-                    @if (CurrentStepNumber < 3)
+                    @if (CurrentStepNumber < 4)
                     {
                         <FluentButton Appearance="Appearance.Accent" 
                                       IconEnd="@(new Icons.Regular.Size16.ArrowRight())"
@@ -164,6 +182,7 @@
     // Step completion tracking
     private bool schoolImportCompleted = false;
     private bool rosterConfigCompleted = false;
+    private bool auctionConfigCompleted = false;
 
     // Current step logic
     private int CurrentStepNumber => CurrentStep switch
@@ -284,7 +303,8 @@
         {
             1 => true, // Can always go to first step
             2 => schoolImportCompleted, // Need schools imported
-            3 => schoolImportCompleted && rosterConfigCompleted, // Need both steps
+            3 => schoolImportCompleted && rosterConfigCompleted, // Need roster configured
+            4 => schoolImportCompleted && rosterConfigCompleted && auctionConfigCompleted, // Need all previous steps
             _ => false
         };
     }
@@ -299,7 +319,7 @@
 
     private void NavigateNext()
     {
-        if (CurrentStepNumber < 3 && CanAdvanceToNextStep())
+        if (CurrentStepNumber < 4 && CanAdvanceToNextStep())
         {
             NavigateToStep(CurrentStepNumber + 1);
         }
@@ -311,6 +331,7 @@
         {
             1 => schoolImportCompleted,
             2 => rosterConfigCompleted,
+            3 => auctionConfigCompleted,
             _ => false
         };
     }
@@ -336,9 +357,19 @@
         rosterConfigCompleted = true;
         StateHasChanged();
         
-        // Auto-advance to review step
+        // Auto-advance to auction config step
         await Task.Delay(500);
         NavigateToStep(3);
+    }
+
+    private async Task OnAuctionConfigCompleted()
+    {
+        auctionConfigCompleted = true;
+        StateHasChanged();
+        
+        // Auto-advance to review step
+        await Task.Delay(500);
+        NavigateToStep(4);
     }
 
     private async Task OnSetupCompleted()
