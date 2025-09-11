@@ -78,6 +78,7 @@
                             <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="16" Wrap="true">
                                 <div style="width: 200px;">
                                     <FluentNumberField @bind-Value="expectedTeamCount" 
+                                                       @onchange="OnTeamCountChanged"
                                                        Label="Number of Teams" 
                                                        Min="2" 
                                                        Max="20"
@@ -193,25 +194,28 @@
                                             <!-- Manual ordering with up/down buttons -->
                                             <div style="display: grid; gap: 8px;">
                                                 @{
-                                                    var manualOrderCopy = nominationOrder.ToList();
+                                                    var manualOrderCopy = nominationOrder?.ToList() ?? new List<string>();
                                                 }
                                                 @for (int i = 0; i < manualOrderCopy.Count; i++)
                                                 {
                                                     var index = i;
-                                                    <div style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid #dee2e6; border-radius: 6px; background: white;">
-                                                        <FluentLabel Style="min-width: 40px; font-weight: 600;">@(index + 1).</FluentLabel>
-                                                        <FluentLabel Style="flex: 1;">@manualOrderCopy[index]</FluentLabel>
+                                                    @if (index < manualOrderCopy.Count && !string.IsNullOrEmpty(manualOrderCopy[index]))
+                                                    {
+                                                        <div style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid #dee2e6; border-radius: 6px; background: white;">
+                                                            <FluentLabel Style="min-width: 40px; font-weight: 600;">@(index + 1).</FluentLabel>
+                                                            <FluentLabel Style="flex: 1;">@manualOrderCopy[index]</FluentLabel>
                                                         <FluentButton Appearance="Appearance.Neutral" 
                                                                       IconStart="@(new Icons.Regular.Size16.ArrowUp())"
                                                                       OnClick="@(() => MoveTeamUp(index))"
                                                                       Disabled="@(index == 0)"
                                                                       Title="Move up" />
-                                                        <FluentButton Appearance="Appearance.Neutral" 
-                                                                      IconStart="@(new Icons.Regular.Size16.ArrowDown())"
-                                                                      OnClick="@(() => MoveTeamDown(index))"
-                                                                      Disabled="@(index == manualOrderCopy.Count - 1)"
-                                                                      Title="Move down" />
-                                                    </div>
+                                                            <FluentButton Appearance="Appearance.Neutral" 
+                                                                          IconStart="@(new Icons.Regular.Size16.ArrowDown())"
+                                                                          OnClick="@(() => MoveTeamDown(index))"
+                                                                          Disabled="@(index == manualOrderCopy.Count - 1)"
+                                                                          Title="Move down" />
+                                                        </div>
+                                                    }
                                                 }
                                             </div>
                                         }
@@ -220,13 +224,16 @@
                                             <!-- Read-only order display -->
                                             <div style="display: flex; flex-wrap: wrap; gap: 8px;">
                                                 @{
-                                                    var orderCopy = nominationOrder.ToList();
+                                                    var orderCopy = nominationOrder?.ToList() ?? new List<string>();
                                                 }
                                                 @for (int i = 0; i < orderCopy.Count; i++)
                                                 {
-                                                    <FluentBadge Fill="someValue" BackgroundColor="#0078d4" Color="white">
-                                                        @(i + 1). @orderCopy[i]
-                                                    </FluentBadge>
+                                                    @if (i < orderCopy.Count && !string.IsNullOrEmpty(orderCopy[i]))
+                                                    {
+                                                        <FluentBadge Fill="someValue" BackgroundColor="#0078d4" Color="white">
+                                                            @(i + 1). @orderCopy[i]
+                                                        </FluentBadge>
+                                                    }
                                                 }
                                             </div>
                                         }
@@ -408,6 +415,22 @@
         return ((baseRecommendation + 25) / 50) * 50;
     }
 
+    private void OnTeamCountChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int newCount))
+        {
+            if (newCount != expectedTeamCount)
+            {
+                expectedTeamCount = newCount;
+                
+                // Clear team names and nomination order when team count changes
+                teamNames.Clear();
+                nominationOrder.Clear();
+                StateHasChanged();
+            }
+        }
+    }
+
     private void InitializeTeamNames()
     {
         teamNames.Clear();
@@ -449,7 +472,12 @@
             ? new List<string>(teamNames) 
             : teamNames.Select((name, index) => string.IsNullOrWhiteSpace(name) ? $"Team {index + 1}" : name).ToList();
 
-        nominationOrder = nominationOrderType switch
+        // Clear the existing order first to prevent rendering issues
+        nominationOrder.Clear();
+        StateHasChanged();
+
+        // Then set the new order
+        var newOrder = nominationOrderType switch
         {
             "random" => teamsToOrder.OrderBy(x => Guid.NewGuid()).ToList(),
             "alphabetical" => teamsToOrder.OrderBy(x => x).ToList(),
@@ -458,6 +486,7 @@
             _ => teamsToOrder.OrderBy(x => Guid.NewGuid()).ToList()
         };
 
+        nominationOrder.AddRange(newOrder);
         StateHasChanged();
     }
 
@@ -591,6 +620,16 @@
     .nomination-order-section {
         position: relative;
         z-index: 10;
-        margin-bottom: 120px; /* Extra space for dropdown */
+        margin-top: 120px; /* Extra space above for dropdown */
+        margin-bottom: 60px; /* Some space below */
+    }
+    
+    /* Fix dropdown positioning to open downward */
+    .nomination-order-section fluent-select {
+        position: relative;
+    }
+    
+    .nomination-order-section fluent-select::part(control) {
+        overflow: visible;
     }
 </style>
