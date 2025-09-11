@@ -183,41 +183,45 @@
                                             else
                                             {
                                                 <!-- View Mode -->
-                                                <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="20">
+                                                <div style="display: flex; align-items: center; gap: 20px; width: 100%;">
                                                     <div style="@($"width: 32px; height: 32px; background-color: {(string.IsNullOrEmpty(position.ColorCode) ? "#0078d4" : position.ColorCode)}; border-radius: 6px; border: 1px solid #ccc; cursor: pointer; flex-shrink: 0;")"
                                                          @onclick="@(() => StartEdit(position))"
                                                          title="Click to edit"></div>
-                                                    <FluentStack Orientation="Orientation.Vertical" Style="flex: 1; cursor: pointer; min-width: 0;"
-                                                                 @onclick="@(() => StartEdit(position))">
-                                                        <FluentLabel Weight="FontWeight.Bold" Style="font-size: 18px; margin-bottom: 4px;">@position.PositionName</FluentLabel>
-                                                        <FluentLabel Style="font-size: 14px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                                    <div style="flex: 1; cursor: pointer; min-width: 0; overflow: hidden;"
+                                                         @onclick="@(() => StartEdit(position))">
+                                                        <div style="font-size: 18px; font-weight: 600; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">@position.PositionName</div>
+                                                        <div style="font-size: 14px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                                                             @position.SlotsPerTeam slot@(position.SlotsPerTeam != 1 ? "s" : "") per team
                                                             @if (position.IsFlexPosition) { <text> • Flex Position</text> }
-                                                        </FluentLabel>
-                                                    </FluentStack>
+                                                        </div>
+                                                    </div>
                                                     
-                                                    <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" Style="flex-shrink: 0;">
+                                                    <div style="display: flex; gap: 6px; flex-shrink: 0; align-items: center;">
                                                         <FluentButton Appearance="Appearance.Neutral" 
                                                                       IconStart="@(new Icons.Regular.Size16.Edit())"
                                                                       OnClick="@(() => StartEdit(position))"
-                                                                      Title="Edit" />
+                                                                      Title="Edit"
+                                                                      Style="min-width: 36px; padding: 6px;" />
                                                         <FluentButton Appearance="Appearance.Neutral" 
                                                                       IconStart="@(new Icons.Regular.Size16.ArrowUp())"
                                                                       OnClick="@(() => MovePositionUp(position))"
                                                                       Disabled="@(rosterPositions.OrderBy(p => p.DisplayOrder).First() == position)"
-                                                                      Title="Move up" />
+                                                                      Title="Move up"
+                                                                      Style="min-width: 36px; padding: 6px;" />
                                                         <FluentButton Appearance="Appearance.Neutral" 
                                                                       IconStart="@(new Icons.Regular.Size16.ArrowDown())"
                                                                       OnClick="@(() => MovePositionDown(position))"
                                                                       Disabled="@(rosterPositions.OrderBy(p => p.DisplayOrder).Last() == position)"
-                                                                      Title="Move down" />
+                                                                      Title="Move down"
+                                                                      Style="min-width: 36px; padding: 6px;" />
                                                         <FluentButton Appearance="Appearance.Neutral" 
                                                                       IconStart="@(new Icons.Regular.Size16.Delete())"
                                                                       OnClick="@(() => RemoveRosterPosition(position))"
                                                                       Loading="@(deletingPositionId == position.RosterPositionId)"
-                                                                      Title="Delete" />
-                                                    </FluentStack>
-                                                </FluentStack>
+                                                                      Title="Delete"
+                                                                      Style="min-width: 36px; padding: 6px;" />
+                                                    </div>
+                                                </div>
                                             }
                                         </div>
                                     }
