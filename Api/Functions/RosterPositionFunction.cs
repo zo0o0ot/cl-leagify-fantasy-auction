@@ -259,6 +259,101 @@ public class RosterPositionFunction(ILogger<RosterPositionFunction> logger,
     }
 
     /// <summary>
+    /// Updates an existing roster position.
+    /// </summary>
+    /// <param name="req">The HTTP request containing position ID in route and updated data in body.</param>
+    /// <param name="positionId">The roster position ID from route parameters.</param>
+    /// <returns>Updated roster position or error response.</returns>
+    [Function("UpdateRosterPosition")]
+    public async Task<HttpResponseData> UpdateRosterPosition(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "management/roster-positions/{positionId:int}")] HttpRequestData req,
+        int positionId)
+    {
+        _logger.LogInformation("Updating roster position {PositionId}", positionId);
+
+        try
+        {
+            // Authenticate request
+            if (!IsValidAdminRequest(req))
+            {
+                var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
+                await unauthorizedResponse.WriteStringAsync("Unauthorized");
+                return unauthorizedResponse;
+            }
+
+            // Parse request body
+            var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+            var updateRequest = JsonSerializer.Deserialize<UpdateRosterPositionRequest>(requestBody, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            if (updateRequest == null)
+            {
+                var badRequestResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await badRequestResponse.WriteStringAsync("Invalid request body");
+                return badRequestResponse;
+            }
+
+            // Validate required fields
+            var validationErrors = new List<string>();
+            if (string.IsNullOrWhiteSpace(updateRequest.PositionName))
+                validationErrors.Add("Position name is required");
+            if (updateRequest.SlotsPerTeam <= 0)
+                validationErrors.Add("Slots per team must be greater than 0");
+
+            if (validationErrors.Any())
+            {
+                var validationResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await validationResponse.WriteStringAsync(string.Join(", ", validationErrors));
+                return validationResponse;
+            }
+
+            // Find the position
+            var position = await _context.RosterPositions
+                .FirstOrDefaultAsync(rp => rp.RosterPositionId == positionId);
+
+            if (position == null)
+            {
+                var notFoundResponse = req.CreateResponse(HttpStatusCode.NotFound);
+                await notFoundResponse.WriteStringAsync("Roster position not found");
+                return notFoundResponse;
+            }
+
+            // Update the position
+            position.PositionName = updateRequest.PositionName;
+            position.SlotsPerTeam = updateRequest.SlotsPerTeam;
+            position.ColorCode = updateRequest.ColorCode ?? "#0078d4";
+            position.IsFlexPosition = updateRequest.IsFlexPosition;
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Roster position {PositionId} updated successfully", positionId);
+
+            // Return updated position
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(new
+            {
+                RosterPositionId = position.RosterPositionId,
+                AuctionId = position.AuctionId,
+                PositionName = position.PositionName,
+                SlotsPerTeam = position.SlotsPerTeam,
+                ColorCode = position.ColorCode,
+                DisplayOrder = position.DisplayOrder,
+                IsFlexPosition = position.IsFlexPosition
+            });
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating roster position {PositionId}", positionId);
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync($"Internal server error: {ex.Message}");
+            return errorResponse;
+        }
+    }
+
+    /// <summary>
     /// Deletes a roster position.
     /// </summary>
     /// <param name="req">The HTTP request containing position ID in route.</param>
@@ -615,4 +710,30 @@ public class ReorderPositionRequest
     /// Gets or sets the direction to move (-1 for up, +1 for down).
     /// </summary>
     public int Direction { get; set; }
+}
+
+/// <summary>
+/// Request model for updating an existing roster position.
+/// </summary>
+public class UpdateRosterPositionRequest
+{
+    /// <summary>
+    /// Gets or sets the position name (e.g., "Power Conference", "SEC", "Flex").
+    /// </summary>
+    public string PositionName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the number of roster slots of this type each team has.
+    /// </summary>
+    public int SlotsPerTeam { get; set; }
+
+    /// <summary>
+    /// Gets or sets the hex color code for UI display.
+    /// </summary>
+    public string? ColorCode { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether this is a flexible position accepting any school type.
+    /// </summary>
+    public bool IsFlexPosition { get; set; }
 }
