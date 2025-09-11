@@ -66,6 +66,8 @@
                     </TemplateColumn>
                     <TemplateColumn Title="Actions" Align="@Align.Center">
                         <ChildContent Context="auction">
+                            <FluentButton Appearance="Appearance.Stealth" IconStart="@(new Icons.Regular.Size16.People())" 
+                                          OnClick="@(() => ManageAuction(auction))" Title="Manage participants and roles" />
                             <FluentButton Appearance="Appearance.Stealth" IconStart="@(new Icons.Regular.Size16.Settings())" 
                                           OnClick="@(() => EditAuction(auction))" Title="Configure auction" />
                             <FluentButton Appearance="Appearance.Stealth" IconStart="@(new Icons.Regular.Size16.Delete())" 
@@ -890,6 +892,11 @@
             // Fallback for browsers that don't support clipboard API
             await JSRuntime.InvokeVoidAsync("alert", $"Join Code: {text}\n\nPlease copy this manually.");
         }
+    }
+
+    private void ManageAuction(AuctionDto auction)
+    {
+        Navigation.NavigateTo($"/management/auctions/{auction.AuctionId}/details");
     }
 
     private void EditAuction(AuctionDto auction)

@@ -1,0 +1,355 @@
+@page "/auction/{auctionId:int}/dashboard"
+@using System.Net.Http.Json
+@using System.Text.Json
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+
+<PageTitle>Auction Dashboard - Leagify Fantasy Auction</PageTitle>
+
+<div class="dashboard-container">
+    @if (isLoading)
+    {
+        <div class="loading-container">
+            <FluentProgressRing />
+            <FluentLabel>Loading auction dashboard...</FluentLabel>
+        </div>
+    }
+    else if (session == null)
+    {
+        <div class="error-container">
+            <FluentMessageBar Intent="MessageIntent.Warning">
+                Session expired or invalid. Please join the auction again.
+            </FluentMessageBar>
+            <FluentButton Appearance="Appearance.Accent" 
+                          OnClick="@(() => Navigation.NavigateTo("/join"))">
+                Join Auction
+            </FluentButton>
+        </div>
+    }
+    else
+    {
+        <!-- Dashboard Header -->
+        <div class="dashboard-header">
+            <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="16">
+                <div style="flex: 1;">
+                    <FluentLabel Typo="Typography.Header" Style="margin: 0;">
+                        @(auctionName ?? "Auction Dashboard")
+                    </FluentLabel>
+                    <FluentLabel Style="color: #666; margin: 0;">
+                        Welcome, @session.DisplayName
+                    </FluentLabel>
+                </div>
+                
+                <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12">
+                    <FluentBadge Appearance="@(isConnected ? Appearance.Accent : Appearance.Neutral)"
+                                 BackgroundColor="@(isConnected ? "#28a745" : "#6c757d")"
+                                 Color="white">
+                        @(isConnected ? "Connected" : "Disconnected")
+                    </FluentBadge>
+                    
+                    <FluentButton Appearance="Appearance.Neutral" 
+                                  IconStart="@(new Icons.Regular.Size16.ArrowExit())"
+                                  OnClick="@HandleLogout">
+                        Leave Auction
+                    </FluentButton>
+                </FluentStack>
+            </FluentStack>
+        </div>
+
+        <!-- Role Information -->
+        @if (userRoles.Any())
+        {
+            <div class="role-section">
+                <FluentCard>
+                    <FluentLabel Typo="Typography.Subject" Style="margin-bottom: 16px;">
+                        Your Role(s) in this Auction
+                    </FluentLabel>
+                    
+                    <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12" Wrap="true">
+                        @foreach (var role in userRoles)
+                        {
+                            <FluentBadge Appearance="@GetRoleAppearance(role.Role)" 
+                                         BackgroundColor="@GetRoleColor(role.Role)"
+                                         Color="white">
+                                @GetRoleDisplayName(role.Role)
+                                @if (!string.IsNullOrEmpty(role.TeamName))
+                                {
+                                    <span> - @role.TeamName</span>
+                                }
+                            </FluentBadge>
+                        }
+                    </FluentStack>
+                    
+                    @if (!userRoles.Any())
+                    {
+                        <FluentLabel Style="color: #666; font-style: italic;">
+                            No role assigned yet. The auction master will assign your role shortly.
+                        </FluentLabel>
+                    }
+                </FluentCard>
+            </div>
+        }
+        else
+        {
+            <div class="role-section">
+                <FluentCard>
+                    <FluentMessageBar Intent="MessageIntent.Info">
+                        <FluentIcon Value="@(new Icons.Regular.Size16.Clock())" Style="margin-right: 8px;" />
+                        Waiting for role assignment by the auction master...
+                    </FluentMessageBar>
+                </FluentCard>
+            </div>
+        }
+
+        <!-- Auction Status -->
+        <div class="status-section">
+            <FluentCard>
+                <FluentLabel Typo="Typography.Subject" Style="margin-bottom: 16px;">
+                    Auction Status
+                </FluentLabel>
+                
+                <FluentStack Orientation="Orientation.Vertical" VerticalGap="12">
+                    <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="12">
+                        <FluentIcon Value="@(new Icons.Regular.Size16.Info())" />
+                        <FluentLabel>Status: Draft - Waiting for auction to begin</FluentLabel>
+                    </FluentStack>
+                    
+                    <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="12">
+                        <FluentIcon Value="@(new Icons.Regular.Size16.People())" />
+                        <FluentLabel>Participants: @participantCount</FluentLabel>
+                    </FluentStack>
+                    
+                    <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="12">
+                        <FluentIcon Value="@(new Icons.Regular.Size16.Calendar())" />
+                        <FluentLabel>Joined: @session.JoinedDate.ToString("MMM dd, yyyy 'at' h:mm tt")</FluentLabel>
+                    </FluentStack>
+                </FluentStack>
+            </FluentCard>
+        </div>
+
+        <!-- Instructions -->
+        <div class="instructions-section">
+            <FluentCard>
+                <FluentLabel Typo="Typography.Subject" Style="margin-bottom: 16px;">
+                    What's Next?
+                </FluentLabel>
+                
+                <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
+                    <FluentLabel>1. Wait for the auction master to assign you a role</FluentLabel>
+                    <FluentLabel>2. Once assigned, you'll see role-specific options appear</FluentLabel>
+                    <FluentLabel>3. The auction will begin when all participants are ready</FluentLabel>
+                    <FluentLabel Style="color: #666; font-size: 14px; margin-top: 12px;">
+                        Keep this page open - it will update automatically when the auction begins.
+                    </FluentLabel>
+                </FluentStack>
+            </FluentCard>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int AuctionId { get; set; }
+
+    private UserSession? session;
+    private List<RoleDto> userRoles = new();
+    private bool isLoading = true;
+    private bool isConnected = false;
+    private string? auctionName;
+    private int participantCount = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSession();
+        if (session != null)
+        {
+            await LoadDashboardData();
+        }
+    }
+
+    private async Task LoadSession()
+    {
+        try
+        {
+            var sessionJson = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "auctionSession");
+            if (!string.IsNullOrEmpty(sessionJson))
+            {
+                session = JsonSerializer.Deserialize<UserSession>(sessionJson);
+                
+                if (session != null && session.AuctionId != AuctionId)
+                {
+                    // Wrong auction ID in session
+                    await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "auctionSession");
+                    session = null;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading session: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadDashboardData()
+    {
+        if (session == null) return;
+
+        try
+        {
+            // Set session token for API calls
+            Http.DefaultRequestHeaders.Remove("X-Auction-Token");
+            Http.DefaultRequestHeaders.Add("X-Auction-Token", session.SessionToken);
+
+            // Load auction basic info (we'll need an endpoint for this)
+            // For now, just set a placeholder
+            auctionName = "Fantasy Draft Auction";
+            
+            // Load participants to get count and user roles
+            var participantsResponse = await Http.GetAsync($"/api/auction/{AuctionId}/participants");
+            if (participantsResponse.IsSuccessStatusCode)
+            {
+                var participants = await participantsResponse.Content.ReadFromJsonAsync<List<ParticipantDto>>();
+                if (participants != null)
+                {
+                    participantCount = participants.Count;
+                    var currentUser = participants.FirstOrDefault(p => p.UserId == session.UserId);
+                    if (currentUser != null)
+                    {
+                        userRoles = currentUser.Roles;
+                        isConnected = currentUser.IsConnected;
+                    }
+                }
+            }
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading dashboard data: {ex.Message}");
+        }
+    }
+
+    private async Task HandleLogout()
+    {
+        try
+        {
+            // Clear session storage
+            await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "auctionSession");
+            
+            // TODO: Notify server of disconnection
+            
+            // Navigate back to join page
+            Navigation.NavigateTo("/join");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error during logout: {ex.Message}");
+            // Still navigate away even if cleanup fails
+            Navigation.NavigateTo("/join");
+        }
+    }
+
+    private static Appearance GetRoleAppearance(string role) => role switch
+    {
+        "AuctionMaster" => Appearance.Accent,
+        "TeamCoach" => Appearance.Stealth,
+        "ProxyCoach" => Appearance.Neutral,
+        _ => Appearance.Lightweight
+    };
+
+    private static string GetRoleColor(string role) => role switch
+    {
+        "AuctionMaster" => "#0078d4",
+        "TeamCoach" => "#107c10",
+        "ProxyCoach" => "#ca5010",
+        _ => "#605e5c"
+    };
+
+    private static string GetRoleDisplayName(string role) => role switch
+    {
+        "AuctionMaster" => "Auction Master",
+        "TeamCoach" => "Team Coach",
+        "ProxyCoach" => "Proxy Coach",
+        "Viewer" => "Viewer",
+        _ => role
+    };
+
+    // DTOs - these should match the API models
+    private class UserSession
+    {
+        public int UserId { get; set; }
+        public int AuctionId { get; set; }
+        public string DisplayName { get; set; } = string.Empty;
+        public string SessionToken { get; set; } = string.Empty;
+        public DateTime JoinedDate { get; set; }
+    }
+
+    private class ParticipantDto
+    {
+        public int UserId { get; set; }
+        public string DisplayName { get; set; } = string.Empty;
+        public bool IsConnected { get; set; }
+        public DateTime JoinedDate { get; set; }
+        public DateTime LastActiveDate { get; set; }
+        public bool IsReconnectionPending { get; set; }
+        public List<RoleDto> Roles { get; set; } = new();
+    }
+
+    private class RoleDto
+    {
+        public int UserRoleId { get; set; }
+        public string Role { get; set; } = string.Empty;
+        public int? TeamId { get; set; }
+        public string? TeamName { get; set; }
+        public DateTime AssignedDate { get; set; }
+    }
+}
+
+<style>
+    .dashboard-container {
+        padding: 24px;
+        max-width: 1200px;
+        margin: 0 auto;
+        min-height: calc(100vh - 100px);
+    }
+
+    .loading-container, .error-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 60px;
+        gap: 16px;
+    }
+
+    .dashboard-header {
+        background: white;
+        padding: 24px;
+        border-radius: 8px;
+        border: 1px solid #e1e1e1;
+        margin-bottom: 24px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .role-section, .status-section, .instructions-section {
+        margin-bottom: 24px;
+    }
+
+    .role-section fluent-card,
+    .status-section fluent-card,
+    .instructions-section fluent-card {
+        padding: 24px;
+        border: 1px solid #e1e1e1;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    /* Mobile responsive styles */
+    .dashboard-mobile {
+        padding: 16px;
+    }
+</style>

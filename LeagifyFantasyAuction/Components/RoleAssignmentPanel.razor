@@ -1,0 +1,497 @@
+@using System.Net.Http.Json
+@using System.Text.Json
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+
+<div class="role-assignment-panel">
+    <FluentCard>
+        <div class="panel-header">
+            <FluentLabel Typo="Typography.Subject">
+                Participant Role Management
+            </FluentLabel>
+            <FluentLabel Style="color: #666; margin-top: 4px;">
+                Assign roles and teams to auction participants
+            </FluentLabel>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="loading-container">
+                <FluentProgressRing />
+                <FluentLabel>Loading participants...</FluentLabel>
+            </div>
+        }
+        else if (participants.Any())
+        {
+            <FluentDataGrid Items="@participantsQueryable" GridTemplateColumns="2fr 2fr 1fr 2fr 1fr" Style="width: 100%;">
+                <PropertyColumn Property="@(p => p.DisplayName)" Title="Display Name" Sortable="true" />
+                
+                <TemplateColumn Title="Current Roles">
+                    <ChildContent Context="participant">
+                        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="4" Wrap="true">
+                            @if (participant.Roles.Any())
+                            {
+                                @foreach (var role in participant.Roles)
+                                {
+                                    <FluentBadge Appearance="@GetRoleAppearance(role.Role)" 
+                                                 BackgroundColor="@GetRoleColor(role.Role)"
+                                                 Color="white"
+                                                 Style="font-size: 11px;">
+                                        @GetRoleDisplayName(role.Role)
+                                        @if (!string.IsNullOrEmpty(role.TeamName))
+                                        {
+                                            <span> - @role.TeamName</span>
+                                        }
+                                        <FluentButton Appearance="Appearance.Stealth"
+                                                      IconStart="@(new Icons.Regular.Size12.Dismiss())"
+                                                      Style="margin-left: 4px; min-width: auto; padding: 0 4px;"
+                                                      OnClick="@(() => RemoveRole(participant.UserId, role.UserRoleId))"
+                                                      Title="Remove this role" />
+                                    </FluentBadge>
+                                }
+                            }
+                            else
+                            {
+                                <FluentLabel Style="color: #666; font-style: italic; font-size: 12px;">
+                                    No roles assigned
+                                </FluentLabel>
+                            }
+                        </FluentStack>
+                    </ChildContent>
+                </TemplateColumn>
+
+                <TemplateColumn Title="Status">
+                    <ChildContent Context="participant">
+                        <FluentBadge Appearance="@(participant.IsConnected ? Appearance.Accent : Appearance.Neutral)"
+                                     BackgroundColor="@(participant.IsConnected ? "#28a745" : "#6c757d")"
+                                     Color="white">
+                            @(participant.IsConnected ? "Online" : "Offline")
+                        </FluentBadge>
+                        @if (participant.IsReconnectionPending)
+                        {
+                            <FluentBadge Appearance="Appearance.Neutral" BackgroundColor="#ffc107" Color="black" Style="margin-left: 4px;">
+                                Reconnection Pending
+                            </FluentBadge>
+                        }
+                    </ChildContent>
+                </TemplateColumn>
+
+                <TemplateColumn Title="Assign Role">
+                    <ChildContent Context="participant">
+                        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8">
+                            <FluentSelect Value="@GetSelectedRole(participant.UserId)"
+                                          ValueChanged="@(value => SetSelectedRole(participant.UserId, value))"
+                                          Items="@roleOptions"
+                                          OptionText="@(item => item)"
+                                          Style="min-width: 120px; font-size: 12px;"
+                                          Placeholder="Select role..." />
+                            
+                            @if (GetSelectedRole(participant.UserId) == "TeamCoach" || GetSelectedRole(participant.UserId) == "ProxyCoach")
+                            {
+                                <FluentSelect Value="@GetSelectedTeamIdString(participant.UserId)"
+                                              ValueChanged="@(value => SetSelectedTeamIdString(participant.UserId, value))"
+                                              Items="@availableTeamIdStrings"
+                                              OptionText="@(teamIdString => GetTeamNameFromString(teamIdString))"
+                                              Style="min-width: 100px; font-size: 12px;"
+                                              Placeholder="Select team..." />
+                            }
+                        </FluentStack>
+                    </ChildContent>
+                </TemplateColumn>
+
+                <TemplateColumn Title="Actions">
+                    <ChildContent Context="participant">
+                        <FluentButton Appearance="Appearance.Accent"
+                                      IconStart="@(new Icons.Regular.Size16.PersonAdd())"
+                                      Size="ButtonSize.Small"
+                                      OnClick="@(() => AssignRole(participant.UserId))"
+                                      Disabled="@(string.IsNullOrEmpty(GetSelectedRole(participant.UserId)))"
+                                      Loading="@(assigningRoles.Contains(participant.UserId))">
+                            Assign
+                        </FluentButton>
+                    </ChildContent>
+                </TemplateColumn>
+            </FluentDataGrid>
+        }
+        else
+        {
+            <FluentMessageBar Intent="MessageIntent.Info">
+                No participants have joined this auction yet.
+            </FluentMessageBar>
+        }
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <FluentMessageBar Intent="MessageIntent.Error" Style="margin-top: 16px;">
+                @errorMessage
+            </FluentMessageBar>
+        }
+
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <FluentMessageBar Intent="MessageIntent.Success" Style="margin-top: 16px;">
+                @successMessage
+            </FluentMessageBar>
+        }
+    </FluentCard>
+</div>
+
+@code {
+    [Parameter] public int AuctionId { get; set; }
+    [Parameter] public EventCallback OnRoleAssigned { get; set; }
+
+    private List<ParticipantDto> participants = new();
+    private IQueryable<ParticipantDto> participantsQueryable => participants.AsQueryable();
+    private List<TeamDto> availableTeams = new();
+    private List<int> availableTeamIds => availableTeams.Select(t => t.TeamId).ToList();
+    private List<string> availableTeamIdStrings => availableTeams.Select(t => t.TeamId.ToString()).ToList();
+    
+    private bool isLoading = true;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    
+    private readonly List<string> roleOptions = new() { "AuctionMaster", "TeamCoach", "ProxyCoach", "Viewer" };
+    private readonly Dictionary<int, string> selectedRoles = new();
+    private readonly Dictionary<int, int> selectedTeamIds = new();
+    private readonly HashSet<int> assigningRoles = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    public async Task RefreshData()
+    {
+        await LoadData();
+        StateHasChanged();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = string.Empty;
+            StateHasChanged();
+
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                errorMessage = "Management authentication required";
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+
+            // Load participants
+            var participantsResponse = await Http.GetAsync($"/api/auction/{AuctionId}/participants");
+            if (participantsResponse.IsSuccessStatusCode)
+            {
+                participants = await participantsResponse.Content.ReadFromJsonAsync<List<ParticipantDto>>() ?? new();
+            }
+
+            // Load available teams
+            var teamsResponse = await Http.GetAsync($"/api/management/auctions/{AuctionId}/teams");
+            if (teamsResponse.IsSuccessStatusCode)
+            {
+                var teamsData = await teamsResponse.Content.ReadFromJsonAsync<ManageTeamsResponse>();
+                availableTeams = teamsData?.Teams ?? new();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading data: {ex.Message}";
+            Console.WriteLine($"Error loading role assignment data: {ex}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task AssignRole(int userId)
+    {
+        if (!selectedRoles.TryGetValue(userId, out var role) || string.IsNullOrEmpty(role))
+        {
+            return;
+        }
+
+        try
+        {
+            assigningRoles.Add(userId);
+            errorMessage = string.Empty;
+            successMessage = string.Empty;
+            StateHasChanged();
+
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                errorMessage = "Management authentication required";
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+
+            var request = new AssignRoleRequest
+            {
+                Role = role,
+                TeamId = (role == "TeamCoach" || role == "ProxyCoach") && selectedTeamIds.TryGetValue(userId, out var teamId) ? teamId : null
+            };
+
+            var response = await Http.PostAsJsonAsync($"/api/management/auctions/{AuctionId}/users/{userId}/roles", request);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var participant = participants.FirstOrDefault(p => p.UserId == userId);
+                if (participant != null)
+                {
+                    successMessage = $"Successfully assigned {GetRoleDisplayName(role)} to {participant.DisplayName}";
+                }
+
+                // Clear selections for this user
+                selectedRoles.Remove(userId);
+                selectedTeamIds.Remove(userId);
+
+                // Refresh data to show updated roles
+                await LoadData();
+                
+                // Notify parent component
+                if (OnRoleAssigned.HasDelegate)
+                {
+                    await OnRoleAssigned.InvokeAsync();
+                }
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Failed to assign role: {error}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error assigning role: {ex.Message}";
+            Console.WriteLine($"Error assigning role: {ex}");
+        }
+        finally
+        {
+            assigningRoles.Remove(userId);
+            StateHasChanged();
+        }
+    }
+
+    private async Task RemoveRole(int userId, int userRoleId)
+    {
+        try
+        {
+            errorMessage = string.Empty;
+            successMessage = string.Empty;
+
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                errorMessage = "Management authentication required";
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+
+            var response = await Http.DeleteAsync($"/api/management/auctions/{AuctionId}/users/{userId}/roles/{userRoleId}");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var participant = participants.FirstOrDefault(p => p.UserId == userId);
+                if (participant != null)
+                {
+                    successMessage = $"Successfully removed role from {participant.DisplayName}";
+                }
+
+                // Refresh data to show updated roles
+                await LoadData();
+                
+                // Notify parent component
+                if (OnRoleAssigned.HasDelegate)
+                {
+                    await OnRoleAssigned.InvokeAsync();
+                }
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Failed to remove role: {error}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error removing role: {ex.Message}";
+            Console.WriteLine($"Error removing role: {ex}");
+        }
+        finally
+        {
+            StateHasChanged();
+        }
+    }
+
+    private string GetSelectedRole(int userId) => selectedRoles.TryGetValue(userId, out var role) ? role : string.Empty;
+    private int GetSelectedTeamId(int userId) => selectedTeamIds.TryGetValue(userId, out var teamId) ? teamId : 0;
+    private string GetSelectedTeamIdString(int userId) => GetSelectedTeamId(userId).ToString();
+    
+    private void SetSelectedRole(int userId, string role)
+    {
+        if (string.IsNullOrEmpty(role))
+        {
+            selectedRoles.Remove(userId);
+        }
+        else
+        {
+            selectedRoles[userId] = role;
+        }
+    }
+    
+    private void SetSelectedTeamId(int userId, int teamId)
+    {
+        if (teamId <= 0)
+        {
+            selectedTeamIds.Remove(userId);
+        }
+        else
+        {
+            selectedTeamIds[userId] = teamId;
+        }
+    }
+    
+    private void SetSelectedTeamIdString(int userId, string teamIdString)
+    {
+        if (int.TryParse(teamIdString, out var teamId))
+        {
+            SetSelectedTeamId(userId, teamId);
+        }
+        else
+        {
+            selectedTeamIds.Remove(userId);
+        }
+    }
+
+    private string GetTeamName(int teamId)
+    {
+        return availableTeams.FirstOrDefault(t => t.TeamId == teamId)?.TeamName ?? $"Team {teamId}";
+    }
+
+    private string GetTeamNameFromString(string teamIdString)
+    {
+        if (int.TryParse(teamIdString, out var teamId))
+        {
+            return GetTeamName(teamId);
+        }
+        return teamIdString;
+    }
+
+    private static Appearance GetRoleAppearance(string role) => role switch
+    {
+        "AuctionMaster" => Appearance.Accent,
+        "TeamCoach" => Appearance.Stealth,
+        "ProxyCoach" => Appearance.Neutral,
+        _ => Appearance.Lightweight
+    };
+
+    private static string GetRoleColor(string role) => role switch
+    {
+        "AuctionMaster" => "#0078d4",
+        "TeamCoach" => "#107c10",
+        "ProxyCoach" => "#ca5010",
+        _ => "#605e5c"
+    };
+
+    private static string GetRoleDisplayName(string role) => role switch
+    {
+        "AuctionMaster" => "Auction Master",
+        "TeamCoach" => "Team Coach",
+        "ProxyCoach" => "Proxy Coach",
+        "Viewer" => "Viewer",
+        _ => role
+    };
+
+    // DTOs matching the API models
+    private class ParticipantDto
+    {
+        public int UserId { get; set; }
+        public string DisplayName { get; set; } = string.Empty;
+        public bool IsConnected { get; set; }
+        public DateTime JoinedDate { get; set; }
+        public DateTime LastActiveDate { get; set; }
+        public bool IsReconnectionPending { get; set; }
+        public List<RoleDto> Roles { get; set; } = new();
+    }
+
+    private class RoleDto
+    {
+        public int UserRoleId { get; set; }
+        public string Role { get; set; } = string.Empty;
+        public int? TeamId { get; set; }
+        public string? TeamName { get; set; }
+        public DateTime AssignedDate { get; set; }
+    }
+
+    private class TeamDto
+    {
+        public int TeamId { get; set; }
+        public string TeamName { get; set; } = string.Empty;
+        public decimal Budget { get; set; }
+        public int NominationOrder { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    private class AssignRoleRequest
+    {
+        public string Role { get; set; } = string.Empty;
+        public int? TeamId { get; set; }
+    }
+
+    private class ManageTeamsResponse
+    {
+        public List<TeamDto> Teams { get; set; } = new();
+    }
+}
+
+<style>
+    .role-assignment-panel {
+        margin-bottom: 24px;
+    }
+
+    .panel-header {
+        margin-bottom: 20px;
+        padding: 20px 20px 0;
+    }
+
+    .loading-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 40px;
+        gap: 12px;
+    }
+
+    .role-assignment-panel fluent-card {
+        padding: 0;
+        border: 1px solid #e1e1e1;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .role-assignment-panel fluent-data-grid {
+        padding: 0 20px 20px;
+    }
+
+    /* Make the grid more compact */
+    .role-assignment-panel fluent-data-grid::part(grid) {
+        font-size: 14px;
+    }
+
+    .role-assignment-panel fluent-data-grid-cell {
+        padding: 8px 4px;
+        vertical-align: middle;
+    }
+</style>
