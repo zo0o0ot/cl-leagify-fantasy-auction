@@ -113,8 +113,51 @@
                     </div>
                 </FluentCard>
 
-                <!-- Nomination Order Configuration -->
+                <!-- Team Names Configuration -->
                 @if (expectedTeamCount > 0)
+                {
+                    <FluentCard Style="margin-bottom: 24px;">
+                        <div style="padding: 20px;">
+                            <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+                                <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="12">
+                                    <FluentIcon Value="@(new Icons.Regular.Size20.Edit())" Style="color: #0078d4;" />
+                                    <FluentLabel Weight="FontWeight.Bold">Team Names</FluentLabel>
+                                </FluentStack>
+                                
+                                <FluentLabel Style="color: #666; font-size: 14px;">
+                                    Enter the names of the @expectedTeamCount teams that will participate in the auction.
+                                </FluentLabel>
+                                
+                                @if (teamNames.Count != expectedTeamCount)
+                                {
+                                    <FluentButton Appearance="Appearance.Neutral" 
+                                                  OnClick="@InitializeTeamNames"
+                                                  IconStart="@(new Icons.Regular.Size16.Add())">
+                                        Initialize @expectedTeamCount Team Names
+                                    </FluentButton>
+                                }
+                                else
+                                {
+                                    <div style="display: grid; gap: 12px;">
+                                        @for (int i = 0; i < teamNames.Count; i++)
+                                        {
+                                            var index = i; // Capture for lambda
+                                            <div style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid #dee2e6; border-radius: 6px;">
+                                                <FluentLabel Style="min-width: 60px; font-weight: 600;">Team @(index + 1):</FluentLabel>
+                                                <FluentTextField @bind-Value="teamNames[index]" 
+                                                                 Style="flex: 1;"
+                                                                 Placeholder="Enter team name..." />
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </FluentStack>
+                        </div>
+                    </FluentCard>
+                }
+
+                <!-- Nomination Order Configuration -->
+                @if (expectedTeamCount > 0 && teamNames.Count == expectedTeamCount && teamNames.All(name => !string.IsNullOrWhiteSpace(name)))
                 {
                     <FluentCard Style="margin-bottom: 24px;">
                         <div style="padding: 20px;">
@@ -134,32 +177,59 @@
                                                   
                                     <FluentButton Appearance="Appearance.Neutral" 
                                                   OnClick="@GenerateNominationOrder"
-                                                  IconStart="@(new Icons.Regular.Size16.ArrowClockwise())">
-                                        Generate Order for @expectedTeamCount Teams
+                                                  IconStart="@(new Icons.Regular.Size16.ArrowClockwise())"
+                                                  Disabled="@(nominationOrderType == "manual")">
+                                        @(nominationOrderType == "manual" ? "Manual Order" : $"Generate {ToTitleCase(nominationOrderType.Replace("_", " "))} Order")
                                     </FluentButton>
                                 </FluentStack>
                                 
                                 @if (nominationOrder.Any())
                                 {
                                     <div style="background: #f8f9fa; padding: 16px; border-radius: 8px;">
-                                        <FluentLabel Weight="FontWeight.Bold" Style="margin-bottom: 8px;">Current Nomination Order:</FluentLabel>
-                                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                                            @{
-                                                var orderCopy = nominationOrder.ToList(); // Create a safe copy
-                                            }
-                                            @for (int i = 0; i < orderCopy.Count; i++)
-                                            {
-                                                <FluentBadge Fill="someValue" BackgroundColor="#0078d4" Color="white">
-                                                    @(i + 1). @orderCopy[i]
-                                                </FluentBadge>
-                                            }
-                                        </div>
+                                        <FluentLabel Weight="FontWeight.Bold" Style="margin-bottom: 12px;">Current Nomination Order:</FluentLabel>
+                                        
+                                        @if (nominationOrderType == "manual")
+                                        {
+                                            <!-- Manual ordering with up/down buttons -->
+                                            <div style="display: grid; gap: 8px;">
+                                                @for (int i = 0; i < nominationOrder.Count; i++)
+                                                {
+                                                    var index = i;
+                                                    <div style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid #dee2e6; border-radius: 6px; background: white;">
+                                                        <FluentLabel Style="min-width: 40px; font-weight: 600;">@(index + 1).</FluentLabel>
+                                                        <FluentLabel Style="flex: 1;">@nominationOrder[index]</FluentLabel>
+                                                        <FluentButton Appearance="Appearance.Neutral" 
+                                                                      IconStart="@(new Icons.Regular.Size16.ArrowUp())"
+                                                                      OnClick="@(() => MoveTeamUp(index))"
+                                                                      Disabled="@(index == 0)"
+                                                                      Title="Move up" />
+                                                        <FluentButton Appearance="Appearance.Neutral" 
+                                                                      IconStart="@(new Icons.Regular.Size16.ArrowDown())"
+                                                                      OnClick="@(() => MoveTeamDown(index))"
+                                                                      Disabled="@(index == nominationOrder.Count - 1)"
+                                                                      Title="Move down" />
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <!-- Read-only order display -->
+                                            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                                @for (int i = 0; i < nominationOrder.Count; i++)
+                                                {
+                                                    <FluentBadge Fill="someValue" BackgroundColor="#0078d4" Color="white">
+                                                        @(i + 1). @nominationOrder[i]
+                                                    </FluentBadge>
+                                                }
+                                            </div>
+                                        }
                                     </div>
                                 }
                                 else
                                 {
                                     <FluentMessageBar Intent="MessageIntent.Warning">
-                                        Set team count and generate nomination order before proceeding.
+                                        Generate or set the nomination order before proceeding.
                                     </FluentMessageBar>
                                 }
                             </FluentStack>
@@ -218,6 +288,7 @@
     private int totalRosterSlots = 0;
     private int expectedTeamCount = 6; // Default to 6 teams
     private int availableSchoolCount = 0;
+    private List<string> teamNames = new();
     private string nominationOrderType = "random";
     private List<string> nominationOrder = new();
     private bool allowProxyBidding = true;
@@ -331,32 +402,89 @@
         return ((baseRecommendation + 25) / 50) * 50;
     }
 
-    private void GenerateNominationOrder()
+    private void InitializeTeamNames()
     {
-        if (expectedTeamCount <= 0) return;
-        
-        // Generate team names based on expected count
-        var teamNames = new List<string>();
+        teamNames.Clear();
         for (int i = 1; i <= expectedTeamCount; i++)
         {
             teamNames.Add($"Team {i}");
         }
+        StateHasChanged();
+    }
+
+    private void MoveTeamUp(int index)
+    {
+        if (index > 0 && index < nominationOrder.Count)
+        {
+            var team = nominationOrder[index];
+            nominationOrder[index] = nominationOrder[index - 1];
+            nominationOrder[index - 1] = team;
+            StateHasChanged();
+        }
+    }
+
+    private void MoveTeamDown(int index)
+    {
+        if (index >= 0 && index < nominationOrder.Count - 1)
+        {
+            var team = nominationOrder[index];
+            nominationOrder[index] = nominationOrder[index + 1];
+            nominationOrder[index + 1] = team;
+            StateHasChanged();
+        }
+    }
+
+    private void GenerateNominationOrder()
+    {
+        if (expectedTeamCount <= 0 || teamNames.Count != expectedTeamCount) return;
+        
+        // Use actual team names if available, otherwise fall back to generic names
+        var teamsToOrder = teamNames.All(name => !string.IsNullOrWhiteSpace(name)) 
+            ? new List<string>(teamNames) 
+            : teamNames.Select((name, index) => string.IsNullOrWhiteSpace(name) ? $"Team {index + 1}" : name).ToList();
 
         nominationOrder = nominationOrderType switch
         {
-            "random" => teamNames.OrderBy(x => Guid.NewGuid()).ToList(),
-            "alphabetical" => teamNames.OrderBy(x => x).ToList(),
-            "reverse_alphabetical" => teamNames.OrderByDescending(x => x).ToList(),
-            "manual" => teamNames, // Keep current order for manual
-            _ => teamNames.OrderBy(x => Guid.NewGuid()).ToList()
+            "random" => teamsToOrder.OrderBy(x => Guid.NewGuid()).ToList(),
+            "alphabetical" => teamsToOrder.OrderBy(x => x).ToList(),
+            "reverse_alphabetical" => teamsToOrder.OrderByDescending(x => x).ToList(),
+            "manual" => teamsToOrder, // Keep current order for manual
+            _ => teamsToOrder.OrderBy(x => Guid.NewGuid()).ToList()
         };
 
         StateHasChanged();
     }
 
+    private static string ToTitleCase(string input)
+    {
+        if (string.IsNullOrEmpty(input)) return input;
+        
+        var words = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        for (int i = 0; i < words.Length; i++)
+        {
+            if (words[i].Length > 0)
+            {
+                words[i] = char.ToUpper(words[i][0]) + words[i][1..].ToLower();
+            }
+        }
+        return string.Join(" ", words);
+    }
+
     private bool IsConfigurationValid()
     {
-        return budgetPerTeam > 0 && expectedTeamCount > 0 && nominationOrder.Any() && nominationOrder.Count == expectedTeamCount;
+        // Basic validation
+        if (budgetPerTeam <= 0 || expectedTeamCount <= 0) return false;
+        
+        // Team names must be set and not empty
+        if (teamNames.Count != expectedTeamCount || teamNames.Any(name => string.IsNullOrWhiteSpace(name))) return false;
+        
+        // Nomination order must be complete
+        if (nominationOrder.Count != expectedTeamCount) return false;
+        
+        // Check for sufficient schools
+        if (availableSchoolCount < expectedTeamCount * totalRosterSlots) return false;
+        
+        return true;
     }
 
     private async Task SaveConfiguration()
