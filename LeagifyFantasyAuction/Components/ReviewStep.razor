@@ -219,10 +219,13 @@
                                 <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
                                     <FluentLabel Weight="FontWeight.Bold">Draft Nomination Order:</FluentLabel>
                                     <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                                        @for (int i = 0; i < nominationOrder.Count; i++)
+                                        @{
+                                            var displayOrder = nominationOrder.ToList();
+                                        }
+                                        @foreach (var (team, index) in displayOrder.Select((team, index) => (team, index)))
                                         {
                                             <FluentBadge Fill="someValue" BackgroundColor="#0078d4" Color="white">
-                                                @(i + 1). @nominationOrder[i]
+                                                @(index + 1). @team
                                             </FluentBadge>
                                         }
                                     </div>
