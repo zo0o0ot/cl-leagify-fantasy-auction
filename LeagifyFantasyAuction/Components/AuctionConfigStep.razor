@@ -95,19 +95,52 @@
                             @if (expectedTeamCount > 0 && totalRosterSlots > 0)
                             {
                                 <div style="background: #f8f9fa; padding: 16px; border-radius: 8px;">
-                                    <FluentLabel Style="font-size: 14px; color: #666;">
-                                        <strong>Team Analysis:</strong> 
-                                        @expectedTeamCount teams × @totalRosterSlots slots = @(expectedTeamCount * totalRosterSlots) total schools needed.
-                                        Available schools: @availableSchoolCount
-                                        @if (availableSchoolCount < expectedTeamCount * totalRosterSlots)
+                                    <div>
+                                        <FluentLabel Style="font-size: 14px; color: #666; margin-bottom: 8px;">
+                                            <strong>Team Analysis:</strong> 
+                                            @expectedTeamCount teams × @totalRosterSlots slots = @(expectedTeamCount * totalRosterSlots) total schools needed.
+                                            Available schools: @availableSchoolCount
+                                        </FluentLabel>
+                                        
+                                        @{
+                                            var positionValidation = GetPositionValidationResults();
+                                        }
+                                        
+                                        @if (positionValidation.HasErrors)
                                         {
-                                            <span style="color: #d13438;"> (⚠️ Not enough schools imported!)</span>
+                                            <div style="margin-top: 8px;">
+                                                <FluentLabel Style="font-size: 14px; color: #d13438; font-weight: 600;">
+                                                    ⚠️ Position-specific issues detected:
+                                                </FluentLabel>
+                                                @foreach (var error in positionValidation.Errors)
+                                                {
+                                                    <div style="font-size: 13px; color: #d13438; margin-left: 16px;">
+                                                        • @error
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                        else if (positionValidation.HasWarnings)
+                                        {
+                                            <div style="margin-top: 8px;">
+                                                <FluentLabel Style="font-size: 14px; color: #ff8c00; font-weight: 600;">
+                                                    ⚠️ Position constraints detected:
+                                                </FluentLabel>
+                                                @foreach (var warning in positionValidation.Warnings)
+                                                {
+                                                    <div style="font-size: 13px; color: #ff8c00; margin-left: 16px;">
+                                                        • @warning
+                                                    </div>
+                                                }
+                                            </div>
                                         }
                                         else
                                         {
-                                            <span style="color: #107c10;"> (✅ Sufficient schools available)</span>
+                                            <FluentLabel Style="font-size: 14px; color: #107c10; font-weight: 600; margin-top: 8px;">
+                                                ✅ All position requirements can be satisfied
+                                            </FluentLabel>
                                         }
-                                    </FluentLabel>
+                                    </div>
                                 </div>
                             }
                         </FluentStack>
@@ -303,6 +336,8 @@
     private int totalRosterSlots = 0;
     private int expectedTeamCount = 6; // Default to 6 teams
     private int availableSchoolCount = 0;
+    private Dictionary<string, int> availableSchoolsByPosition = new();
+    private List<RosterPositionDto> rosterPositions = new();
     private List<string> teamNames = new();
     private string nominationOrderType = "random";
     private List<string> nominationOrder = new();
@@ -369,7 +404,8 @@
             if (response.IsSuccessStatusCode)
             {
                 var positions = await response.Content.ReadFromJsonAsync<List<RosterPositionDto>>();
-                totalRosterSlots = positions?.Sum(p => p.SlotsPerTeam) ?? 0;
+                rosterPositions = positions ?? new List<RosterPositionDto>();
+                totalRosterSlots = rosterPositions.Sum(p => p.SlotsPerTeam);
             }
         }
         catch (Exception ex)
@@ -388,11 +424,13 @@
             Http.DefaultRequestHeaders.Remove("X-Management-Token");
             Http.DefaultRequestHeaders.Add("X-Management-Token", token);
 
-            var response = await Http.GetAsync($"/api/management/auctions/{AuctionId}/schools/count");
+            // Load school summary with position breakdown for detailed validation
+            var response = await Http.GetAsync($"/api/management/auctions/{AuctionId}/schools/summary");
             if (response.IsSuccessStatusCode)
             {
-                var count = await response.Content.ReadFromJsonAsync<int>();
-                availableSchoolCount = count;
+                var summary = await response.Content.ReadFromJsonAsync<SchoolSummary>();
+                availableSchoolCount = summary?.TotalCount ?? 0;
+                availableSchoolsByPosition = summary?.PositionBreakdown ?? new Dictionary<string, int>();
             }
         }
         catch (Exception ex)
@@ -515,6 +553,42 @@
         return string.Join(" ", words);
     }
 
+    private PositionValidationResult GetPositionValidationResults()
+    {
+        var result = new PositionValidationResult();
+        
+        if (expectedTeamCount <= 0 || !rosterPositions.Any() || !availableSchoolsByPosition.Any())
+        {
+            return result; // No validation if data not loaded
+        }
+
+        foreach (var position in rosterPositions.Where(p => !p.IsFlexPosition))
+        {
+            var positionName = position.PositionName;
+            var slotsPerTeam = position.SlotsPerTeam;
+            var totalSlotsNeeded = expectedTeamCount * slotsPerTeam;
+            
+            if (!availableSchoolsByPosition.ContainsKey(positionName))
+            {
+                result.Errors.Add($"{positionName}: No schools available for this position");
+                continue;
+            }
+            
+            var availableSchools = availableSchoolsByPosition[positionName];
+            
+            if (availableSchools < totalSlotsNeeded)
+            {
+                result.Errors.Add($"{positionName}: Need {totalSlotsNeeded} schools ({expectedTeamCount} teams × {slotsPerTeam} slots) but only {availableSchools} available");
+            }
+            else if (availableSchools < totalSlotsNeeded * 1.5) // Less than 1.5x needed
+            {
+                result.Warnings.Add($"{positionName}: Tight constraint - {availableSchools} schools for {totalSlotsNeeded} slots needed");
+            }
+        }
+        
+        return result;
+    }
+
     private bool IsConfigurationValid()
     {
         // Basic validation
@@ -582,6 +656,20 @@
         public string ColorCode { get; set; } = string.Empty;
         public int DisplayOrder { get; set; }
         public bool IsFlexPosition { get; set; }
+    }
+
+    public class SchoolSummary
+    {
+        public int TotalCount { get; set; }
+        public Dictionary<string, int> PositionBreakdown { get; set; } = new();
+    }
+
+    public class PositionValidationResult
+    {
+        public List<string> Errors { get; set; } = new();
+        public List<string> Warnings { get; set; } = new();
+        public bool HasErrors => Errors.Any();
+        public bool HasWarnings => Warnings.Any();
     }
 
 }
