@@ -159,7 +159,7 @@
                 <!-- Nomination Order Configuration -->
                 @if (expectedTeamCount > 0 && teamNames.Count == expectedTeamCount && teamNames.All(name => !string.IsNullOrWhiteSpace(name)))
                 {
-                    <FluentCard Style="margin-bottom: 24px;">
+                    <FluentCard Style="margin-bottom: 24px;" Class="nomination-order-section">
                         <div style="padding: 20px;">
                             <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
                                 <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="12">
@@ -192,12 +192,15 @@
                                         {
                                             <!-- Manual ordering with up/down buttons -->
                                             <div style="display: grid; gap: 8px;">
-                                                @for (int i = 0; i < nominationOrder.Count; i++)
+                                                @{
+                                                    var manualOrderCopy = nominationOrder.ToList();
+                                                }
+                                                @for (int i = 0; i < manualOrderCopy.Count; i++)
                                                 {
                                                     var index = i;
                                                     <div style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid #dee2e6; border-radius: 6px; background: white;">
                                                         <FluentLabel Style="min-width: 40px; font-weight: 600;">@(index + 1).</FluentLabel>
-                                                        <FluentLabel Style="flex: 1;">@nominationOrder[index]</FluentLabel>
+                                                        <FluentLabel Style="flex: 1;">@manualOrderCopy[index]</FluentLabel>
                                                         <FluentButton Appearance="Appearance.Neutral" 
                                                                       IconStart="@(new Icons.Regular.Size16.ArrowUp())"
                                                                       OnClick="@(() => MoveTeamUp(index))"
@@ -206,7 +209,7 @@
                                                         <FluentButton Appearance="Appearance.Neutral" 
                                                                       IconStart="@(new Icons.Regular.Size16.ArrowDown())"
                                                                       OnClick="@(() => MoveTeamDown(index))"
-                                                                      Disabled="@(index == nominationOrder.Count - 1)"
+                                                                      Disabled="@(index == manualOrderCopy.Count - 1)"
                                                                       Title="Move down" />
                                                     </div>
                                                 }
@@ -216,10 +219,13 @@
                                         {
                                             <!-- Read-only order display -->
                                             <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                                                @for (int i = 0; i < nominationOrder.Count; i++)
+                                                @{
+                                                    var orderCopy = nominationOrder.ToList();
+                                                }
+                                                @for (int i = 0; i < orderCopy.Count; i++)
                                                 {
                                                     <FluentBadge Fill="someValue" BackgroundColor="#0078d4" Color="white">
-                                                        @(i + 1). @nominationOrder[i]
+                                                        @(i + 1). @orderCopy[i]
                                                     </FluentBadge>
                                                 }
                                             </div>
@@ -569,5 +575,22 @@
         justify-content: center;
         padding: 60px;
         gap: 16px;
+    }
+
+    /* Fix dropdown overflow issues */
+    .config-container fluent-card {
+        overflow: visible !important;
+        z-index: 1;
+    }
+    
+    .config-container fluent-select {
+        z-index: 100;
+    }
+    
+    /* Ensure nomination order section has proper spacing for dropdown */
+    .nomination-order-section {
+        position: relative;
+        z-index: 10;
+        margin-bottom: 120px; /* Extra space for dropdown */
     }
 </style>
