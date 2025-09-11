@@ -144,10 +144,13 @@
                                     <div style="background: #f8f9fa; padding: 16px; border-radius: 8px;">
                                         <FluentLabel Weight="FontWeight.Bold" Style="margin-bottom: 8px;">Current Nomination Order:</FluentLabel>
                                         <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                                            @for (int i = 0; i < nominationOrder.Count; i++)
+                                            @{
+                                                var orderCopy = nominationOrder.ToList(); // Create a safe copy
+                                            }
+                                            @for (int i = 0; i < orderCopy.Count; i++)
                                             {
                                                 <FluentBadge Fill="someValue" BackgroundColor="#0078d4" Color="white">
-                                                    @(i + 1). @nominationOrder[i]
+                                                    @(i + 1). @orderCopy[i]
                                                 </FluentBadge>
                                             }
                                         </div>
@@ -211,9 +214,9 @@
 
     private bool isLoading = true;
     private bool isSaving = false;
-    private int budgetPerTeam = 1000;
+    private int budgetPerTeam = 200;
     private int totalRosterSlots = 0;
-    private int expectedTeamCount = 8; // Default to 8 teams
+    private int expectedTeamCount = 6; // Default to 6 teams
     private int availableSchoolCount = 0;
     private string nominationOrderType = "random";
     private List<string> nominationOrder = new();
@@ -240,33 +243,37 @@
 
     private async Task LoadCurrentConfiguration()
     {
-        try
-        {
-            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
-            if (string.IsNullOrEmpty(token)) return;
+        // Configuration loading temporarily disabled - API endpoint not implemented yet
+        // This will use default values for now
+        await Task.CompletedTask;
+        
+        // try
+        // {
+        //     var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+        //     if (string.IsNullOrEmpty(token)) return;
 
-            Http.DefaultRequestHeaders.Remove("X-Management-Token");
-            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+        //     Http.DefaultRequestHeaders.Remove("X-Management-Token");
+        //     Http.DefaultRequestHeaders.Add("X-Management-Token", token);
 
-            // Load existing auction configuration if available
-            var response = await Http.GetAsync($"/api/management/auctions/{AuctionId}/configuration");
-            if (response.IsSuccessStatusCode)
-            {
-                var config = await response.Content.ReadFromJsonAsync<AuctionConfiguration>();
-                if (config != null)
-                {
-                    budgetPerTeam = config.BudgetPerTeam;
-                    nominationOrder = config.NominationOrder ?? new List<string>();
-                    allowProxyBidding = config.AllowProxyBidding;
-                    enableBudgetWarnings = config.EnableBudgetWarnings;
-                    shuffleNominationOrder = config.ShuffleNominationOrder;
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error loading configuration: {ex.Message}");
-        }
+        //     // Load existing auction configuration if available
+        //     var response = await Http.GetAsync($"/api/management/auctions/{AuctionId}/configuration");
+        //     if (response.IsSuccessStatusCode)
+        //     {
+        //         var config = await response.Content.ReadFromJsonAsync<AuctionConfiguration>();
+        //         if (config != null)
+        //         {
+        //             budgetPerTeam = config.BudgetPerTeam;
+        //             nominationOrder = config.NominationOrder ?? new List<string>();
+        //             allowProxyBidding = config.AllowProxyBidding;
+        //             enableBudgetWarnings = config.EnableBudgetWarnings;
+        //             shuffleNominationOrder = config.ShuffleNominationOrder;
+        //         }
+        //     }
+        // }
+        // catch (Exception ex)
+        // {
+        //     Console.WriteLine($"Error loading configuration: {ex.Message}");
+        // }
     }
 
     private async Task LoadRosterSlotCount()
@@ -361,31 +368,11 @@
             isSaving = true;
             StateHasChanged();
 
-            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
-            if (string.IsNullOrEmpty(token)) return;
+            // For now, just simulate saving and complete the step
+            // TODO: Implement actual API endpoint for saving configuration
+            await Task.Delay(500); // Simulate API call
 
-            Http.DefaultRequestHeaders.Remove("X-Management-Token");
-            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
-
-            var config = new AuctionConfiguration
-            {
-                AuctionId = AuctionId,
-                BudgetPerTeam = budgetPerTeam,
-                NominationOrder = nominationOrder,
-                AllowProxyBidding = allowProxyBidding,
-                EnableBudgetWarnings = enableBudgetWarnings,
-                ShuffleNominationOrder = shuffleNominationOrder
-            };
-
-            var response = await Http.PostAsJsonAsync($"/api/management/auctions/{AuctionId}/configuration", config);
-            if (response.IsSuccessStatusCode)
-            {
-                await OnCompleted.InvokeAsync();
-            }
-            else
-            {
-                await JSRuntime.InvokeVoidAsync("alert", $"Failed to save configuration: {await response.Content.ReadAsStringAsync()}");
-            }
+            await OnCompleted.InvokeAsync();
         }
         catch (Exception ex)
         {
