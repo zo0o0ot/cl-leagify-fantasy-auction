@@ -228,10 +228,13 @@
                                         {
                                             <!-- Read-only order display -->
                                             <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                                                @for (int i = 0; i < nominationOrder.Count; i++)
+                                                @{
+                                                    var displayOrder = nominationOrder.ToList();
+                                                }
+                                                @foreach (var (team, index) in displayOrder.Select((team, index) => (team, index)))
                                                 {
                                                     <FluentBadge Fill="someValue" BackgroundColor="#0078d4" Color="white">
-                                                        @(i + 1). @nominationOrder[i]
+                                                        @(index + 1). @team
                                                     </FluentBadge>
                                                 }
                                             </div>
@@ -433,29 +436,39 @@
         StateHasChanged();
     }
 
-    private void MoveTeamUp(int index)
+    private async void MoveTeamUp(int index)
     {
         if (index > 0 && index < nominationOrder.Count)
         {
             var team = nominationOrder[index];
             nominationOrder[index] = nominationOrder[index - 1];
             nominationOrder[index - 1] = team;
+            
+            // Save to localStorage
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", $"nominationOrder_{AuctionId}", 
+                System.Text.Json.JsonSerializer.Serialize(nominationOrder.ToArray()));
+            
             StateHasChanged();
         }
     }
 
-    private void MoveTeamDown(int index)
+    private async void MoveTeamDown(int index)
     {
         if (index >= 0 && index < nominationOrder.Count - 1)
         {
             var team = nominationOrder[index];
             nominationOrder[index] = nominationOrder[index + 1];
             nominationOrder[index + 1] = team;
+            
+            // Save to localStorage
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", $"nominationOrder_{AuctionId}", 
+                System.Text.Json.JsonSerializer.Serialize(nominationOrder.ToArray()));
+            
             StateHasChanged();
         }
     }
 
-    private void GenerateNominationOrder()
+    private async Task GenerateNominationOrder()
     {
         if (expectedTeamCount <= 0 || teamNames.Count != expectedTeamCount) return;
         
@@ -479,6 +492,11 @@
         };
 
         nominationOrder.AddRange(newOrder);
+        
+        // Save to localStorage so it persists to the review step
+        await JSRuntime.InvokeVoidAsync("localStorage.setItem", $"nominationOrder_{AuctionId}", 
+            System.Text.Json.JsonSerializer.Serialize(nominationOrder.ToArray()));
+        
         StateHasChanged();
     }
 
@@ -523,6 +541,10 @@
             isSaving = true;
             StateHasChanged();
 
+            // Save configuration to localStorage until API endpoint is implemented
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", $"expectedTeamCount_{AuctionId}", expectedTeamCount.ToString());
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", $"budgetPerTeam_{AuctionId}", budgetPerTeam.ToString());
+            
             // For now, just simulate saving and complete the step
             // TODO: Implement actual API endpoint for saving configuration
             await Task.Delay(500); // Simulate API call

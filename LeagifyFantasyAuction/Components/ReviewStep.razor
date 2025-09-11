@@ -179,6 +179,65 @@
                     </div>
                 </FluentCard>
 
+                <!-- Auction Configuration Summary -->
+                <FluentCard Style="margin-bottom: 24px;">
+                    <div style="padding: 20px;">
+                        <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+                            <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="12">
+                                <FluentIcon Value="@(new Icons.Regular.Size20.Settings())" Style="color: #0078d4;" />
+                                <FluentLabel Weight="FontWeight.Bold">Auction Configuration Summary</FluentLabel>
+                            </FluentStack>
+                            
+                            <div style="background: #f8f9fa; padding: 16px; border-radius: 8px;">
+                                <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="32" Wrap="true">
+                                    <div style="text-align: center;">
+                                        <FluentLabel Style="font-size: 24px; font-weight: 700; color: #0078d4;">
+                                            @expectedTeamCount
+                                        </FluentLabel>
+                                        <FluentLabel Style="font-size: 14px; color: #666;">Expected Teams</FluentLabel>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <FluentLabel Style="font-size: 24px; font-weight: 700; color: #28a745;">
+                                            $@budgetPerTeam
+                                        </FluentLabel>
+                                        <FluentLabel Style="font-size: 14px; color: #666;">Budget per Team</FluentLabel>
+                                    </div>
+                                    @if (nominationOrder.Any())
+                                    {
+                                        <div style="text-align: center;">
+                                            <FluentLabel Style="font-size: 24px; font-weight: 700; color: #6c757d;">
+                                                @nominationOrder.Count
+                                            </FluentLabel>
+                                            <FluentLabel Style="font-size: 14px; color: #666;">Nomination Order Set</FluentLabel>
+                                        </div>
+                                    }
+                                </FluentStack>
+                            </div>
+                            
+                            @if (nominationOrder.Any())
+                            {
+                                <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
+                                    <FluentLabel Weight="FontWeight.Bold">Draft Nomination Order:</FluentLabel>
+                                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                        @for (int i = 0; i < nominationOrder.Count; i++)
+                                        {
+                                            <FluentBadge Fill="someValue" BackgroundColor="#0078d4" Color="white">
+                                                @(i + 1). @nominationOrder[i]
+                                            </FluentBadge>
+                                        }
+                                    </div>
+                                </FluentStack>
+                            }
+                            else
+                            {
+                                <FluentMessageBar Intent="MessageIntent.Warning">
+                                    No nomination order configured. Return to Auction Configuration to set the draft order.
+                                </FluentMessageBar>
+                            }
+                        </FluentStack>
+                    </div>
+                </FluentCard>
+
                 <!-- Action Buttons -->
                 <div style="text-align: center; padding-top: 24px;">
                     <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="16" HorizontalAlignment="HorizontalAlignment.Center">
@@ -217,10 +276,16 @@
     private List<RosterPositionDto> rosterPositions = new();
     private List<string> validationWarnings = new();
     private List<string> validationErrors = new();
+    
+    // Auction configuration properties
+    private int expectedTeamCount = 0;
+    private int budgetPerTeam = 0;
+    private List<string> nominationOrder = new();
 
     protected override async Task OnInitializedAsync()
     {
         await LoadSummaryData();
+        await LoadAuctionConfiguration();
         await ValidateConfiguration();
         isLoading = false;
         StateHasChanged();
@@ -256,6 +321,45 @@
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading summary data: {ex.Message}");
+        }
+    }
+
+    private async Task LoadAuctionConfiguration()
+    {
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(token)) return;
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+
+            // Load from localStorage until API endpoint is implemented
+            var savedTeamCount = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", $"expectedTeamCount_{AuctionId}");
+            var savedBudget = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", $"budgetPerTeam_{AuctionId}");
+            
+            expectedTeamCount = int.TryParse(savedTeamCount, out int teamCount) ? teamCount : 6; // Default to 6
+            budgetPerTeam = int.TryParse(savedBudget, out int budget) ? budget : 200; // Default to 200
+            
+            // Try to load nomination order from localStorage as a fallback
+            var savedOrder = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", $"nominationOrder_{AuctionId}");
+            if (!string.IsNullOrEmpty(savedOrder))
+            {
+                try
+                {
+                    var orderArray = System.Text.Json.JsonSerializer.Deserialize<string[]>(savedOrder);
+                    nominationOrder = orderArray?.ToList() ?? new List<string>();
+                }
+                catch
+                {
+                    // If parsing fails, leave empty
+                    nominationOrder = new List<string>();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading auction configuration: {ex.Message}");
         }
     }
 
