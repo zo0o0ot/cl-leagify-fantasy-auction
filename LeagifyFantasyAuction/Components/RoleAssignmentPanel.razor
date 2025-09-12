@@ -23,115 +23,120 @@
         }
         else if (participants.Any())
         {
-            <div class="data-grid-container">
-                <FluentDataGrid Items="@participantsQueryable" GridTemplateColumns="1fr 200px 80px 180px 160px" Style="width: 100%; min-width: 1000px;">
-                <PropertyColumn Property="@(p => p.DisplayName)" Title="Display Name" Sortable="true" />
-                
-                <TemplateColumn Title="Current Roles">
-                    <ChildContent Context="participant">
-                        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="4" Wrap="true">
-                            @if (participant.Roles.Any())
-                            {
-                                @foreach (var role in participant.Roles)
-                                {
-                                    <FluentBadge Appearance="@GetRoleAppearance(role.Role)" 
-                                                 BackgroundColor="@GetRoleColor(role.Role)"
-                                                 Color="white"
-                                                 Style="font-size: 11px;">
-                                        @GetRoleDisplayName(role.Role)
-                                        @if (!string.IsNullOrEmpty(role.TeamName))
-                                        {
-                                            <span> - @role.TeamName</span>
-                                        }
-                                        <FluentButton Appearance="Appearance.Stealth"
-                                                      IconStart="@(new Icons.Regular.Size12.Dismiss())"
-                                                      Style="margin-left: 4px; min-width: auto; padding: 0 4px;"
-                                                      OnClick="@(() => RemoveRole(participant.UserId, role.UserRoleId))"
-                                                      Title="Remove this role" />
-                                    </FluentBadge>
-                                }
-                            }
-                            else
-                            {
-                                <FluentLabel Style="color: #666; font-style: italic; font-size: 12px;">
-                                    No roles assigned
-                                </FluentLabel>
-                            }
-                        </FluentStack>
-                    </ChildContent>
-                </TemplateColumn>
-
-                <TemplateColumn Title="Status">
-                    <ChildContent Context="participant">
-                        <FluentBadge Appearance="@(participant.IsConnected ? Appearance.Accent : Appearance.Neutral)"
-                                     BackgroundColor="@(participant.IsConnected ? "#28a745" : "#6c757d")"
-                                     Color="white">
-                            @(participant.IsConnected ? "Online" : "Offline")
-                        </FluentBadge>
-                        @if (participant.IsReconnectionPending)
+            <div class="participants-table-container">
+                <table class="participants-table">
+                    <thead>
+                        <tr>
+                            <th>Display Name</th>
+                            <th>Current Roles</th>
+                            <th>Status</th>
+                            <th>Assign Role</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var participant in participants)
                         {
-                            <FluentBadge Appearance="Appearance.Neutral" BackgroundColor="#ffc107" Color="black" Style="margin-left: 4px;">
-                                Reconnection Pending
-                            </FluentBadge>
-                        }
-                    </ChildContent>
-                </TemplateColumn>
-
-                <TemplateColumn Title="Assign Role">
-                    <ChildContent Context="participant">
-                        <FluentStack Orientation="Orientation.Vertical" VerticalGap="4">
-                            <select @onchange="@(e => SetSelectedRole(participant.UserId, e.Value?.ToString() ?? string.Empty))"
-                                    value="@GetSelectedRole(participant.UserId)"
-                                    style="width: 100%; font-size: 12px; padding: 4px; border: 1px solid #ccc; border-radius: 4px;">
-                                <option value="">Select role...</option>
-                                @foreach (var role in roleOptions)
-                                {
-                                    <option value="@role">@role</option>
-                                }
-                            </select>
-                            
-                            @if (GetSelectedRole(participant.UserId) == "TeamCoach" || GetSelectedRole(participant.UserId) == "ProxyCoach")
-                            {
-                                <select @onchange="@(e => SetSelectedTeamIdString(participant.UserId, e.Value?.ToString() ?? string.Empty))"
-                                        value="@GetSelectedTeamIdString(participant.UserId)"
-                                        style="width: 100%; font-size: 12px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; margin-top: 4px;">
-                                    <option value="">Select team...</option>
-                                    @foreach (var teamId in availableTeamIds)
+                            <tr>
+                                <td>@participant.DisplayName</td>
+                                
+                                <td>
+                                    @if (participant.Roles.Any())
                                     {
-                                        <option value="@teamId.ToString()">@GetTeamName(teamId)</option>
+                                        <div class="roles-container">
+                                            @foreach (var role in participant.Roles)
+                                            {
+                                                <FluentBadge Appearance="@GetRoleAppearance(role.Role)" 
+                                                             BackgroundColor="@GetRoleColor(role.Role)"
+                                                             Color="white"
+                                                             Style="font-size: 11px; margin: 2px;">
+                                                    @GetRoleDisplayName(role.Role)
+                                                    @if (!string.IsNullOrEmpty(role.TeamName))
+                                                    {
+                                                        <span> - @role.TeamName</span>
+                                                    }
+                                                    <FluentButton Appearance="Appearance.Stealth"
+                                                                  IconStart="@(new Icons.Regular.Size12.Dismiss())"
+                                                                  Style="margin-left: 4px; min-width: auto; padding: 0 4px;"
+                                                                  OnClick="@(() => RemoveRole(participant.UserId, role.UserRoleId))"
+                                                                  Title="Remove this role" />
+                                                </FluentBadge>
+                                            }
+                                        </div>
                                     }
-                                </select>
-                            }
-                        </FluentStack>
-                    </ChildContent>
-                </TemplateColumn>
-
-                <TemplateColumn Title="Actions">
-                    <ChildContent Context="participant">
-                        <FluentStack Orientation="Orientation.Vertical" VerticalGap="4">
-                            <FluentButton Appearance="Appearance.Accent"
-                                          IconStart="@(new Icons.Regular.Size16.PersonAdd())"
-                                          Size="ButtonSize.Small"
-                                          OnClick="@(() => AssignRole(participant.UserId))"
-                                          Disabled="@(string.IsNullOrEmpty(GetSelectedRole(participant.UserId)))"
-                                          Loading="@(assigningRoles.Contains(participant.UserId))"
-                                          Style="width: 100%; font-size: 11px; padding: 4px 8px;">
-                                Assign
-                            </FluentButton>
-                            
-                            <FluentButton Appearance="Appearance.Stealth"
-                                          IconStart="@(new Icons.Regular.Size16.PersonDelete())"
-                                          Size="ButtonSize.Small"
-                                          OnClick="@(() => participant.IsConnected ? MarkUserOffline(participant.UserId, participant.DisplayName) : DeleteUser(participant.UserId, participant.DisplayName))"
-                                          Loading="@(deletingUsers.Contains(participant.UserId))"
-                                          Title="@(participant.IsConnected ? "Mark as offline" : "Delete disconnected user")"
-                                          Style="width: 100%; font-size: 11px; padding: 4px 8px;">
-                                @(participant.IsConnected ? "Mark Offline" : "Delete")
-                            </FluentButton>
-                        </FluentStack>
-                    </ChildContent>
-                </TemplateColumn>
-                </FluentDataGrid>
+                                    else
+                                    {
+                                        <span class="no-roles">No roles assigned</span>
+                                    }
+                                </td>
+                                
+                                <td>
+                                    <FluentBadge Appearance="@(participant.IsConnected ? Appearance.Accent : Appearance.Neutral)"
+                                                 BackgroundColor="@(participant.IsConnected ? "#28a745" : "#6c757d")"
+                                                 Color="white">
+                                        @(participant.IsConnected ? "Online" : "Offline")
+                                    </FluentBadge>
+                                    @if (participant.IsReconnectionPending)
+                                    {
+                                        <FluentBadge Appearance="Appearance.Neutral" BackgroundColor="#ffc107" Color="black" Style="margin-left: 4px;">
+                                            Reconnection Pending
+                                        </FluentBadge>
+                                    }
+                                </td>
+                                
+                                <td>
+                                    <div class="role-assignment">
+                                        <select @onchange="@(e => SetSelectedRole(participant.UserId, e.Value?.ToString() ?? string.Empty))"
+                                                value="@GetSelectedRole(participant.UserId)"
+                                                class="role-select">
+                                            <option value="">Select role...</option>
+                                            @foreach (var role in roleOptions)
+                                            {
+                                                <option value="@role">@role</option>
+                                            }
+                                        </select>
+                                        
+                                        @if (GetSelectedRole(participant.UserId) == "TeamCoach" || GetSelectedRole(participant.UserId) == "ProxyCoach")
+                                        {
+                                            <select @onchange="@(e => SetSelectedTeamIdString(participant.UserId, e.Value?.ToString() ?? string.Empty))"
+                                                    value="@GetSelectedTeamIdString(participant.UserId)"
+                                                    class="team-select">
+                                                <option value="">Select team...</option>
+                                                @foreach (var teamId in availableTeamIds)
+                                                {
+                                                    <option value="@teamId.ToString()">@GetTeamName(teamId)</option>
+                                                }
+                                            </select>
+                                        }
+                                    </div>
+                                </td>
+                                
+                                <td>
+                                    <div class="actions-buttons">
+                                        <FluentButton Appearance="Appearance.Accent"
+                                                      IconStart="@(new Icons.Regular.Size16.PersonAdd())"
+                                                      Size="ButtonSize.Small"
+                                                      OnClick="@(() => AssignRole(participant.UserId))"
+                                                      Disabled="@(string.IsNullOrEmpty(GetSelectedRole(participant.UserId)))"
+                                                      Loading="@(assigningRoles.Contains(participant.UserId))"
+                                                      Style="margin-bottom: 4px;">
+                                            Assign
+                                        </FluentButton>
+                                        
+                                        <FluentButton Appearance="Appearance.Stealth"
+                                                      IconStart="@(new Icons.Regular.Size16.PersonDelete())"
+                                                      Size="ButtonSize.Small"
+                                                      OnClick="@(() => participant.IsConnected ? MarkUserOffline(participant.UserId, participant.DisplayName) : DeleteUser(participant.UserId, participant.DisplayName))"
+                                                      Loading="@(deletingUsers.Contains(participant.UserId))"
+                                                      Title="@(participant.IsConnected ? "Mark as offline" : "Delete disconnected user")">
+                                            @(participant.IsConnected ? "Mark Offline" : "Delete")
+                                        </FluentButton>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
             </div>
         }
         else
@@ -658,48 +663,87 @@
         overflow-x: auto;
     }
 
-    .data-grid-container {
+    .participants-table-container {
         overflow-x: auto;
         width: 100%;
         padding: 0 20px 20px;
     }
 
-    /* Make the grid more compact and responsive */
-    .role-assignment-panel fluent-data-grid::part(grid) {
-        font-size: 13px;
-        overflow: visible;
+    .participants-table {
+        width: 100%;
+        min-width: 1000px;
+        border-collapse: collapse;
+        font-size: 14px;
     }
 
-    .role-assignment-panel fluent-data-grid-cell {
-        padding: 8px 6px;
+    .participants-table th {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        padding: 12px 8px;
+        text-align: left;
+        font-weight: 600;
+        color: #495057;
+    }
+
+    .participants-table td {
+        border: 1px solid #dee2e6;
+        padding: 12px 8px;
         vertical-align: top;
-        line-height: 1.2;
         min-height: 80px;
+    }
+
+    .participants-table tr:nth-child(even) {
+        background-color: #f8f9fa;
+    }
+
+    .participants-table tr:hover {
+        background-color: #e9ecef;
+    }
+
+    /* Role-specific styling */
+    .roles-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .no-roles {
+        color: #666;
+        font-style: italic;
+        font-size: 12px;
+    }
+
+    .role-assignment {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .role-select,
+    .team-select {
+        width: 100%;
+        padding: 6px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 12px;
+    }
+
+    .actions-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 140px;
+    }
+
+    .actions-buttons fluent-button {
+        width: 100%;
+        font-size: 11px;
     }
 
     /* Compact badge styling */
     .role-assignment-panel fluent-badge {
-        font-size: 10px;
-        padding: 2px 6px;
-        margin: 1px;
-    }
-
-    /* Remove extra grid padding since we have container padding */
-    .role-assignment-panel fluent-data-grid {
-        padding: 0;
-    }
-
-    /* Compact styling for better fit */
-    .data-grid-container {
-        font-size: 13px;
-    }
-        
-    .role-assignment-panel fluent-badge {
-        font-size: 10px;
-        padding: 2px 6px;
-    }
-        
-    .role-assignment-panel fluent-data-grid {
-        min-width: 700px;
+        font-size: 11px;
+        padding: 3px 8px;
+        margin: 2px;
     }
 </style>
