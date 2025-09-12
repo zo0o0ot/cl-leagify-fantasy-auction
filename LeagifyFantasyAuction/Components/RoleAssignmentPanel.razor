@@ -511,19 +511,56 @@
         padding: 0;
         border: 1px solid #e1e1e1;
         box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        overflow: visible; /* Allow dropdowns to extend outside the card */
     }
 
     .role-assignment-panel fluent-data-grid {
         padding: 0 20px 20px;
+        overflow: visible; /* Allow dropdowns to extend outside the grid */
     }
 
     /* Make the grid more compact */
     .role-assignment-panel fluent-data-grid::part(grid) {
         font-size: 14px;
+        overflow: visible; /* Ensure grid doesn't clip dropdowns */
     }
 
     .role-assignment-panel fluent-data-grid-cell {
         padding: 8px 4px;
         vertical-align: middle;
+        overflow: visible; /* Allow cell contents to extend beyond cell bounds */
+    }
+
+    /* Ensure dropdowns have proper z-index and visibility */
+    .role-assignment-panel fluent-select {
+        position: relative;
+        z-index: 1000;
+    }
+
+    .role-assignment-panel fluent-select::part(listbox) {
+        z-index: 1001;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    /* Fix specific FluentUI dropdown issues */
+    .role-assignment-panel .fluent-select-anchor {
+        position: relative;
+        z-index: 1000;
+    }
+
+    /* Ensure the dropdown options are visible */
+    fluent-option {
+        background-color: white;
+        padding: 8px 12px;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    fluent-option:hover {
+        background-color: #f5f5f5;
+    }
+
+    fluent-option[selected] {
+        background-color: #e3f2fd;
     }
 </style>

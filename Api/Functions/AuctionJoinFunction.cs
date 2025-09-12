@@ -74,36 +74,49 @@ public class AuctionJoinFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbC
                 return await CreateErrorResponse(req, HttpStatusCode.BadRequest, "This auction is no longer accepting participants");
             }
 
-            // Check for duplicate display name (case-insensitive)
-            var existingUserWithName = await context.Users
+            // Check for existing user with same display name (case-insensitive)
+            var existingUser = await context.Users
                 .Where(u => u.AuctionId == auction.AuctionId)
                 .FirstOrDefaultAsync(u => u.DisplayName.ToLower() == displayName.ToLower());
 
-            if (existingUserWithName != null)
+            User user;
+            if (existingUser != null)
             {
-                _logger.LogWarning("Display name {DisplayName} already exists in auction {AuctionId}", displayName, auction.AuctionId);
-                return await CreateErrorResponse(req, HttpStatusCode.Conflict, "This display name is already taken in this auction");
+                // Update existing user's connection status and last active time
+                existingUser.IsConnected = true;
+                existingUser.LastActiveDate = DateTime.UtcNow;
+                existingUser.IsReconnectionPending = false;
+                user = existingUser;
+                
+                _logger.LogInformation("Existing user {UserId} ({DisplayName}) reconnected to auction {AuctionId}", 
+                    user.UserId, displayName, auction.AuctionId);
+            }
+            else
+            {
+                // Create new user record
+                user = new User
+                {
+                    AuctionId = auction.AuctionId,
+                    DisplayName = displayName,
+                    IsConnected = true,
+                    JoinedDate = DateTime.UtcNow,
+                    LastActiveDate = DateTime.UtcNow,
+                    IsReconnectionPending = false
+                };
+
+                context.Users.Add(user);
+                _logger.LogInformation("New user created with display name {DisplayName} in auction {AuctionId}", 
+                    displayName, auction.AuctionId);
             }
 
-            // Create or update user record
-            var user = new User
-            {
-                AuctionId = auction.AuctionId,
-                DisplayName = displayName,
-                IsConnected = true,
-                JoinedDate = DateTime.UtcNow,
-                LastActiveDate = DateTime.UtcNow,
-                IsReconnectionPending = false
-            };
-
-            context.Users.Add(user);
             await context.SaveChangesAsync();
 
             // Generate session token
             var sessionToken = GenerateSessionToken();
 
-            _logger.LogInformation("User {UserId} successfully joined auction {AuctionId} as {DisplayName}", 
-                user.UserId, auction.AuctionId, displayName);
+            var actionType = existingUser != null ? "reconnected to" : "joined";
+            _logger.LogInformation("User {UserId} successfully {ActionType} auction {AuctionId} as {DisplayName}", 
+                user.UserId, actionType, auction.AuctionId, displayName);
 
             // Create response
             var response = req.CreateResponse(HttpStatusCode.OK);
