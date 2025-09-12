@@ -180,6 +180,60 @@ public class RoleManagementFunction(ILoggerFactory loggerFactory, LeagifyAuction
     }
 
     /// <summary>
+    /// Deletes a user from an auction, including all their roles and assignments.
+    /// Only accessible by management authentication.
+    /// </summary>
+    /// <param name="req">HTTP request</param>
+    /// <param name="auctionId">Auction ID from route</param>
+    /// <param name="userId">User ID from route</param>
+    /// <returns>User deletion result</returns>
+    [Function("DeleteAuctionUser")]
+    public async Task<HttpResponseData> DeleteAuctionUser(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "management/auctions/{auctionId:int}/users/{userId:int}")] HttpRequestData req,
+        int auctionId, int userId)
+    {
+        try
+        {
+            // Validate management authentication
+            if (!await ValidateManagementAuth(req))
+            {
+                return await CreateErrorResponse(req, HttpStatusCode.Unauthorized, "Management authentication required");
+            }
+
+            _logger.LogInformation("Deleting user {UserId} from auction {AuctionId}", userId, auctionId);
+
+            var user = await context.Users
+                .Include(u => u.UserRoles)
+                .FirstOrDefaultAsync(u => u.UserId == userId && u.AuctionId == auctionId);
+
+            if (user == null)
+            {
+                return await CreateErrorResponse(req, HttpStatusCode.NotFound, "User not found in this auction");
+            }
+
+            // Remove all roles first
+            context.UserRoles.RemoveRange(user.UserRoles);
+            
+            // Remove the user
+            context.Users.Remove(user);
+            
+            await context.SaveChangesAsync();
+
+            _logger.LogInformation("Successfully deleted user {UserId} ({DisplayName}) from auction {AuctionId}", 
+                userId, user.DisplayName, auctionId);
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteStringAsync("User deleted successfully");
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting user {UserId} from auction {AuctionId}", userId, auctionId);
+            return await CreateErrorResponse(req, HttpStatusCode.InternalServerError, "Failed to delete user");
+        }
+    }
+
+    /// <summary>
     /// Creates or updates team assignments for an auction.
     /// Manages the teams that participate in bidding and assigns coaches to them.
     /// </summary>
