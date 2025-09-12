@@ -262,7 +262,7 @@
     {
         "Draft" => Appearance.Neutral,
         "InProgress" => Appearance.Accent,
-        "Complete" => Appearance.Stealth,
+        "Complete" => Appearance.Neutral,
         _ => Appearance.Lightweight
     };
 }
@@ -280,10 +280,16 @@
 
     .details-header {
         background: white;
-        padding: 24px;
+        padding: 20px;
         border-radius: 8px;
         border: 1px solid #e1e1e1;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    .details-header fluent-stack {
+        gap: 12px;
+        flex-wrap: wrap;
     }
 
     .loading-container {

@@ -24,7 +24,7 @@
         else if (participants.Any())
         {
             <div class="data-grid-container">
-                <FluentDataGrid Items="@participantsQueryable" GridTemplateColumns="1fr 200px 80px 180px 140px" Style="width: 100%; min-width: 900px;">
+                <FluentDataGrid Items="@participantsQueryable" GridTemplateColumns="1fr 200px 80px 180px 160px" Style="width: 100%; min-width: 1000px;">
                 <PropertyColumn Property="@(p => p.DisplayName)" Title="Display Name" Sortable="true" />
                 
                 <TemplateColumn Title="Current Roles">
@@ -671,9 +671,10 @@
     }
 
     .role-assignment-panel fluent-data-grid-cell {
-        padding: 6px 8px;
+        padding: 8px 6px;
         vertical-align: top;
         line-height: 1.2;
+        min-height: 80px;
     }
 
     /* Compact badge styling */
