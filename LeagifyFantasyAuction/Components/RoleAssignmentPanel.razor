@@ -23,7 +23,8 @@
         }
         else if (participants.Any())
         {
-            <FluentDataGrid Items="@participantsQueryable" GridTemplateColumns="2fr 2fr 1fr 2fr 1fr" Style="width: 100%;">
+            <div class="data-grid-container">
+                <FluentDataGrid Items="@participantsQueryable" GridTemplateColumns="1fr 200px 80px 180px 120px" Style="width: 100%; min-width: 800px;">
                 <PropertyColumn Property="@(p => p.DisplayName)" Title="Display Name" Sortable="true" />
                 
                 <TemplateColumn Title="Current Roles">
@@ -78,10 +79,10 @@
 
                 <TemplateColumn Title="Assign Role">
                     <ChildContent Context="participant">
-                        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8">
+                        <FluentStack Orientation="Orientation.Vertical" VerticalGap="4">
                             <select @onchange="@(e => SetSelectedRole(participant.UserId, e.Value?.ToString() ?? string.Empty))"
                                     value="@GetSelectedRole(participant.UserId)"
-                                    style="min-width: 120px; font-size: 12px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
+                                    style="width: 100%; font-size: 12px; padding: 4px; border: 1px solid #ccc; border-radius: 4px;">
                                 <option value="">Select role...</option>
                                 @foreach (var role in roleOptions)
                                 {
@@ -93,7 +94,7 @@
                             {
                                 <select @onchange="@(e => SetSelectedTeamIdString(participant.UserId, e.Value?.ToString() ?? string.Empty))"
                                         value="@GetSelectedTeamIdString(participant.UserId)"
-                                        style="min-width: 100px; font-size: 12px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
+                                        style="width: 100%; font-size: 12px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; margin-top: 4px;">
                                     <option value="">Select team...</option>
                                     @foreach (var teamId in availableTeamIds)
                                     {
@@ -107,28 +108,31 @@
 
                 <TemplateColumn Title="Actions">
                     <ChildContent Context="participant">
-                        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="4">
+                        <FluentStack Orientation="Orientation.Vertical" VerticalGap="4">
                             <FluentButton Appearance="Appearance.Accent"
                                           IconStart="@(new Icons.Regular.Size16.PersonAdd())"
                                           Size="ButtonSize.Small"
                                           OnClick="@(() => AssignRole(participant.UserId))"
                                           Disabled="@(string.IsNullOrEmpty(GetSelectedRole(participant.UserId)))"
-                                          Loading="@(assigningRoles.Contains(participant.UserId))">
+                                          Loading="@(assigningRoles.Contains(participant.UserId))"
+                                          Style="width: 100%; font-size: 11px; padding: 4px 8px;">
                                 Assign
                             </FluentButton>
                             
                             <FluentButton Appearance="Appearance.Stealth"
-                                          IconStart="@(participant.IsConnected ? new Icons.Regular.Size16.PersonDelete() : new Icons.Regular.Size16.PersonDelete())"
+                                          IconStart="@(new Icons.Regular.Size16.PersonDelete())"
                                           Size="ButtonSize.Small"
                                           OnClick="@(() => participant.IsConnected ? MarkUserOffline(participant.UserId, participant.DisplayName) : DeleteUser(participant.UserId, participant.DisplayName))"
                                           Loading="@(deletingUsers.Contains(participant.UserId))"
-                                          Title="@(participant.IsConnected ? "Mark as offline" : "Delete disconnected user")">
-                                @(participant.IsConnected ? "Mark Offline" : "Delete")
+                                          Title="@(participant.IsConnected ? "Mark as offline" : "Delete disconnected user")"
+                                          Style="width: 100%; font-size: 11px; padding: 4px 8px;">
+                                @(participant.IsConnected ? "Offline" : "Delete")
                             </FluentButton>
                         </FluentStack>
                     </ChildContent>
                 </TemplateColumn>
-            </FluentDataGrid>
+                </FluentDataGrid>
+            </div>
         }
         else
         {
@@ -552,9 +556,9 @@
     private static Appearance GetRoleAppearance(string role) => role switch
     {
         "AuctionMaster" => Appearance.Accent,
-        "TeamCoach" => Appearance.Stealth,
-        "ProxyCoach" => Appearance.Neutral,
-        _ => Appearance.Lightweight
+        "TeamCoach" => Appearance.Neutral,
+        "ProxyCoach" => Appearance.Lightweight,
+        _ => Appearance.Neutral
     };
 
     private static string GetRoleColor(string role) => role switch
@@ -645,50 +649,56 @@
     .role-assignment-panel fluent-data-grid {
         padding: 0 20px 20px;
         overflow: visible; /* Allow dropdowns to extend outside the grid */
+        width: 100%;
     }
 
-    /* Make the grid more compact */
+    /* Responsive layout improvements */
+    .role-assignment-panel {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .data-grid-container {
+        overflow-x: auto;
+        width: 100%;
+        padding: 0 20px 20px;
+    }
+
+    /* Make the grid more compact and responsive */
     .role-assignment-panel fluent-data-grid::part(grid) {
-        font-size: 14px;
-        overflow: visible; /* Ensure grid doesn't clip dropdowns */
+        font-size: 13px;
+        overflow: visible;
     }
 
     .role-assignment-panel fluent-data-grid-cell {
-        padding: 8px 4px;
-        vertical-align: middle;
-        overflow: visible; /* Allow cell contents to extend beyond cell bounds */
+        padding: 6px 8px;
+        vertical-align: top;
+        line-height: 1.2;
     }
 
-    /* Ensure dropdowns have proper z-index and visibility */
-    .role-assignment-panel fluent-select {
-        position: relative;
-        z-index: 1000;
+    /* Compact badge styling */
+    .role-assignment-panel fluent-badge {
+        font-size: 10px;
+        padding: 2px 6px;
+        margin: 1px;
     }
 
-    .role-assignment-panel fluent-select::part(listbox) {
-        z-index: 1001;
-        max-height: 200px;
-        overflow-y: auto;
+    /* Remove extra grid padding since we have container padding */
+    .role-assignment-panel fluent-data-grid {
+        padding: 0;
     }
 
-    /* Fix specific FluentUI dropdown issues */
-    .role-assignment-panel .fluent-select-anchor {
-        position: relative;
-        z-index: 1000;
+    /* Compact styling for better fit */
+    .data-grid-container {
+        font-size: 13px;
     }
-
-    /* Ensure the dropdown options are visible */
-    fluent-option {
-        background-color: white;
-        padding: 8px 12px;
-        border-bottom: 1px solid #f0f0f0;
+        
+    .role-assignment-panel fluent-badge {
+        font-size: 10px;
+        padding: 2px 6px;
     }
-
-    fluent-option:hover {
-        background-color: #f5f5f5;
-    }
-
-    fluent-option[selected] {
-        background-color: #e3f2fd;
+        
+    .role-assignment-panel fluent-data-grid {
+        min-width: 700px;
     }
 </style>
