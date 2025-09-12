@@ -79,23 +79,27 @@
                 <TemplateColumn Title="Assign Role">
                     <ChildContent Context="participant">
                         <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8">
-                            <FluentSelect TOption="string"
-                                          Value="@GetSelectedRole(participant.UserId)"
-                                          ValueChanged="@(value => SetSelectedRole(participant.UserId, value))"
-                                          Items="@roleOptions"
-                                          OptionText="@(item => item)"
-                                          Style="min-width: 120px; font-size: 12px;"
-                                          Placeholder="Select role..." />
+                            <select @onchange="@(e => SetSelectedRole(participant.UserId, e.Value?.ToString() ?? string.Empty))"
+                                    value="@GetSelectedRole(participant.UserId)"
+                                    style="min-width: 120px; font-size: 12px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
+                                <option value="">Select role...</option>
+                                @foreach (var role in roleOptions)
+                                {
+                                    <option value="@role">@role</option>
+                                }
+                            </select>
                             
                             @if (GetSelectedRole(participant.UserId) == "TeamCoach" || GetSelectedRole(participant.UserId) == "ProxyCoach")
                             {
-                                <FluentSelect TOption="string"
-                                              Value="@GetSelectedTeamIdString(participant.UserId)"
-                                              ValueChanged="@(value => SetSelectedTeamIdString(participant.UserId, value))"
-                                              Items="@availableTeamIdStrings"
-                                              OptionText="@(teamIdString => GetTeamNameFromString(teamIdString))"
-                                              Style="min-width: 100px; font-size: 12px;"
-                                              Placeholder="Select team..." />
+                                <select @onchange="@(e => SetSelectedTeamIdString(participant.UserId, e.Value?.ToString() ?? string.Empty))"
+                                        value="@GetSelectedTeamIdString(participant.UserId)"
+                                        style="min-width: 100px; font-size: 12px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
+                                    <option value="">Select team...</option>
+                                    @foreach (var teamId in availableTeamIds)
+                                    {
+                                        <option value="@teamId.ToString()">@GetTeamName(teamId)</option>
+                                    }
+                                </select>
                             }
                         </FluentStack>
                     </ChildContent>

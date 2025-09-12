@@ -234,6 +234,82 @@ public class RoleManagementFunction(ILoggerFactory loggerFactory, LeagifyAuction
     }
 
     /// <summary>
+    /// Gets all teams for an auction.
+    /// Used by role assignment interface to populate team dropdown options.
+    /// </summary>
+    /// <param name="req">HTTP request</param>
+    /// <param name="auctionId">Auction ID from route</param>
+    /// <returns>List of teams in the auction</returns>
+    [Function("GetAuctionTeams")]
+    public async Task<HttpResponseData> GetAuctionTeams(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "management/auctions/{auctionId:int}/teams")] HttpRequestData req,
+        int auctionId)
+    {
+        try
+        {
+            // Validate management authentication
+            if (!await ValidateManagementAuth(req))
+            {
+                return await CreateErrorResponse(req, HttpStatusCode.Unauthorized, "Management authentication required");
+            }
+
+            _logger.LogInformation("Getting teams for auction {AuctionId}", auctionId);
+
+            // Check if auction exists
+            var auction = await context.Auctions.FindAsync(auctionId);
+            if (auction == null)
+            {
+                return await CreateErrorResponse(req, HttpStatusCode.NotFound, "Auction not found");
+            }
+
+            // Get existing teams
+            var teams = await context.Teams
+                .Where(t => t.AuctionId == auctionId && t.IsActive)
+                .OrderBy(t => t.NominationOrder)
+                .Select(t => new TeamDto
+                {
+                    TeamId = t.TeamId,
+                    TeamName = t.TeamName ?? $"Team {t.NominationOrder}",
+                    Budget = t.Budget,
+                    NominationOrder = t.NominationOrder,
+                    IsActive = t.IsActive
+                })
+                .ToListAsync();
+
+            // If no teams exist, create default placeholder teams
+            if (!teams.Any())
+            {
+                var placeholderTeams = new List<TeamDto>();
+                for (int i = 1; i <= 6; i++)
+                {
+                    placeholderTeams.Add(new TeamDto
+                    {
+                        TeamId = i, // These will be temporary IDs until real teams are created
+                        TeamName = $"Team {i}",
+                        Budget = 200m,
+                        NominationOrder = i,
+                        IsActive = true
+                    });
+                }
+                teams = placeholderTeams;
+            }
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(new ManageTeamsResponse
+            {
+                Teams = teams
+            });
+
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting teams for auction {AuctionId}", auctionId);
+            return await CreateErrorResponse(req, HttpStatusCode.InternalServerError, "Failed to get teams");
+        }
+    }
+
+    /// <summary>
     /// Creates or updates team assignments for an auction.
     /// Manages the teams that participate in bidding and assigns coaches to them.
     /// </summary>
