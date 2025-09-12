@@ -24,7 +24,7 @@
         else if (participants.Any())
         {
             <div class="data-grid-container">
-                <FluentDataGrid Items="@participantsQueryable" GridTemplateColumns="1fr 200px 80px 180px 120px" Style="width: 100%; min-width: 800px;">
+                <FluentDataGrid Items="@participantsQueryable" GridTemplateColumns="1fr 200px 80px 180px 140px" Style="width: 100%; min-width: 900px;">
                 <PropertyColumn Property="@(p => p.DisplayName)" Title="Display Name" Sortable="true" />
                 
                 <TemplateColumn Title="Current Roles">
@@ -126,7 +126,7 @@
                                           Loading="@(deletingUsers.Contains(participant.UserId))"
                                           Title="@(participant.IsConnected ? "Mark as offline" : "Delete disconnected user")"
                                           Style="width: 100%; font-size: 11px; padding: 4px 8px;">
-                                @(participant.IsConnected ? "Offline" : "Delete")
+                                @(participant.IsConnected ? "Mark Offline" : "Delete")
                             </FluentButton>
                         </FluentStack>
                     </ChildContent>
