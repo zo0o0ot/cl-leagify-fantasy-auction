@@ -70,7 +70,7 @@ public class RoleManagementFunction(ILoggerFactory loggerFactory, LeagifyAuction
                 return await CreateErrorResponse(req, HttpStatusCode.BadRequest, "Invalid role type");
             }
 
-            // For team-based roles, validate team assignment
+            // For team-based roles, validate team assignment (optional for now)
             Team? team = null;
             if ((roleRequest.Role == "TeamCoach" || roleRequest.Role == "ProxyCoach") && roleRequest.TeamId.HasValue)
             {
@@ -79,7 +79,9 @@ public class RoleManagementFunction(ILoggerFactory loggerFactory, LeagifyAuction
 
                 if (team == null)
                 {
-                    return await CreateErrorResponse(req, HttpStatusCode.BadRequest, "Invalid team ID");
+                    // For placeholder teams that don't exist in database yet, allow the assignment but with null team
+                    _logger.LogInformation("Team ID {TeamId} not found in database, allowing role assignment without team link", roleRequest.TeamId.Value);
+                    roleRequest.TeamId = null; // Clear the invalid team ID
                 }
             }
 
@@ -306,6 +308,57 @@ public class RoleManagementFunction(ILoggerFactory loggerFactory, LeagifyAuction
         {
             _logger.LogError(ex, "Error getting teams for auction {AuctionId}", auctionId);
             return await CreateErrorResponse(req, HttpStatusCode.InternalServerError, "Failed to get teams");
+        }
+    }
+
+    /// <summary>
+    /// Marks a user as offline in an auction.
+    /// Used for testing connection status and enabling delete functionality.
+    /// </summary>
+    /// <param name="req">HTTP request</param>
+    /// <param name="auctionId">Auction ID from route</param>
+    /// <param name="userId">User ID from route</param>
+    /// <returns>User offline status result</returns>
+    [Function("MarkUserOffline")]
+    public async Task<HttpResponseData> MarkUserOffline(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "management/auctions/{auctionId:int}/users/{userId:int}/offline")] HttpRequestData req,
+        int auctionId, int userId)
+    {
+        try
+        {
+            // Validate management authentication
+            if (!await ValidateManagementAuth(req))
+            {
+                return await CreateErrorResponse(req, HttpStatusCode.Unauthorized, "Management authentication required");
+            }
+
+            _logger.LogInformation("Marking user {UserId} as offline in auction {AuctionId}", userId, auctionId);
+
+            var user = await context.Users
+                .FirstOrDefaultAsync(u => u.UserId == userId && u.AuctionId == auctionId);
+
+            if (user == null)
+            {
+                return await CreateErrorResponse(req, HttpStatusCode.NotFound, "User not found in this auction");
+            }
+
+            // Mark user as offline
+            user.IsConnected = false;
+            user.LastActiveDate = DateTime.UtcNow;
+            
+            await context.SaveChangesAsync();
+
+            _logger.LogInformation("Successfully marked user {UserId} ({DisplayName}) as offline in auction {AuctionId}", 
+                userId, user.DisplayName, auctionId);
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteStringAsync("User marked as offline");
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error marking user {UserId} offline in auction {AuctionId}", userId, auctionId);
+            return await CreateErrorResponse(req, HttpStatusCode.InternalServerError, "Failed to mark user offline");
         }
     }
 
