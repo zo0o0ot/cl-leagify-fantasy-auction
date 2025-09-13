@@ -206,8 +206,6 @@ public class AuctionJoinFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbC
 
             var participants = await context.Users
                 .Where(u => u.AuctionId == auctionId)
-                .Include(u => u.UserRoles)
-                    .ThenInclude(ur => ur.Team)
                 .Select(u => new ParticipantDto
                 {
                     UserId = u.UserId,
