@@ -74,13 +74,15 @@ public class RoleManagementFunction(ILoggerFactory loggerFactory, LeagifyAuction
             Team? team = null;
             if ((roleRequest.Role == "TeamCoach" || roleRequest.Role == "ProxyCoach") && roleRequest.TeamId.HasValue)
             {
+                // Look up by NominationOrder since that represents the logical team position (1-6)
+                // TeamId from UI represents the desired team number, not the actual database ID
                 team = await context.Teams
-                    .FirstOrDefaultAsync(t => t.TeamId == roleRequest.TeamId.Value && t.AuctionId == auctionId);
+                    .FirstOrDefaultAsync(t => t.NominationOrder == roleRequest.TeamId.Value && t.AuctionId == auctionId);
 
                 if (team == null)
                 {
-                    // Create placeholder team if it doesn't exist (for UI placeholder teams)
-                    _logger.LogInformation("Team ID {TeamId} not found, creating placeholder team", roleRequest.TeamId.Value);
+                    // Create team for the specified position if it doesn't exist
+                    _logger.LogInformation("Team position {TeamPosition} not found, creating team", roleRequest.TeamId.Value);
 
                     team = new Team
                     {
