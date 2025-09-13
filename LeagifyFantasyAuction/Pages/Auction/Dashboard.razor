@@ -347,9 +347,16 @@
                 try
                 {
                     Console.WriteLine("📋 Starting JSON parsing...");
+                    Console.WriteLine($"📋 Raw session data length: {sessionData.Length}");
+
                     using var document = System.Text.Json.JsonDocument.Parse(sessionData);
                     var root = document.RootElement;
                     Console.WriteLine("✓ JSON parsed successfully");
+                    Console.WriteLine($"✓ JSON root kind: {root.ValueKind}");
+
+                    Console.WriteLine("🔎 Enumerating all available properties...");
+                    var properties = root.EnumerateObject().Select(p => $"{p.Name}={p.Value}").ToArray();
+                    Console.WriteLine($"🔎 Available properties: [{string.Join(", ", properties)}]");
 
                     Console.WriteLine("🔎 Checking for AuctionId and SessionToken properties...");
                     var hasAuctionId = root.TryGetProperty("AuctionId", out var auctionIdProperty);
@@ -357,20 +364,35 @@
 
                     Console.WriteLine($"Has AuctionId: {hasAuctionId}, Has SessionToken: {hasSessionToken}");
 
+                    if (hasAuctionId)
+                    {
+                        Console.WriteLine($"AuctionId property kind: {auctionIdProperty.ValueKind}");
+                    }
+                    if (hasSessionToken)
+                    {
+                        Console.WriteLine($"SessionToken property kind: {sessionTokenProperty.ValueKind}");
+                    }
+
                     if (hasAuctionId && hasSessionToken)
                     {
                         Console.WriteLine("🔑 Both properties found, extracting values...");
-                        var auctionId = auctionIdProperty.GetInt32();
-                        var sessionToken = sessionTokenProperty.GetString();
 
-                        Console.WriteLine($"🔑 Extracted - AuctionId: {auctionId}, SessionToken: {sessionToken?[..8]}...");
-
-                        if (auctionId > 0 && !string.IsNullOrEmpty(sessionToken))
+                        try
                         {
-                            Console.WriteLine("✓ Values valid, proceeding with API call...");
-                            // Notify server of disconnection
-                            try
+                            var auctionId = auctionIdProperty.GetInt32();
+                            Console.WriteLine($"✓ AuctionId extracted: {auctionId}");
+
+                            var sessionToken = sessionTokenProperty.GetString();
+                            Console.WriteLine($"✓ SessionToken extracted: {sessionToken?[..8]}...");
+
+                            Console.WriteLine($"🔑 Final validation - AuctionId: {auctionId}, SessionToken empty: {string.IsNullOrEmpty(sessionToken)}");
+
+                            if (auctionId > 0 && !string.IsNullOrEmpty(sessionToken))
                             {
+                                Console.WriteLine("✓ Values valid, proceeding with API call...");
+                                // Notify server of disconnection
+                                try
+                                {
                                 Console.WriteLine($"=== LEAVE AUCTION DEBUG ===");
                                 Console.WriteLine($"AuctionId: {auctionId}");
                                 Console.WriteLine($"SessionToken: {sessionToken}");
@@ -413,10 +435,17 @@
                             {
                                 Console.WriteLine($"Error notifying server of disconnection: {apiEx.Message}");
                             }
+                            }
+                            else
+                            {
+                                Console.WriteLine($"❌ Invalid values - AuctionId: {auctionId}, SessionToken empty: {string.IsNullOrEmpty(sessionToken)}");
+                            }
                         }
-                        else
+                        catch (Exception extractEx)
                         {
-                            Console.WriteLine($"❌ Invalid values - AuctionId: {auctionId}, SessionToken empty: {string.IsNullOrEmpty(sessionToken)}");
+                            Console.WriteLine($"❌ Error extracting values from JSON properties: {extractEx.Message}");
+                            Console.WriteLine($"❌ AuctionId raw: {auctionIdProperty}");
+                            Console.WriteLine($"❌ SessionToken raw: {sessionTokenProperty}");
                         }
                     }
                     else

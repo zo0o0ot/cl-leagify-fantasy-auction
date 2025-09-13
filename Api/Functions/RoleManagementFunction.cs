@@ -247,6 +247,22 @@ public class RoleManagementFunction(ILoggerFactory loggerFactory, LeagifyAuction
 
             _logger.LogInformation("Found user {UserId} ({DisplayName})", userId, user.DisplayName);
 
+            // Check all foreign key references before deletion
+            var bidHistories = await context.BidHistories.Where(bh => bh.UserId == userId).CountAsync();
+            var nominatedPicks = await context.DraftPicks.Where(dp => dp.NominatedByUserId == userId).CountAsync();
+            var wonPicks = await context.DraftPicks.Where(dp => dp.WonByUserId == userId).CountAsync();
+            var adminActions = await context.AdminActions.Where(aa => aa.AdminUserId == userId).CountAsync();
+            var nominationOrders = await context.NominationOrders.Where(no => no.UserId == userId).CountAsync();
+
+            _logger.LogInformation("User {UserId} foreign key references - BidHistories: {BidCount}, NominatedPicks: {NominatedCount}, WonPicks: {WonCount}, AdminActions: {AdminCount}, NominationOrders: {NominationCount}",
+                userId, bidHistories, nominatedPicks, wonPicks, adminActions, nominationOrders);
+
+            if (bidHistories > 0 || nominatedPicks > 0 || wonPicks > 0 || adminActions > 0 || nominationOrders > 0)
+            {
+                _logger.LogWarning("❌ Cannot delete user {UserId} due to foreign key constraints. User has participated in auction activities.", userId);
+                return await CreateErrorResponse(req, HttpStatusCode.Conflict, "Cannot delete user who has participated in auction activities (bids, nominations, draft picks, etc.)");
+            }
+
             // Remove all roles first - query separately to avoid EF tracking conflicts
             var userRoles = await context.UserRoles
                 .Where(ur => ur.UserId == userId)
@@ -254,15 +270,19 @@ public class RoleManagementFunction(ILoggerFactory loggerFactory, LeagifyAuction
 
             if (userRoles.Any())
             {
-                _logger.LogDebug("Removing {RoleCount} roles for user {UserId}", userRoles.Count, userId);
+                _logger.LogInformation("Removing {RoleCount} roles for user {UserId}", userRoles.Count, userId);
                 context.UserRoles.RemoveRange(userRoles);
+            }
+            else
+            {
+                _logger.LogInformation("User {UserId} has no roles to remove", userId);
             }
 
             // Remove the user
-            _logger.LogDebug("Removing user {UserId} from context", userId);
+            _logger.LogInformation("Removing user {UserId} from context", userId);
             context.Users.Remove(user);
 
-            _logger.LogDebug("Saving changes to database...");
+            _logger.LogInformation("Saving changes to database...");
             await context.SaveChangesAsync();
 
             _logger.LogInformation("Successfully deleted user {UserId} ({DisplayName}) from auction {AuctionId}",
@@ -326,18 +346,34 @@ public class RoleManagementFunction(ILoggerFactory loggerFactory, LeagifyAuction
                 existingTeams.Count,
                 string.Join(", ", existingTeams.Select(t => $"{t.TeamName}(ID:{t.TeamId},Order:{t.NominationOrder})")));
 
+            // Check for duplicate NominationOrders in the database
+            var duplicateOrders = existingTeams.GroupBy(t => t.NominationOrder)
+                .Where(g => g.Count() > 1)
+                .Select(g => new { Order = g.Key, Count = g.Count(), Teams = g.ToList() });
+
+            if (duplicateOrders.Any())
+            {
+                _logger.LogWarning("🔥 FOUND DUPLICATE NOMINATION ORDERS IN DATABASE:");
+                foreach (var dupe in duplicateOrders)
+                {
+                    _logger.LogWarning("  Order {Order} has {Count} teams: {Teams}",
+                        dupe.Order, dupe.Count, string.Join(", ", dupe.Teams.Select(t => $"{t.TeamName}(ID:{t.TeamId})")));
+                }
+            }
+
             // ALWAYS ensure all 6 placeholder teams are available for the dropdown
             // This prevents the bug where only assigned teams appear in the dropdown
             var teams = new List<TeamDto>();
             for (int i = 1; i <= 6; i++)
             {
                 // Check if this team already exists in the database by NominationOrder (not TeamName)
+                // If there are duplicates, use the FIRST one found
                 var existingTeam = existingTeams.FirstOrDefault(t => t.NominationOrder == i);
                 if (existingTeam != null)
                 {
                     // Use the existing team data
                     teams.Add(existingTeam);
-                    _logger.LogDebug("Using existing team for position {Position}: {TeamName} (ID: {TeamId})",
+                    _logger.LogInformation("✓ Using existing team for position {Position}: {TeamName} (ID: {TeamId})",
                         i, existingTeam.TeamName, existingTeam.TeamId);
                 }
                 else
@@ -352,7 +388,7 @@ public class RoleManagementFunction(ILoggerFactory loggerFactory, LeagifyAuction
                         IsActive = true
                     };
                     teams.Add(placeholderTeam);
-                    _logger.LogDebug("Creating placeholder team for position {Position}: {TeamName}",
+                    _logger.LogInformation("+ Creating placeholder team for position {Position}: {TeamName}",
                         i, placeholderTeam.TeamName);
                 }
             }
