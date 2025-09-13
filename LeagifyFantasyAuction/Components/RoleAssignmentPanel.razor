@@ -240,16 +240,35 @@
             Http.DefaultRequestHeaders.Remove("X-Management-Token");
             Http.DefaultRequestHeaders.Add("X-Management-Token", token);
 
-            // Load participants
+            // Load participants - Remove auth headers for this public endpoint
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
             var participantsResponse = await Http.GetAsync($"/api/auction/{AuctionId}/participants");
             if (participantsResponse.IsSuccessStatusCode)
             {
                 participants = await participantsResponse.Content.ReadFromJsonAsync<List<ParticipantDto>>() ?? new();
+                Console.WriteLine($"Loaded {participants.Count} participants with team data");
+
+                // Debug log team assignments
+                foreach (var participant in participants)
+                {
+                    var teamRoles = participant.Roles?.Where(r => !string.IsNullOrEmpty(r.TeamName)).ToList() ?? new List<RoleDto>();
+                    Console.WriteLine($"Participant {participant.DisplayName}: {teamRoles.Count} team assignments");
+                    foreach (var role in teamRoles)
+                    {
+                        Console.WriteLine($"  - Team: {role.TeamName}, Role: {role.Role}");
+                    }
+                }
             }
             else
             {
                 Console.WriteLine($"Failed to load participants: {participantsResponse.StatusCode}");
                 errorMessage = $"Failed to load participants: {participantsResponse.StatusCode}";
+            }
+
+            // Re-add management token for other management endpoints
+            if (!string.IsNullOrEmpty(token))
+            {
+                Http.DefaultRequestHeaders.Add("X-Management-Token", token);
             }
 
             // Load available teams (optional for now - teams will be created during auction setup)
