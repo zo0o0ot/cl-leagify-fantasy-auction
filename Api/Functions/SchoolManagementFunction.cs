@@ -538,41 +538,45 @@ public class SchoolManagementFunction
     {
         try
         {
-            _logger.LogInformation("TEMPORARY: Starting database migration process for SessionToken column");
+            _logger.LogInformation("TEMPORARY: Checking SessionToken column existence");
 
-            // Apply any pending migrations
-            var pendingMigrations = await _context.Database.GetPendingMigrationsAsync();
-            if (pendingMigrations.Any())
+            // Check if SessionToken column already exists
+            var columnExists = false;
+            try
             {
-                _logger.LogInformation("Found {Count} pending migrations: {Migrations}", 
-                    pendingMigrations.Count(), string.Join(", ", pendingMigrations));
-                
-                await _context.Database.MigrateAsync();
-                
-                _logger.LogInformation("Successfully applied {Count} migrations", pendingMigrations.Count());
+                await _context.Database.ExecuteSqlRawAsync(
+                    "SELECT TOP 1 SessionToken FROM Users WHERE 1=0");
+                columnExists = true;
+                _logger.LogInformation("SessionToken column already exists");
             }
-            else
+            catch
             {
-                _logger.LogInformation("No pending migrations found. Database is up to date.");
+                _logger.LogInformation("SessionToken column does not exist, adding it");
+            }
+
+            if (!columnExists)
+            {
+                // Add the SessionToken column directly
+                await _context.Database.ExecuteSqlRawAsync(
+                    "ALTER TABLE [Users] ADD [SessionToken] nvarchar(200) NULL");
+                _logger.LogInformation("Successfully added SessionToken column to Users table");
             }
 
             var response = req.CreateResponse(HttpStatusCode.OK);
             await response.WriteAsJsonAsync(new
             {
                 Success = true,
-                Message = pendingMigrations.Any() 
-                    ? $"Applied {pendingMigrations.Count()} migrations successfully"
-                    : "Database is up to date",
-                AppliedMigrations = pendingMigrations.ToArray()
+                Message = columnExists ? "SessionToken column already exists" : "Successfully added SessionToken column",
+                ColumnExists = columnExists
             });
 
             return response;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error applying database migrations");
+            _logger.LogError(ex, "Error adding SessionToken column");
             var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
-            await errorResponse.WriteAsJsonAsync(new { error = $"Migration failed: {ex.Message}" });
+            await errorResponse.WriteAsJsonAsync(new { error = $"Column addition failed: {ex.Message}" });
             return errorResponse;
         }
     }
