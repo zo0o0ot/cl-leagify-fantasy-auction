@@ -221,7 +221,17 @@ public class RoleManagementFunction(ILoggerFactory loggerFactory, LeagifyAuction
                 return await CreateErrorResponse(req, HttpStatusCode.Unauthorized, "Management authentication required");
             }
 
-            _logger.LogInformation("Deleting user {UserId} from auction {AuctionId}", userId, auctionId);
+            _logger.LogInformation("Starting delete process for user {UserId} from auction {AuctionId}", userId, auctionId);
+
+            // Check if auction exists first
+            var auctionExists = await context.Auctions.AnyAsync(a => a.AuctionId == auctionId);
+            if (!auctionExists)
+            {
+                _logger.LogWarning("Auction {AuctionId} not found", auctionId);
+                return await CreateErrorResponse(req, HttpStatusCode.NotFound, "Auction not found");
+            }
+
+            _logger.LogDebug("Auction {AuctionId} exists, searching for user {UserId}", auctionId, userId);
 
             var user = await context.Users
                 .Include(u => u.UserRoles)
@@ -229,18 +239,28 @@ public class RoleManagementFunction(ILoggerFactory loggerFactory, LeagifyAuction
 
             if (user == null)
             {
+                _logger.LogWarning("User {UserId} not found in auction {AuctionId}", userId, auctionId);
                 return await CreateErrorResponse(req, HttpStatusCode.NotFound, "User not found in this auction");
             }
 
+            _logger.LogInformation("Found user {UserId} ({DisplayName}) with {RoleCount} roles",
+                userId, user.DisplayName, user.UserRoles.Count);
+
             // Remove all roles first
-            context.UserRoles.RemoveRange(user.UserRoles);
-            
+            if (user.UserRoles.Any())
+            {
+                _logger.LogDebug("Removing {RoleCount} roles for user {UserId}", user.UserRoles.Count, userId);
+                context.UserRoles.RemoveRange(user.UserRoles);
+            }
+
             // Remove the user
+            _logger.LogDebug("Removing user {UserId} from context", userId);
             context.Users.Remove(user);
-            
+
+            _logger.LogDebug("Saving changes to database...");
             await context.SaveChangesAsync();
 
-            _logger.LogInformation("Successfully deleted user {UserId} ({DisplayName}) from auction {AuctionId}", 
+            _logger.LogInformation("Successfully deleted user {UserId} ({DisplayName}) from auction {AuctionId}",
                 userId, user.DisplayName, auctionId);
 
             var response = req.CreateResponse(HttpStatusCode.OK);
@@ -297,31 +317,43 @@ public class RoleManagementFunction(ILoggerFactory loggerFactory, LeagifyAuction
                 })
                 .ToListAsync();
 
+            _logger.LogInformation("Found {ExistingTeamCount} existing teams: {TeamDetails}",
+                existingTeams.Count,
+                string.Join(", ", existingTeams.Select(t => $"{t.TeamName}(ID:{t.TeamId},Order:{t.NominationOrder})")));
+
             // ALWAYS ensure all 6 placeholder teams are available for the dropdown
             // This prevents the bug where only assigned teams appear in the dropdown
             var teams = new List<TeamDto>();
             for (int i = 1; i <= 6; i++)
             {
-                // Check if this team already exists in the database
-                var existingTeam = existingTeams.FirstOrDefault(t => t.TeamName == $"Team {i}");
+                // Check if this team already exists in the database by NominationOrder (not TeamName)
+                var existingTeam = existingTeams.FirstOrDefault(t => t.NominationOrder == i);
                 if (existingTeam != null)
                 {
                     // Use the existing team data
                     teams.Add(existingTeam);
+                    _logger.LogDebug("Using existing team for position {Position}: {TeamName} (ID: {TeamId})",
+                        i, existingTeam.TeamName, existingTeam.TeamId);
                 }
                 else
                 {
                     // Create placeholder team for the dropdown
-                    teams.Add(new TeamDto
+                    var placeholderTeam = new TeamDto
                     {
                         TeamId = i, // Placeholder ID - will be replaced when team is created
                         TeamName = $"Team {i}",
                         Budget = 200m,
                         NominationOrder = i,
                         IsActive = true
-                    });
+                    };
+                    teams.Add(placeholderTeam);
+                    _logger.LogDebug("Creating placeholder team for position {Position}: {TeamName}",
+                        i, placeholderTeam.TeamName);
                 }
             }
+
+            _logger.LogInformation("Final team list: {TeamList}",
+                string.Join(", ", teams.Select(t => $"{t.TeamName}(Order:{t.NominationOrder},ID:{t.TeamId})")));
 
             var response = req.CreateResponse(HttpStatusCode.OK);
             await response.WriteAsJsonAsync(new ManageTeamsResponse

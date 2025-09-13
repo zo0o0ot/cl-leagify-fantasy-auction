@@ -342,19 +342,32 @@
 
             if (!string.IsNullOrEmpty(sessionData))
             {
+                Console.WriteLine($"🔍 About to parse session data: {sessionData}");
+
                 try
                 {
+                    Console.WriteLine("📋 Starting JSON parsing...");
                     using var document = System.Text.Json.JsonDocument.Parse(sessionData);
                     var root = document.RootElement;
-                    
-                    if (root.TryGetProperty("auctionId", out var auctionIdProperty) && 
-                        root.TryGetProperty("sessionToken", out var sessionTokenProperty))
+                    Console.WriteLine("✓ JSON parsed successfully");
+
+                    Console.WriteLine("🔎 Checking for auctionId and sessionToken properties...");
+                    var hasAuctionId = root.TryGetProperty("auctionId", out var auctionIdProperty);
+                    var hasSessionToken = root.TryGetProperty("sessionToken", out var sessionTokenProperty);
+
+                    Console.WriteLine($"Has auctionId: {hasAuctionId}, Has sessionToken: {hasSessionToken}");
+
+                    if (hasAuctionId && hasSessionToken)
                     {
+                        Console.WriteLine("🔑 Both properties found, extracting values...");
                         var auctionId = auctionIdProperty.GetInt32();
                         var sessionToken = sessionTokenProperty.GetString();
 
+                        Console.WriteLine($"🔑 Extracted - AuctionId: {auctionId}, SessionToken: {sessionToken?[..8]}...");
+
                         if (auctionId > 0 && !string.IsNullOrEmpty(sessionToken))
                         {
+                            Console.WriteLine("✓ Values valid, proceeding with API call...");
                             // Notify server of disconnection
                             try
                             {
@@ -401,11 +414,21 @@
                                 Console.WriteLine($"Error notifying server of disconnection: {apiEx.Message}");
                             }
                         }
+                        else
+                        {
+                            Console.WriteLine($"❌ Invalid values - AuctionId: {auctionId}, SessionToken empty: {string.IsNullOrEmpty(sessionToken)}");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("❌ Missing required properties in session data");
+                        Console.WriteLine($"Available properties: {string.Join(", ", root.EnumerateObject().Select(p => p.Name))}");
                     }
                 }
                 catch (Exception jsonEx)
                 {
-                    Console.WriteLine($"Error parsing session data: {jsonEx.Message}");
+                    Console.WriteLine($"❌ JSON parsing error: {jsonEx.Message}");
+                    Console.WriteLine($"❌ Session data that failed to parse: {sessionData}");
                 }
             }
             
