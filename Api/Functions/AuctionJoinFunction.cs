@@ -89,7 +89,7 @@ public class AuctionJoinFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbC
                 existingUser.IsConnected = true;
                 existingUser.LastActiveDate = DateTime.UtcNow;
                 existingUser.IsReconnectionPending = false;
-                existingUser.SessionToken = sessionToken;
+                // existingUser.SessionToken = sessionToken; // Temporarily disabled for database migration testing
                 user = existingUser;
                 
                 _logger.LogInformation("Existing user {UserId} ({DisplayName}) reconnected to auction {AuctionId}", 
@@ -106,7 +106,7 @@ public class AuctionJoinFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbC
                     JoinedDate = DateTime.UtcNow,
                     LastActiveDate = DateTime.UtcNow,
                     IsReconnectionPending = false,
-                    SessionToken = sessionToken
+                    // SessionToken = sessionToken // Temporarily disabled for database migration testing
                 };
 
                 context.Users.Add(user);
@@ -127,7 +127,7 @@ public class AuctionJoinFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbC
                 UserId = user.UserId,
                 AuctionId = auction.AuctionId,
                 DisplayName = user.DisplayName,
-                SessionToken = sessionToken,
+                SessionToken = "", // sessionToken, // Temporarily disabled for database migration testing
                 AuctionName = auction.Name
             });
 
