@@ -238,10 +238,41 @@
     {
         try
         {
+            // Get session data to call leave auction API
+            var sessionData = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "auctionSession");
+            if (!string.IsNullOrEmpty(sessionData))
+            {
+                var session = System.Text.Json.JsonSerializer.Deserialize<dynamic>(sessionData);
+                var auctionId = session?.GetProperty("auctionId").GetInt32();
+                var sessionToken = session?.GetProperty("sessionToken").GetString();
+
+                if (auctionId.HasValue && !string.IsNullOrEmpty(sessionToken))
+                {
+                    // Notify server of disconnection
+                    try
+                    {
+                        Http.DefaultRequestHeaders.Remove("X-Auction-Token");
+                        Http.DefaultRequestHeaders.Add("X-Auction-Token", sessionToken);
+                        
+                        var response = await Http.PostAsync($"/api/auction/{auctionId}/leave", null);
+                        if (response.IsSuccessStatusCode)
+                        {
+                            Console.WriteLine("Successfully notified server of disconnection");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Failed to notify server of disconnection: {response.StatusCode}");
+                        }
+                    }
+                    catch (Exception apiEx)
+                    {
+                        Console.WriteLine($"Error notifying server of disconnection: {apiEx.Message}");
+                    }
+                }
+            }
+            
             // Clear session storage
             await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "auctionSession");
-            
-            // TODO: Notify server of disconnection
             
             // Navigate back to join page
             Navigation.NavigateTo("/join");
@@ -249,6 +280,10 @@
         catch (Exception ex)
         {
             Console.WriteLine($"Error during logout: {ex.Message}");
+            
+            // Clear session storage anyway
+            await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "auctionSession");
+            
             // Still navigate away even if cleanup fails
             Navigation.NavigateTo("/join");
         }

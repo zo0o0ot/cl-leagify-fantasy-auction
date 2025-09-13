@@ -28,7 +28,8 @@
                     <thead>
                         <tr>
                             <th>Display Name</th>
-                            <th>Current Roles</th>
+                            <th>Team Assignment</th>
+                            <th>Role</th>
                             <th>Status</th>
                             <th>Assign Role</th>
                             <th>Actions</th>
@@ -40,6 +41,37 @@
                             <tr>
                                 <td>@participant.DisplayName</td>
                                 
+                                <!-- Team Assignment Column -->
+                                <td>
+                                    @{
+                                        var teamRoles = participant.Roles.Where(r => !string.IsNullOrEmpty(r.TeamName)).ToList();
+                                    }
+                                    @if (teamRoles.Any())
+                                    {
+                                        <div class="team-assignments">
+                                            @foreach (var teamRole in teamRoles)
+                                            {
+                                                <FluentBadge Appearance="Appearance.Accent" 
+                                                             BackgroundColor="#0078d4"
+                                                             Color="white"
+                                                             Style="font-size: 12px; font-weight: bold; margin: 2px;">
+                                                    @teamRole.TeamName
+                                                    <FluentButton Appearance="Appearance.Stealth"
+                                                                  IconStart="@(new Icons.Regular.Size12.Dismiss())"
+                                                                  Style="margin-left: 4px; min-width: auto; padding: 0 4px; color: white;"
+                                                                  OnClick="@(() => RemoveRole(participant.UserId, teamRole.UserRoleId))"
+                                                                  Title="Remove team assignment" />
+                                                </FluentBadge>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="no-team" style="color: #666; font-style: italic;">No team assigned</span>
+                                    }
+                                </td>
+                                
+                                <!-- Role Column -->
                                 <td>
                                     @if (participant.Roles.Any())
                                     {
@@ -51,10 +83,6 @@
                                                              Color="white"
                                                              Style="font-size: 11px; margin: 2px;">
                                                     @GetRoleDisplayName(role.Role)
-                                                    @if (!string.IsNullOrEmpty(role.TeamName))
-                                                    {
-                                                        <span> - @role.TeamName</span>
-                                                    }
                                                     <FluentButton Appearance="Appearance.Stealth"
                                                                   IconStart="@(new Icons.Regular.Size12.Dismiss())"
                                                                   Style="margin-left: 4px; min-width: auto; padding: 0 4px;"
@@ -66,10 +94,11 @@
                                     }
                                     else
                                     {
-                                        <span class="no-roles">No roles assigned</span>
+                                        <span class="no-roles" style="color: #666; font-style: italic;">No roles assigned</span>
                                     }
                                 </td>
                                 
+                                <!-- Status Column -->
                                 <td>
                                     <FluentBadge Appearance="@(participant.IsConnected ? Appearance.Accent : Appearance.Neutral)"
                                                  BackgroundColor="@(participant.IsConnected ? "#28a745" : "#6c757d")"

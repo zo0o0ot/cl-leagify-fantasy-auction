@@ -240,6 +240,59 @@ public class AuctionJoinFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbC
     }
 
     /// <summary>
+    /// Allows a user to leave an auction by marking them as disconnected.
+    /// Used when users click "Leave Auction" to properly update their status on the server.
+    /// </summary>
+    /// <param name="req">HTTP request containing session token in X-Auction-Token header</param>
+    /// <param name="auctionId">Auction ID from route</param>
+    /// <returns>Success confirmation</returns>
+    [Function("LeaveAuction")]
+    public async Task<HttpResponseData> LeaveAuction(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "auction/{auctionId:int}/leave")] HttpRequestData req,
+        int auctionId)
+    {
+        try
+        {
+            var sessionToken = req.Headers.GetValues("X-Auction-Token").FirstOrDefault();
+            if (string.IsNullOrEmpty(sessionToken))
+            {
+                _logger.LogWarning("Leave auction attempted without session token for auction {AuctionId}", auctionId);
+                return await CreateErrorResponse(req, HttpStatusCode.Unauthorized, "Session token required");
+            }
+
+            // Find user by session token
+            var user = await context.Users
+                .Where(u => u.AuctionId == auctionId && u.SessionToken == sessionToken)
+                .FirstOrDefaultAsync();
+
+            if (user != null)
+            {
+                // Mark user as disconnected
+                user.IsConnected = false;
+                user.SessionToken = null; // Clear session token
+                user.LastActiveDate = DateTime.UtcNow;
+                
+                await context.SaveChangesAsync();
+                
+                _logger.LogInformation("User {UserId} ({DisplayName}) left auction {AuctionId}", 
+                    user.UserId, user.DisplayName, auctionId);
+
+                var response = req.CreateResponse(HttpStatusCode.OK);
+                await response.WriteAsJsonAsync(new { Success = true, Message = "Successfully left auction" });
+                return response;
+            }
+
+            _logger.LogWarning("Leave auction attempted with invalid session for auction {AuctionId}", auctionId);
+            return await CreateErrorResponse(req, HttpStatusCode.NotFound, "User session not found");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing leave auction request for auction {AuctionId}", auctionId);
+            return await CreateErrorResponse(req, HttpStatusCode.InternalServerError, "Failed to leave auction");
+        }
+    }
+
+    /// <summary>
     /// Generates a session token for user authentication.
     /// In a production system, this would be more sophisticated with proper JWT or similar.
     /// </summary>
