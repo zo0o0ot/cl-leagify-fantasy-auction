@@ -257,9 +257,9 @@
     private static Appearance GetRoleAppearance(string role) => role switch
     {
         "AuctionMaster" => Appearance.Accent,
-        "TeamCoach" => Appearance.Stealth,
-        "ProxyCoach" => Appearance.Neutral,
-        _ => Appearance.Lightweight
+        "TeamCoach" => Appearance.Neutral,
+        "ProxyCoach" => Appearance.Lightweight,
+        _ => Appearance.Neutral
     };
 
     private static string GetRoleColor(string role) => role switch
