@@ -463,4 +463,110 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
             return errorResponse;
         }
     }
+
+    /// <summary>
+    /// Fix duplicate TeamId issue in auction 37
+    /// SPECIFIC FIX: Team 1 has correct NominationOrder=1, Team 6 should get new TeamId
+    /// </summary>
+    [Function("FixDuplicateTeamIds")]
+    public async Task<HttpResponseData> FixDuplicateTeamIds(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "diagnostic/auction/{auctionId:int}/fix-duplicate-teams")] HttpRequestData req,
+        int auctionId)
+    {
+        try
+        {
+            logger.LogInformation("Fixing duplicate TeamId issue for auction {AuctionId}", auctionId);
+
+            // Get all teams for this auction
+            var teams = await context.Teams
+                .Where(t => t.AuctionId == auctionId)
+                .OrderBy(t => t.NominationOrder)
+                .ToListAsync();
+
+            logger.LogInformation("Found {TeamCount} teams: {Teams}",
+                teams.Count,
+                string.Join(", ", teams.Select(t => $"{t.TeamName}(ID:{t.TeamId},Order:{t.NominationOrder})")));
+
+            // Find duplicate TeamIds
+            var duplicateGroups = teams.GroupBy(t => t.TeamId)
+                .Where(g => g.Count() > 1)
+                .ToList();
+
+            if (!duplicateGroups.Any())
+            {
+                var response = req.CreateResponse(HttpStatusCode.OK);
+                await response.WriteStringAsync("No duplicate TeamIds found");
+                return response;
+            }
+
+            var fixedCount = 0;
+            foreach (var group in duplicateGroups)
+            {
+                var duplicateTeams = group.OrderBy(t => t.NominationOrder).ToList();
+                logger.LogWarning("Found duplicate TeamId {TeamId} used by {Count} teams: {TeamNames}",
+                    group.Key, duplicateTeams.Count, string.Join(", ", duplicateTeams.Select(t => t.TeamName)));
+
+                // Keep the first team (lowest NominationOrder) with the original TeamId
+                // Assign new TeamIds to the others
+                for (int i = 1; i < duplicateTeams.Count; i++)
+                {
+                    var teamToFix = duplicateTeams[i];
+                    var newTeamId = await GetNextAvailableTeamId(auctionId);
+
+                    logger.LogInformation("Fixing {TeamName}: changing TeamId from {OldId} to {NewId}",
+                        teamToFix.TeamName, teamToFix.TeamId, newTeamId);
+
+                    teamToFix.TeamId = newTeamId;
+                    fixedCount++;
+                }
+            }
+
+            await context.SaveChangesAsync();
+
+            logger.LogInformation("Successfully fixed {FixedCount} duplicate TeamIds", fixedCount);
+
+            var finalResponse = req.CreateResponse(HttpStatusCode.OK);
+            await finalResponse.WriteAsJsonAsync(new
+            {
+                Success = true,
+                Message = $"Fixed {fixedCount} duplicate TeamIds",
+                FixedTeams = duplicateGroups.SelectMany(g => g.Skip(1)).Select(t => new
+                {
+                    TeamName = t.TeamName,
+                    OldTeamId = t.TeamId,
+                    NewTeamId = t.TeamId,
+                    NominationOrder = t.NominationOrder
+                })
+            });
+
+            return finalResponse;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error fixing duplicate TeamIds");
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync($"Error: {ex.Message}");
+            return errorResponse;
+        }
+    }
+
+    private async Task<int> GetNextAvailableTeamId(int auctionId)
+    {
+        var existingIds = await context.Teams
+            .Where(t => t.AuctionId == auctionId)
+            .Select(t => t.TeamId)
+            .ToListAsync();
+
+        // Find the first available ID starting from 1
+        for (int i = 1; i <= 100; i++)
+        {
+            if (!existingIds.Contains(i))
+            {
+                return i;
+            }
+        }
+
+        // If somehow we can't find an available ID, use a high number
+        return existingIds.Max() + 1;
+    }
 }

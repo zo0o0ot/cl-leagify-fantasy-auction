@@ -29,7 +29,8 @@
       "Bash(dotnet dotnet-ef:*)",
       "Bash(git config:*)",
       "Read(//home/woo/code/**)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(timeout 30 dotnet test LeagifyFantasyAuction.Tests --filter \"DeleteConstraintTests\" --logger \"console;verbosity=minimal\")"
     ],
     "deny": [],
     "ask": []
