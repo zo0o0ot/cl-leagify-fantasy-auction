@@ -528,6 +528,55 @@ public class SchoolManagementFunction
     /// Logs a warning message if the token validation fails, including the specific error message.
     /// Expects a Bearer token in the Authorization header.
     /// </remarks>
+    /// <summary>
+    /// TEMPORARY: Apply database migrations to add SessionToken column.
+    /// This will be removed once the database migration is applied.
+    /// </summary>
+    [Function("TempApplyMigrations")]
+    public async Task<HttpResponseData> TempApplyMigrations(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "temp/migrate")] HttpRequestData req)
+    {
+        try
+        {
+            _logger.LogInformation("TEMPORARY: Starting database migration process for SessionToken column");
+
+            // Apply any pending migrations
+            var pendingMigrations = await _context.Database.GetPendingMigrationsAsync();
+            if (pendingMigrations.Any())
+            {
+                _logger.LogInformation("Found {Count} pending migrations: {Migrations}", 
+                    pendingMigrations.Count(), string.Join(", ", pendingMigrations));
+                
+                await _context.Database.MigrateAsync();
+                
+                _logger.LogInformation("Successfully applied {Count} migrations", pendingMigrations.Count());
+            }
+            else
+            {
+                _logger.LogInformation("No pending migrations found. Database is up to date.");
+            }
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(new
+            {
+                Success = true,
+                Message = pendingMigrations.Any() 
+                    ? $"Applied {pendingMigrations.Count()} migrations successfully"
+                    : "Database is up to date",
+                AppliedMigrations = pendingMigrations.ToArray()
+            });
+
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error applying database migrations");
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteAsJsonAsync(new { error = $"Migration failed: {ex.Message}" });
+            return errorResponse;
+        }
+    }
+
     private bool IsValidAdminRequest(HttpRequestData req)
     {
         var validation = ManagementAuthFunction.ValidateManagementToken(req);
