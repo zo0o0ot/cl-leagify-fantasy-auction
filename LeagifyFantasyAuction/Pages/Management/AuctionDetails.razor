@@ -91,7 +91,7 @@
         </div>
 
         <!-- Role Assignment Panel -->
-        <RoleAssignmentPanel AuctionId="@auctionId" OnRoleAssigned="@OnRoleAssignmentChanged" />
+        <RoleAssignmentPanel @ref="roleAssignmentPanel" AuctionId="@auctionId" OnRoleAssigned="@OnRoleAssignmentChanged" />
 
         <!-- Quick Actions -->
         <div class="actions-section">
@@ -143,6 +143,7 @@
     private AuctionDto? auction;
     private bool isLoading = true;
     private int participantCount = 0;
+    private RoleAssignmentPanel? roleAssignmentPanel;
 
     protected override async Task OnInitializedAsync()
     {
@@ -229,6 +230,10 @@
     private async Task RefreshParticipants()
     {
         await LoadParticipantCount();
+        if (roleAssignmentPanel != null)
+        {
+            await roleAssignmentPanel.RefreshData();
+        }
         StateHasChanged();
     }
 
