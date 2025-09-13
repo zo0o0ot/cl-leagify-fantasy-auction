@@ -306,8 +306,9 @@
                         // Log role changes for user awareness
                         if (userRoles.Count != previousRoleCount)
                         {
-                            Console.WriteLine($"=== ROLE UPDATE DETECTED ===");
+                            Console.WriteLine($"=== ROLE UPDATE DETECTED (Called from LoadDashboardData) ===");
                             Console.WriteLine($"Previous roles: {previousRoleCount}, Current roles: {userRoles.Count}");
+                            Console.WriteLine($"Connection status: {(isConnected ? "Connected" : "Disconnected")}");
                             foreach (var role in userRoles)
                             {
                                 var teamInfo = !string.IsNullOrEmpty(role.TeamName) ? $" (Team: {role.TeamName})" : "";
@@ -330,8 +331,15 @@
     {
         try
         {
+            Console.WriteLine("🚪 === LEAVE AUCTION BUTTON CLICKED ===");
+
+            // Stop auto-refresh to prevent interference
+            StopAutoRefresh();
+
             // Get session data to call leave auction API
             var sessionData = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "auctionSession");
+            Console.WriteLine($"Session data retrieved: {!string.IsNullOrEmpty(sessionData)}");
+
             if (!string.IsNullOrEmpty(sessionData))
             {
                 try
@@ -402,9 +410,11 @@
             }
             
             // Clear session storage
+            Console.WriteLine("🧹 Clearing session storage");
             await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "auctionSession");
-            
+
             // Navigate back to join page
+            Console.WriteLine("🔄 Navigating to join page");
             Navigation.NavigateTo("/join");
         }
         catch (Exception ex)
