@@ -15,6 +15,9 @@ public class User
     [MaxLength(100)]
     public string? ConnectionId { get; set; }
     
+    [MaxLength(200)]
+    public string? SessionToken { get; set; }
+    
     public bool IsConnected { get; set; } = false;
     
     public DateTime JoinedDate { get; set; } = DateTime.UtcNow;

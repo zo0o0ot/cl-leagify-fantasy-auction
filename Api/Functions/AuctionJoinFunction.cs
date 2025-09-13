@@ -79,6 +79,9 @@ public class AuctionJoinFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbC
                 .Where(u => u.AuctionId == auction.AuctionId)
                 .FirstOrDefaultAsync(u => u.DisplayName.ToLower() == displayName.ToLower());
 
+            // Generate session token
+            var sessionToken = GenerateSessionToken();
+
             User user;
             if (existingUser != null)
             {
@@ -86,6 +89,7 @@ public class AuctionJoinFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbC
                 existingUser.IsConnected = true;
                 existingUser.LastActiveDate = DateTime.UtcNow;
                 existingUser.IsReconnectionPending = false;
+                existingUser.SessionToken = sessionToken;
                 user = existingUser;
                 
                 _logger.LogInformation("Existing user {UserId} ({DisplayName}) reconnected to auction {AuctionId}", 
@@ -101,7 +105,8 @@ public class AuctionJoinFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbC
                     IsConnected = true,
                     JoinedDate = DateTime.UtcNow,
                     LastActiveDate = DateTime.UtcNow,
-                    IsReconnectionPending = false
+                    IsReconnectionPending = false,
+                    SessionToken = sessionToken
                 };
 
                 context.Users.Add(user);
@@ -110,9 +115,6 @@ public class AuctionJoinFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbC
             }
 
             await context.SaveChangesAsync();
-
-            // Generate session token
-            var sessionToken = GenerateSessionToken();
 
             var actionType = existingUser != null ? "reconnected to" : "joined";
             _logger.LogInformation("User {UserId} successfully {ActionType} auction {AuctionId} as {DisplayName}", 
@@ -159,10 +161,9 @@ public class AuctionJoinFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbC
                 return await CreateErrorResponse(req, HttpStatusCode.Unauthorized, "Session token required");
             }
 
-            // For now, we'll do basic validation - in production, you'd want to store and validate actual tokens
-            // This is a simplified approach for the MVP
+            // Validate session token against stored user session
             var user = await context.Users
-                .Where(u => u.AuctionId == auctionId && u.IsConnected)
+                .Where(u => u.AuctionId == auctionId && u.SessionToken == sessionToken)
                 .FirstOrDefaultAsync();
 
             if (user != null)
