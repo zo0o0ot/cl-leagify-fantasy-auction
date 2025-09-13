@@ -251,12 +251,17 @@ public class AuctionJoinFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbC
     {
         try
         {
+            _logger.LogInformation("Leave auction request received for auction {AuctionId}", auctionId);
+
             var sessionToken = req.Headers.GetValues("X-Auction-Token").FirstOrDefault();
             if (string.IsNullOrEmpty(sessionToken))
             {
                 _logger.LogWarning("Leave auction attempted without session token for auction {AuctionId}", auctionId);
                 return await CreateErrorResponse(req, HttpStatusCode.Unauthorized, "Session token required");
             }
+
+            _logger.LogInformation("Searching for user with session token in auction {AuctionId} (token: {TokenPrefix}...)",
+                auctionId, sessionToken.Length > 8 ? sessionToken[..8] : sessionToken);
 
             // Find user by session token
             var user = await context.Users
@@ -265,14 +270,18 @@ public class AuctionJoinFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbC
 
             if (user != null)
             {
+                _logger.LogInformation("Found user {UserId} ({DisplayName}) with matching session token",
+                    user.UserId, user.DisplayName);
+
                 // Mark user as disconnected
                 user.IsConnected = false;
                 user.SessionToken = null; // Clear session token
                 user.LastActiveDate = DateTime.UtcNow;
-                
+
+                _logger.LogDebug("Saving changes to mark user {UserId} as disconnected", user.UserId);
                 await context.SaveChangesAsync();
-                
-                _logger.LogInformation("User {UserId} ({DisplayName}) left auction {AuctionId}", 
+
+                _logger.LogInformation("✅ User {UserId} ({DisplayName}) successfully left auction {AuctionId}",
                     user.UserId, user.DisplayName, auctionId);
 
                 var response = req.CreateResponse(HttpStatusCode.OK);
@@ -280,7 +289,15 @@ public class AuctionJoinFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbC
                 return response;
             }
 
-            _logger.LogWarning("Leave auction attempted with invalid session for auction {AuctionId}", auctionId);
+            // Enhanced debugging: Let's see what users are in this auction and their session token status
+            var allUsers = await context.Users
+                .Where(u => u.AuctionId == auctionId)
+                .Select(u => new { u.UserId, u.DisplayName, u.IsConnected, HasToken = !string.IsNullOrEmpty(u.SessionToken) })
+                .ToListAsync();
+
+            _logger.LogWarning("❌ No user found with session token. Auction {AuctionId} users: {Users}",
+                auctionId, string.Join(", ", allUsers.Select(u => $"{u.DisplayName}(ID:{u.UserId},Connected:{u.IsConnected},HasToken:{u.HasToken})")));
+
             return await CreateErrorResponse(req, HttpStatusCode.NotFound, "User session not found");
         }
         catch (Exception ex)

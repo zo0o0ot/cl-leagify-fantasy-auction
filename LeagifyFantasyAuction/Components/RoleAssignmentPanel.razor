@@ -272,22 +272,35 @@
             }
 
             // Load available teams (optional for now - teams will be created during auction setup)
-            try 
+            try
             {
+                Console.WriteLine($"🔍 Loading teams for auction {AuctionId}...");
                 var teamsResponse = await Http.GetAsync($"/api/management/auctions/{AuctionId}/teams");
                 if (teamsResponse.IsSuccessStatusCode)
                 {
                     var teamsData = await teamsResponse.Content.ReadFromJsonAsync<ManageTeamsResponse>();
-                    availableTeams = teamsData?.Teams ?? new();
+                    var rawTeams = teamsData?.Teams ?? new();
+                    Console.WriteLine($"📋 Raw teams from API: {string.Join(", ", rawTeams.Select(t => $"{t.TeamName}(ID:{t.TeamId})"))}");
+
+                    // Ensure no duplicates by grouping by TeamId and taking first
+                    availableTeams = rawTeams
+                        .GroupBy(t => t.TeamId)
+                        .Select(g => g.First())
+                        .OrderBy(t => t.NominationOrder)
+                        .ToList();
+
+                    Console.WriteLine($"✅ Final available teams: {string.Join(", ", availableTeams.Select(t => $"{t.TeamName}(ID:{t.TeamId})"))}");
                 }
                 else
                 {
+                    Console.WriteLine($"❌ Teams API failed: {teamsResponse.StatusCode}");
                     // Teams endpoint doesn't exist yet - create placeholder teams for now
                     availableTeams = CreatePlaceholderTeams();
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"❌ Teams API exception: {ex.Message}");
                 // If teams API fails, create placeholder teams
                 availableTeams = CreatePlaceholderTeams();
             }

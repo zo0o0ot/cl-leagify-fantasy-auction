@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Leave Auction</title>
+</head>
+<body>
+    <h1>Leave Auction Test</h1>
+    <button onclick="testLeaveAuction()">Test Leave Auction API</button>
+    <button onclick="getParticipants()">Get Participants</button>
+    <div id="output"></div>
+
+    <script>
+        async function testLeaveAuction() {
+            const output = document.getElementById('output');
+            
+            try {
+                // Test the leave auction endpoint
+                const response = await fetch('https://jolly-meadow-0b4450210.2.azurestaticapps.net/api/auction/1/leave', {
+                    method: 'POST',
+                    headers: {
+                        'X-Auction-Token': 'TESTSESSION123'
+                    }
+                });
+                
+                const result = await response.text();
+                output.innerHTML = `<h3>Leave Auction Response:</h3><pre>${result}</pre><p>Status: ${response.status}</p>`;
+            } catch (error) {
+                output.innerHTML = `<h3>Error:</h3><pre>${error.message}</pre>`;
+            }
+        }
+        
+        async function getParticipants() {
+            const output = document.getElementById('output');
+            
+            try {
+                // Test the participants endpoint
+                const response = await fetch('https://jolly-meadow-0b4450210.2.azurestaticapps.net/api/auction/1/participants');
+                const result = await response.json();
+                
+                output.innerHTML = `<h3>Participants:</h3><pre>${JSON.stringify(result, null, 2)}</pre>`;
+            } catch (error) {
+                output.innerHTML = `<h3>Error:</h3><pre>${error.message}</pre>`;
+            }
+        }
+    </script>
+</body>
+</html>

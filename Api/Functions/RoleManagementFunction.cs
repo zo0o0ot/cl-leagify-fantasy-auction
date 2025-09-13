@@ -233,8 +233,8 @@ public class RoleManagementFunction(ILoggerFactory loggerFactory, LeagifyAuction
 
             _logger.LogDebug("Auction {AuctionId} exists, searching for user {UserId}", auctionId, userId);
 
+            // First, get user without navigation properties to avoid tracking issues
             var user = await context.Users
-                .Include(u => u.UserRoles)
                 .FirstOrDefaultAsync(u => u.UserId == userId && u.AuctionId == auctionId);
 
             if (user == null)
@@ -243,14 +243,17 @@ public class RoleManagementFunction(ILoggerFactory loggerFactory, LeagifyAuction
                 return await CreateErrorResponse(req, HttpStatusCode.NotFound, "User not found in this auction");
             }
 
-            _logger.LogInformation("Found user {UserId} ({DisplayName}) with {RoleCount} roles",
-                userId, user.DisplayName, user.UserRoles.Count);
+            _logger.LogInformation("Found user {UserId} ({DisplayName})", userId, user.DisplayName);
 
-            // Remove all roles first
-            if (user.UserRoles.Any())
+            // Remove all roles first - query separately to avoid EF tracking conflicts
+            var userRoles = await context.UserRoles
+                .Where(ur => ur.UserId == userId)
+                .ToListAsync();
+
+            if (userRoles.Any())
             {
-                _logger.LogDebug("Removing {RoleCount} roles for user {UserId}", user.UserRoles.Count, userId);
-                context.UserRoles.RemoveRange(user.UserRoles);
+                _logger.LogDebug("Removing {RoleCount} roles for user {UserId}", userRoles.Count, userId);
+                context.UserRoles.RemoveRange(userRoles);
             }
 
             // Remove the user
