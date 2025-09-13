@@ -79,9 +79,28 @@ public class RoleManagementFunction(ILoggerFactory loggerFactory, LeagifyAuction
 
                 if (team == null)
                 {
-                    // For placeholder teams that don't exist in database yet, allow the assignment but with null team
-                    _logger.LogInformation("Team ID {TeamId} not found in database, allowing role assignment without team link", roleRequest.TeamId.Value);
-                    roleRequest.TeamId = null; // Clear the invalid team ID
+                    // Create placeholder team if it doesn't exist (for UI placeholder teams)
+                    _logger.LogInformation("Team ID {TeamId} not found, creating placeholder team", roleRequest.TeamId.Value);
+
+                    team = new Team
+                    {
+                        AuctionId = auctionId,
+                        UserId = userId, // Assign to the user being given TeamCoach role
+                        TeamName = $"Team {roleRequest.TeamId.Value}",
+                        Budget = 200m,
+                        RemainingBudget = 200m,
+                        NominationOrder = roleRequest.TeamId.Value,
+                        IsActive = true
+                    };
+
+                    context.Teams.Add(team);
+                    await context.SaveChangesAsync();
+
+                    // Update roleRequest with the actual created TeamId
+                    roleRequest.TeamId = team.TeamId;
+
+                    _logger.LogInformation("Created team {TeamName} with ID {TeamId} for auction {AuctionId}",
+                        team.TeamName, team.TeamId, auctionId);
                 }
             }
 
