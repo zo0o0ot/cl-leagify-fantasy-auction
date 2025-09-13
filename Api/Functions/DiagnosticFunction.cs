@@ -237,4 +237,230 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
             return errorResponse;
         }
     }
+
+    /// <summary>
+    /// Reset an auction by removing all participants, teams, and roles - useful for clean testing
+    /// </summary>
+    [Function("ResetAuction")]
+    public async Task<HttpResponseData> ResetAuction(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "diagnostic/auction/{auctionId:int}/reset")] HttpRequestData req,
+        int auctionId)
+    {
+        try
+        {
+            logger.LogInformation("Resetting auction {AuctionId} - removing all participants, teams, and roles", auctionId);
+
+            // Verify auction exists
+            var auction = await context.Auctions.FindAsync(auctionId);
+            if (auction == null)
+            {
+                var notFoundResponse = req.CreateResponse(HttpStatusCode.NotFound);
+                await notFoundResponse.WriteStringAsync("Auction not found");
+                return notFoundResponse;
+            }
+
+            var deletionSummary = new
+            {
+                AuctionId = auctionId,
+                AuctionName = auction.Name,
+                DeletedItems = new Dictionary<string, int>()
+            };
+
+            // Delete user roles first (due to foreign keys)
+            var userRoles = await context.UserRoles
+                .Where(ur => ur.User.AuctionId == auctionId)
+                .ToListAsync();
+
+            context.UserRoles.RemoveRange(userRoles);
+            deletionSummary.DeletedItems["UserRoles"] = userRoles.Count;
+
+            // Delete users
+            var users = await context.Users
+                .Where(u => u.AuctionId == auctionId)
+                .ToListAsync();
+
+            context.Users.RemoveRange(users);
+            deletionSummary.DeletedItems["Users"] = users.Count;
+
+            // Delete teams
+            var teams = await context.Teams
+                .Where(t => t.AuctionId == auctionId)
+                .ToListAsync();
+
+            context.Teams.RemoveRange(teams);
+            deletionSummary.DeletedItems["Teams"] = teams.Count;
+
+            await context.SaveChangesAsync();
+
+            logger.LogInformation("Successfully reset auction {AuctionId}: removed {UserCount} users, {TeamCount} teams, {RoleCount} roles",
+                auctionId, users.Count, teams.Count, userRoles.Count);
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(deletionSummary);
+            return response;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error resetting auction {AuctionId}", auctionId);
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync($"Error resetting auction: {ex.Message}");
+            return errorResponse;
+        }
+    }
+
+    /// <summary>
+    /// Delete an entire auction and all related data - use carefully!
+    /// </summary>
+    [Function("DeleteAuction")]
+    public async Task<HttpResponseData> DeleteAuction(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "diagnostic/auction/{auctionId:int}")] HttpRequestData req,
+        int auctionId)
+    {
+        try
+        {
+            logger.LogInformation("DELETING entire auction {AuctionId} and all related data", auctionId);
+
+            // Verify auction exists
+            var auction = await context.Auctions.FindAsync(auctionId);
+            if (auction == null)
+            {
+                var notFoundResponse = req.CreateResponse(HttpStatusCode.NotFound);
+                await notFoundResponse.WriteStringAsync("Auction not found");
+                return notFoundResponse;
+            }
+
+            var deletionSummary = new
+            {
+                AuctionId = auctionId,
+                AuctionName = auction.Name,
+                DeletedItems = new Dictionary<string, int>()
+            };
+
+            // Delete in order due to foreign key constraints
+
+            // 1. User roles
+            var userRoles = await context.UserRoles
+                .Where(ur => ur.User.AuctionId == auctionId)
+                .ToListAsync();
+            context.UserRoles.RemoveRange(userRoles);
+            deletionSummary.DeletedItems["UserRoles"] = userRoles.Count;
+
+            // 2. Users
+            var users = await context.Users
+                .Where(u => u.AuctionId == auctionId)
+                .ToListAsync();
+            context.Users.RemoveRange(users);
+            deletionSummary.DeletedItems["Users"] = users.Count;
+
+            // 3. Teams
+            var teams = await context.Teams
+                .Where(t => t.AuctionId == auctionId)
+                .ToListAsync();
+            context.Teams.RemoveRange(teams);
+            deletionSummary.DeletedItems["Teams"] = teams.Count;
+
+            // 4. Auction itself
+            context.Auctions.Remove(auction);
+            deletionSummary.DeletedItems["Auctions"] = 1;
+
+            await context.SaveChangesAsync();
+
+            logger.LogInformation("Successfully deleted auction {AuctionId} and all related data", auctionId);
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(deletionSummary);
+            return response;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error deleting auction {AuctionId}", auctionId);
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync($"Error deleting auction: {ex.Message}");
+            return errorResponse;
+        }
+    }
+
+    /// <summary>
+    /// Bulk cleanup - delete all test auctions (those with "test", "debug", "sample" in name)
+    /// </summary>
+    [Function("CleanupTestAuctions")]
+    public async Task<HttpResponseData> CleanupTestAuctions(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "diagnostic/cleanup-test-auctions")] HttpRequestData req)
+    {
+        try
+        {
+            logger.LogInformation("Starting bulk cleanup of test auctions");
+
+            var testKeywords = new[] { "test", "debug", "sample", "demo" };
+            var testAuctions = await context.Auctions
+                .Where(a => testKeywords.Any(keyword => a.Name.ToLower().Contains(keyword)))
+                .ToListAsync();
+
+            var cleanupSummary = new
+            {
+                TotalTestAuctions = testAuctions.Count,
+                DeletedAuctions = new List<object>(),
+                TotalDeleted = new Dictionary<string, int>
+                {
+                    ["Auctions"] = 0,
+                    ["Users"] = 0,
+                    ["Teams"] = 0,
+                    ["UserRoles"] = 0
+                }
+            };
+
+            foreach (var auction in testAuctions)
+            {
+                logger.LogInformation("Deleting test auction: {AuctionName} (ID: {AuctionId})", auction.Name, auction.AuctionId);
+
+                // Delete related data for this auction
+                var userRoles = await context.UserRoles
+                    .Where(ur => ur.User.AuctionId == auction.AuctionId)
+                    .ToListAsync();
+                context.UserRoles.RemoveRange(userRoles);
+
+                var users = await context.Users
+                    .Where(u => u.AuctionId == auction.AuctionId)
+                    .ToListAsync();
+                context.Users.RemoveRange(users);
+
+                var teams = await context.Teams
+                    .Where(t => t.AuctionId == auction.AuctionId)
+                    .ToListAsync();
+                context.Teams.RemoveRange(teams);
+
+                context.Auctions.Remove(auction);
+
+                cleanupSummary.TotalDeleted["Auctions"]++;
+                cleanupSummary.TotalDeleted["Users"] += users.Count;
+                cleanupSummary.TotalDeleted["Teams"] += teams.Count;
+                cleanupSummary.TotalDeleted["UserRoles"] += userRoles.Count;
+
+                ((List<object>)cleanupSummary.DeletedAuctions).Add(new
+                {
+                    auction.AuctionId,
+                    auction.Name,
+                    auction.JoinCode,
+                    ParticipantsDeleted = users.Count,
+                    TeamsDeleted = teams.Count,
+                    RolesDeleted = userRoles.Count
+                });
+            }
+
+            await context.SaveChangesAsync();
+
+            logger.LogInformation("Bulk cleanup completed: deleted {AuctionCount} test auctions", testAuctions.Count);
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(cleanupSummary);
+            return response;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error during bulk test auction cleanup");
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync($"Error during cleanup: {ex.Message}");
+            return errorResponse;
+        }
+    }
 }

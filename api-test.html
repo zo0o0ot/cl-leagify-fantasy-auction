@@ -42,6 +42,30 @@
         <div id="participantsAfterOutput" class="output"></div>
     </div>
 
+    <div class="section" style="border-color: #dc3545; background-color: #fff5f5;">
+        <h3 style="color: #dc3545;">🧹 Cleanup Tools</h3>
+        <p><strong>Warning:</strong> These tools permanently delete data. Use for testing only!</p>
+
+        <h4>Option 1: Reset Auction (Keep auction, remove participants/teams)</h4>
+        <label>Auction ID: <input type="number" id="resetAuctionId" value="37" placeholder="Enter auction ID"></label><br>
+        <button onclick="resetAuction()" style="background-color: #ffc107; color: black;">Reset Auction</button>
+        <div id="resetOutput" class="output"></div>
+
+        <h4>Option 2: Delete Entire Auction</h4>
+        <label>Auction ID: <input type="number" id="deleteAuctionId" value="37" placeholder="Enter auction ID"></label><br>
+        <button onclick="deleteAuction()" style="background-color: #dc3545; color: white;">Delete Entire Auction</button>
+        <div id="deleteOutput" class="output"></div>
+
+        <h4>Option 3: Bulk Cleanup Test Auctions</h4>
+        <p>Deletes all auctions with "test", "debug", "sample", or "demo" in their names</p>
+        <button onclick="cleanupTestAuctions()" style="background-color: #dc3545; color: white;">Cleanup All Test Auctions</button>
+        <div id="cleanupOutput" class="output"></div>
+
+        <h4>Check Current Auctions</h4>
+        <button onclick="getAuctions()">List All Auctions</button>
+        <div id="auctionsOutput" class="output"></div>
+    </div>
+
     <script>
         const API_BASE = 'https://jolly-meadow-0b4450210.2.azurestaticapps.net/api';
         let currentAuctionId = null;
@@ -148,6 +172,98 @@
                         summary += `<br>`;
                     });
                     output.innerHTML += `<br>${summary}`;
+                }
+            } catch (error) {
+                output.innerHTML = `<strong>Error:</strong> ${error.message}`;
+            }
+        }
+
+        // Cleanup functions
+        async function getAuctions() {
+            const output = document.getElementById('auctionsOutput');
+
+            try {
+                const response = await fetch(`${API_BASE}/diagnostic/auctions`);
+                const result = await response.text();
+                output.innerHTML = `<strong>Status:</strong> ${response.status}<br><pre>${result}</pre>`;
+            } catch (error) {
+                output.innerHTML = `<strong>Error:</strong> ${error.message}`;
+            }
+        }
+
+        async function resetAuction() {
+            const auctionId = document.getElementById('resetAuctionId').value;
+            const output = document.getElementById('resetOutput');
+
+            if (!auctionId) {
+                output.innerHTML = '<strong>Error:</strong> Please enter an auction ID';
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to RESET auction ${auctionId}? This will delete all participants, teams, and roles but keep the auction.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/diagnostic/auction/${auctionId}/reset`, {
+                    method: 'POST'
+                });
+                const result = await response.text();
+                output.innerHTML = `<strong>Status:</strong> ${response.status}<br><pre>${result}</pre>`;
+
+                if (response.ok) {
+                    output.innerHTML += '<br><strong style="color: green;">✓ Auction reset successfully! All participants, teams, and roles removed.</strong>';
+                }
+            } catch (error) {
+                output.innerHTML = `<strong>Error:</strong> ${error.message}`;
+            }
+        }
+
+        async function deleteAuction() {
+            const auctionId = document.getElementById('deleteAuctionId').value;
+            const output = document.getElementById('deleteOutput');
+
+            if (!auctionId) {
+                output.innerHTML = '<strong>Error:</strong> Please enter an auction ID';
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to PERMANENTLY DELETE auction ${auctionId}? This cannot be undone!`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/diagnostic/auction/${auctionId}`, {
+                    method: 'DELETE'
+                });
+                const result = await response.text();
+                output.innerHTML = `<strong>Status:</strong> ${response.status}<br><pre>${result}</pre>`;
+
+                if (response.ok) {
+                    output.innerHTML += '<br><strong style="color: green;">✓ Auction permanently deleted!</strong>';
+                }
+            } catch (error) {
+                output.innerHTML = `<strong>Error:</strong> ${error.message}`;
+            }
+        }
+
+        async function cleanupTestAuctions() {
+            const output = document.getElementById('cleanupOutput');
+
+            if (!confirm('Are you sure you want to DELETE ALL TEST AUCTIONS? This will permanently delete all auctions with "test", "debug", "sample", or "demo" in their names!')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/diagnostic/cleanup-test-auctions`, {
+                    method: 'POST'
+                });
+                const result = await response.text();
+                output.innerHTML = `<strong>Status:</strong> ${response.status}<br><pre>${result}</pre>`;
+
+                if (response.ok) {
+                    const data = JSON.parse(result);
+                    output.innerHTML += `<br><strong style="color: green;">✓ Cleanup completed! Deleted ${data.TotalTestAuctions} test auctions</strong>`;
                 }
             } catch (error) {
                 output.innerHTML = `<strong>Error:</strong> ${error.message}`;
