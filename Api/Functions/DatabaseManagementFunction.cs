@@ -1,187 +1,132 @@
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
-using Microsoft.EntityFrameworkCore;
 using System.Net;
 using LeagifyFantasyAuction.Api.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace LeagifyFantasyAuction.Api.Functions;
 
 /// <summary>
-/// Provides database management endpoints for development and troubleshooting.
-/// These endpoints help with database initialization, reset, and schema management.
+/// Azure Functions for database management and migration operations.
+/// Provides endpoints for applying migrations and database maintenance.
 /// </summary>
-/// <remarks>
-/// This function is intended for development use and should be secured or removed in production.
-/// It provides utilities to recreate database schema when needed.
-/// </remarks>
-public class DatabaseManagementFunction
+public class DatabaseManagementFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbContext context)
 {
-    private readonly ILogger<DatabaseManagementFunction> _logger;
-    private readonly LeagifyAuctionDbContext _context;
+    private readonly ILogger _logger = loggerFactory.CreateLogger<DatabaseManagementFunction>();
 
     /// <summary>
-    /// Initializes a new instance of the DatabaseManagementFunction class.
+    /// Apply pending database migrations manually.
+    /// This is needed for production deployments in Azure Static Web Apps.
     /// </summary>
-    /// <param name="logger">The logger for function operations.</param>
-    /// <param name="context">The database context for database operations.</param>
-    public DatabaseManagementFunction(ILogger<DatabaseManagementFunction> logger, LeagifyAuctionDbContext context)
-    {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _context = context ?? throw new ArgumentNullException(nameof(context));
-    }
-
-    /// <summary>
-    /// Creates the database and all tables if they don't exist.
-    /// </summary>
-    /// <param name="req">The HTTP request.</param>
-    /// <returns>HTTP 200 OK if database creation succeeded, HTTP 500 Internal Server Error if failed.</returns>
-    /// <remarks>
-    /// This endpoint uses EnsureCreated() which creates the database and tables but won't apply migrations.
-    /// Safe to call multiple times - won't affect existing data.
-    /// </remarks>
-    [Function("CreateDatabase")]
-    public async Task<HttpResponseData> CreateDatabase(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "dev/database/create")] HttpRequestData req)
+    [Function("ApplyMigrations")]
+    public async Task<HttpResponseData> ApplyMigrations(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "admin/migrate")] HttpRequestData req)
     {
         try
         {
-            _logger.LogInformation("Creating database if it doesn't exist...");
-            
-            var created = await _context.Database.EnsureCreatedAsync();
-            
-            if (created)
+            // Validate management authentication
+            if (!await ValidateManagementAuth(req))
             {
-                _logger.LogInformation("Database created successfully");
-                var response = req.CreateResponse(HttpStatusCode.OK);
-                await response.WriteAsJsonAsync(new { success = true, message = "Database created successfully", created = true });
-                return response;
+                return await CreateErrorResponse(req, HttpStatusCode.Unauthorized, "Management authentication required");
+            }
+
+            _logger.LogInformation("Starting database migration process");
+
+            // Apply any pending migrations
+            var pendingMigrations = await context.Database.GetPendingMigrationsAsync();
+            if (pendingMigrations.Any())
+            {
+                _logger.LogInformation("Found {Count} pending migrations: {Migrations}", 
+                    pendingMigrations.Count(), string.Join(", ", pendingMigrations));
+                
+                await context.Database.MigrateAsync();
+                
+                _logger.LogInformation("Successfully applied {Count} migrations", pendingMigrations.Count());
             }
             else
             {
-                _logger.LogInformation("Database already exists");
-                var response = req.CreateResponse(HttpStatusCode.OK);
-                await response.WriteAsJsonAsync(new { success = true, message = "Database already exists", created = false });
-                return response;
+                _logger.LogInformation("No pending migrations found. Database is up to date.");
             }
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(new
+            {
+                Success = true,
+                Message = pendingMigrations.Any() 
+                    ? $"Applied {pendingMigrations.Count()} migrations successfully"
+                    : "Database is up to date",
+                AppliedMigrations = pendingMigrations.ToArray()
+            });
+
+            return response;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating database");
-            var response = req.CreateResponse(HttpStatusCode.InternalServerError);
-            await response.WriteAsJsonAsync(new { success = false, error = ex.Message, details = ex.ToString() });
-            return response;
+            _logger.LogError(ex, "Error applying database migrations");
+            return await CreateErrorResponse(req, HttpStatusCode.InternalServerError, 
+                $"Migration failed: {ex.Message}");
         }
     }
 
     /// <summary>
-    /// Recreates the database by dropping and creating it fresh.
-    /// WARNING: This will delete all data!
+    /// Get current database migration status.
+    /// Shows applied and pending migrations.
     /// </summary>
-    /// <param name="req">The HTTP request.</param>
-    /// <returns>HTTP 200 OK if database recreation succeeded, HTTP 500 Internal Server Error if failed.</returns>
-    /// <remarks>
-    /// This endpoint uses EnsureDeleted() followed by EnsureCreated().
-    /// WARNING: This will permanently delete all data in the database!
-    /// Use with extreme caution.
-    /// </remarks>
-    [Function("RecreateDatabase")]
-    public async Task<HttpResponseData> RecreateDatabase(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "dev/database/recreate")] HttpRequestData req)
+    [Function("GetMigrationStatus")]
+    public async Task<HttpResponseData> GetMigrationStatus(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "admin/migration-status")] HttpRequestData req)
     {
         try
         {
-            _logger.LogWarning("RECREATING DATABASE - THIS WILL DELETE ALL DATA!");
-            
-            // Delete the database if it exists
-            var deleted = await _context.Database.EnsureDeletedAsync();
-            _logger.LogInformation($"Database deleted: {deleted}");
-            
-            // Create the database fresh
-            var created = await _context.Database.EnsureCreatedAsync();
-            _logger.LogInformation($"Database created: {created}");
-            
+            // Validate management authentication
+            if (!await ValidateManagementAuth(req))
+            {
+                return await CreateErrorResponse(req, HttpStatusCode.Unauthorized, "Management authentication required");
+            }
+
+            var appliedMigrations = await context.Database.GetAppliedMigrationsAsync();
+            var pendingMigrations = await context.Database.GetPendingMigrationsAsync();
+
             var response = req.CreateResponse(HttpStatusCode.OK);
-            await response.WriteAsJsonAsync(new { 
-                success = true, 
-                message = "Database recreated successfully - ALL DATA WAS DELETED!", 
-                deleted = deleted,
-                created = created
+            await response.WriteAsJsonAsync(new
+            {
+                DatabaseExists = await context.Database.CanConnectAsync(),
+                AppliedMigrations = appliedMigrations.ToArray(),
+                PendingMigrations = pendingMigrations.ToArray(),
+                TotalApplied = appliedMigrations.Count(),
+                TotalPending = pendingMigrations.Count()
             });
+
             return response;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error recreating database");
-            var response = req.CreateResponse(HttpStatusCode.InternalServerError);
-            await response.WriteAsJsonAsync(new { success = false, error = ex.Message, details = ex.ToString() });
-            return response;
+            _logger.LogError(ex, "Error getting migration status");
+            return await CreateErrorResponse(req, HttpStatusCode.InternalServerError, 
+                $"Failed to get migration status: {ex.Message}");
         }
     }
 
-    /// <summary>
-    /// Checks if the database can be connected to and gets basic information.
-    /// </summary>
-    /// <param name="req">The HTTP request.</param>
-    /// <returns>HTTP 200 OK with database info, HTTP 500 Internal Server Error if connection failed.</returns>
-    /// <remarks>
-    /// This endpoint tests database connectivity and provides diagnostic information.
-    /// Useful for troubleshooting connection issues.
-    /// </remarks>
-    [Function("DatabaseInfo")]
-    public async Task<HttpResponseData> GetDatabaseInfo(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "dev/database/info")] HttpRequestData req)
+    private async Task<bool> ValidateManagementAuth(HttpRequestData req)
     {
         try
         {
-            _logger.LogInformation("Checking database connection and info...");
+            var token = req.Headers.FirstOrDefault(h => h.Key == "X-Management-Token").Value?.FirstOrDefault();
+            var expectedPassword = Environment.GetEnvironmentVariable("MANAGEMENT_PASSWORD");
             
-            // Test basic connection
-            var canConnect = await _context.Database.CanConnectAsync();
-            var connectionString = _context.Database.GetConnectionString();
-            var providerName = _context.Database.ProviderName;
-            
-            var response = req.CreateResponse(HttpStatusCode.OK);
-            await response.WriteAsJsonAsync(new { 
-                success = true,
-                canConnect = canConnect,
-                providerName = providerName,
-                connectionString = MaskConnectionString(connectionString),
-                timestamp = DateTime.UtcNow
-            });
-            return response;
+            return !string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(expectedPassword) && token == expectedPassword;
         }
-        catch (Exception ex)
+        catch
         {
-            _logger.LogError(ex, "Error checking database info");
-            var response = req.CreateResponse(HttpStatusCode.InternalServerError);
-            await response.WriteAsJsonAsync(new { 
-                success = false, 
-                error = ex.Message, 
-                connectionString = MaskConnectionString(_context.Database.GetConnectionString()),
-                providerName = _context.Database.ProviderName
-            });
-            return response;
+            return false;
         }
     }
 
-    /// <summary>
-    /// Masks sensitive information in connection strings for safe logging.
-    /// </summary>
-    /// <param name="connectionString">The connection string to mask.</param>
-    /// <returns>The masked connection string with sensitive data replaced.</returns>
-    private static string? MaskConnectionString(string? connectionString)
+    private static async Task<HttpResponseData> CreateErrorResponse(HttpRequestData req, HttpStatusCode statusCode, string message)
     {
-        if (string.IsNullOrEmpty(connectionString))
-            return connectionString;
-
-        // Mask passwords and other sensitive data
-        return connectionString
-            .Replace(connectionString.Contains("Password=") ? 
-                connectionString.Substring(connectionString.IndexOf("Password=")) : "", 
-                "Password=***")
-            .Replace(connectionString.Contains("pwd=") ? 
-                connectionString.Substring(connectionString.IndexOf("pwd=")) : "", 
-                "pwd=***");
+        var response = req.CreateResponse(statusCode);
+        await response.WriteAsJsonAsync(new { error = message });
+        return response;
     }
 }
