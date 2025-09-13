@@ -283,8 +283,8 @@ public class RoleManagementFunction(ILoggerFactory loggerFactory, LeagifyAuction
                 return await CreateErrorResponse(req, HttpStatusCode.NotFound, "Auction not found");
             }
 
-            // Get existing teams
-            var teams = await context.Teams
+            // Get existing teams from database
+            var existingTeams = await context.Teams
                 .Where(t => t.AuctionId == auctionId && t.IsActive)
                 .OrderBy(t => t.NominationOrder)
                 .Select(t => new TeamDto
@@ -297,22 +297,30 @@ public class RoleManagementFunction(ILoggerFactory loggerFactory, LeagifyAuction
                 })
                 .ToListAsync();
 
-            // If no teams exist, create default placeholder teams
-            if (!teams.Any())
+            // ALWAYS ensure all 6 placeholder teams are available for the dropdown
+            // This prevents the bug where only assigned teams appear in the dropdown
+            var teams = new List<TeamDto>();
+            for (int i = 1; i <= 6; i++)
             {
-                var placeholderTeams = new List<TeamDto>();
-                for (int i = 1; i <= 6; i++)
+                // Check if this team already exists in the database
+                var existingTeam = existingTeams.FirstOrDefault(t => t.TeamName == $"Team {i}");
+                if (existingTeam != null)
                 {
-                    placeholderTeams.Add(new TeamDto
+                    // Use the existing team data
+                    teams.Add(existingTeam);
+                }
+                else
+                {
+                    // Create placeholder team for the dropdown
+                    teams.Add(new TeamDto
                     {
-                        TeamId = i, // These will be temporary IDs until real teams are created
+                        TeamId = i, // Placeholder ID - will be replaced when team is created
                         TeamName = $"Team {i}",
                         Budget = 200m,
                         NominationOrder = i,
                         IsActive = true
                     });
                 }
-                teams = placeholderTeams;
             }
 
             var response = req.CreateResponse(HttpStatusCode.OK);
