@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test Harness</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        button { margin: 5px; padding: 8px 16px; }
+        .output { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 4px; }
+        pre { overflow-x: auto; }
+        input { margin: 5px; padding: 4px; }
+    </style>
+</head>
+<body>
+    <h1>Leagify API Test Harness</h1>
+    
+    <div class="section">
+        <h3>Step 1: Join Auction</h3>
+        <label>Join Code: <input type="text" id="joinCode" value="DEMO" placeholder="Enter join code"></label><br>
+        <label>Display Name: <input type="text" id="displayName" value="TestUser" placeholder="Enter display name"></label><br>
+        <button onclick="joinAuction()">Join Auction</button>
+        <div id="joinOutput" class="output"></div>
+    </div>
+    
+    <div class="section">
+        <h3>Step 2: Get Participants</h3>
+        <label>Auction ID: <input type="number" id="auctionId" value="1" placeholder="Enter auction ID"></label><br>
+        <button onclick="getParticipants()">Get Participants</button>
+        <div id="participantsOutput" class="output"></div>
+    </div>
+    
+    <div class="section">
+        <h3>Step 3: Leave Auction</h3>
+        <label>Session Token: <input type="text" id="sessionToken" placeholder="Session token from join response"></label><br>
+        <button onclick="leaveAuction()">Leave Auction</button>
+        <div id="leaveOutput" class="output"></div>
+    </div>
+    
+    <div class="section">
+        <h3>Step 4: Check Participants After Leave</h3>
+        <button onclick="getParticipantsAfterLeave()">Get Participants (After Leave)</button>
+        <div id="participantsAfterOutput" class="output"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://jolly-meadow-0b4450210.2.azurestaticapps.net/api';
+        let currentAuctionId = null;
+        let currentSessionToken = null;
+
+        async function joinAuction() {
+            const joinCode = document.getElementById('joinCode').value;
+            const displayName = document.getElementById('displayName').value;
+            const output = document.getElementById('joinOutput');
+            
+            try {
+                const response = await fetch(`${API_BASE}/auction/join`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ joinCode, displayName })
+                });
+                
+                const result = await response.text();
+                output.innerHTML = `<strong>Status:</strong> ${response.status}<br><pre>${result}</pre>`;
+                
+                if (response.ok) {
+                    const data = JSON.parse(result);
+                    currentAuctionId = data.auctionId;
+                    currentSessionToken = data.sessionToken;
+                    document.getElementById('auctionId').value = currentAuctionId;
+                    document.getElementById('sessionToken').value = currentSessionToken;
+                }
+            } catch (error) {
+                output.innerHTML = `<strong>Error:</strong> ${error.message}`;
+            }
+        }
+
+        async function getParticipants() {
+            const auctionId = document.getElementById('auctionId').value || currentAuctionId;
+            const output = document.getElementById('participantsOutput');
+            
+            try {
+                const response = await fetch(`${API_BASE}/auction/${auctionId}/participants`);
+                const result = await response.text();
+                output.innerHTML = `<strong>Status:</strong> ${response.status}<br><pre>${result}</pre>`;
+                
+                if (response.ok) {
+                    const data = JSON.parse(result);
+                    // Display structured info
+                    let summary = `<strong>Participants Summary:</strong><br>`;
+                    data.forEach(p => {
+                        summary += `• ${p.displayName}: ${p.isConnected ? 'Online' : 'Offline'}`;
+                        if (p.roles && p.roles.length > 0) {
+                            const teamRoles = p.roles.filter(r => r.teamName);
+                            if (teamRoles.length > 0) {
+                                summary += ` | Teams: ${teamRoles.map(r => r.teamName).join(', ')}`;
+                            }
+                            summary += ` | Roles: ${p.roles.map(r => r.role).join(', ')}`;
+                        }
+                        summary += `<br>`;
+                    });
+                    output.innerHTML += `<br>${summary}`;
+                }
+            } catch (error) {
+                output.innerHTML = `<strong>Error:</strong> ${error.message}`;
+            }
+        }
+
+        async function leaveAuction() {
+            const auctionId = document.getElementById('auctionId').value || currentAuctionId;
+            const sessionToken = document.getElementById('sessionToken').value || currentSessionToken;
+            const output = document.getElementById('leaveOutput');
+            
+            try {
+                const response = await fetch(`${API_BASE}/auction/${auctionId}/leave`, {
+                    method: 'POST',
+                    headers: { 'X-Auction-Token': sessionToken }
+                });
+                
+                const result = await response.text();
+                output.innerHTML = `<strong>Status:</strong> ${response.status}<br><pre>${result}</pre>`;
+            } catch (error) {
+                output.innerHTML = `<strong>Error:</strong> ${error.message}`;
+            }
+        }
+
+        async function getParticipantsAfterLeave() {
+            const auctionId = document.getElementById('auctionId').value || currentAuctionId;
+            const output = document.getElementById('participantsAfterOutput');
+            
+            try {
+                const response = await fetch(`${API_BASE}/auction/${auctionId}/participants`);
+                const result = await response.text();
+                output.innerHTML = `<strong>Status:</strong> ${response.status}<br><pre>${result}</pre>`;
+                
+                if (response.ok) {
+                    const data = JSON.parse(result);
+                    // Display structured info
+                    let summary = `<strong>Participants After Leave:</strong><br>`;
+                    data.forEach(p => {
+                        summary += `• ${p.displayName}: ${p.isConnected ? 'Online' : 'Offline'}`;
+                        if (p.roles && p.roles.length > 0) {
+                            const teamRoles = p.roles.filter(r => r.teamName);
+                            if (teamRoles.length > 0) {
+                                summary += ` | Teams: ${teamRoles.map(r => r.teamName).join(', ')}`;
+                            }
+                            summary += ` | Roles: ${p.roles.map(r => r.role).join(', ')}`;
+                        }
+                        summary += `<br>`;
+                    });
+                    output.innerHTML += `<br>${summary}`;
+                }
+            } catch (error) {
+                output.innerHTML = `<strong>Error:</strong> ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>
