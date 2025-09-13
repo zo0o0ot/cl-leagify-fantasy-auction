@@ -351,11 +351,11 @@
                     var root = document.RootElement;
                     Console.WriteLine("✓ JSON parsed successfully");
 
-                    Console.WriteLine("🔎 Checking for auctionId and sessionToken properties...");
-                    var hasAuctionId = root.TryGetProperty("auctionId", out var auctionIdProperty);
-                    var hasSessionToken = root.TryGetProperty("sessionToken", out var sessionTokenProperty);
+                    Console.WriteLine("🔎 Checking for AuctionId and SessionToken properties...");
+                    var hasAuctionId = root.TryGetProperty("AuctionId", out var auctionIdProperty);
+                    var hasSessionToken = root.TryGetProperty("SessionToken", out var sessionTokenProperty);
 
-                    Console.WriteLine($"Has auctionId: {hasAuctionId}, Has sessionToken: {hasSessionToken}");
+                    Console.WriteLine($"Has AuctionId: {hasAuctionId}, Has SessionToken: {hasSessionToken}");
 
                     if (hasAuctionId && hasSessionToken)
                     {

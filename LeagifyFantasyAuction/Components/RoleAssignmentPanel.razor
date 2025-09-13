@@ -198,8 +198,8 @@
     private List<ParticipantDto> participants = new();
     private IQueryable<ParticipantDto> participantsQueryable => participants.AsQueryable();
     private List<TeamDto> availableTeams = new();
-    private List<int> availableTeamIds => availableTeams.Select(t => t.TeamId).ToList();
-    private List<string> availableTeamIdStrings => availableTeams.Select(t => t.TeamId.ToString()).ToList();
+    private List<int> availableTeamIds = new();
+    private List<string> availableTeamIdStrings = new();
     
     private bool isLoading = true;
     private string errorMessage = string.Empty;
@@ -290,12 +290,26 @@
                         .ToList();
 
                     Console.WriteLine($"✅ Final available teams: {string.Join(", ", availableTeams.Select(t => $"{t.TeamName}(ID:{t.TeamId})"))}");
+
+                    // Update cached lists to avoid computed property issues
+                    availableTeamIds = availableTeams.Select(t => t.TeamId).ToList();
+                    availableTeamIdStrings = availableTeams.Select(t => t.TeamId.ToString()).ToList();
+
+                    // Debug the dropdown data
+                    Console.WriteLine($"🎯 Available Team IDs for dropdown: [{string.Join(", ", availableTeamIds)}]");
+                    Console.WriteLine($"🎯 Team names for dropdown:");
+                    foreach (var teamId in availableTeamIds)
+                    {
+                        Console.WriteLine($"   TeamId {teamId} -> {GetTeamName(teamId)}");
+                    }
                 }
                 else
                 {
                     Console.WriteLine($"❌ Teams API failed: {teamsResponse.StatusCode}");
                     // Teams endpoint doesn't exist yet - create placeholder teams for now
                     availableTeams = CreatePlaceholderTeams();
+                    availableTeamIds = availableTeams.Select(t => t.TeamId).ToList();
+                    availableTeamIdStrings = availableTeams.Select(t => t.TeamId.ToString()).ToList();
                 }
             }
             catch (Exception ex)
@@ -303,6 +317,8 @@
                 Console.WriteLine($"❌ Teams API exception: {ex.Message}");
                 // If teams API fails, create placeholder teams
                 availableTeams = CreatePlaceholderTeams();
+                availableTeamIds = availableTeams.Select(t => t.TeamId).ToList();
+                availableTeamIdStrings = availableTeams.Select(t => t.TeamId.ToString()).ToList();
             }
         }
         catch (Exception ex)
