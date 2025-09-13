@@ -4,6 +4,7 @@
 @inject HttpClient Http
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Navigation
+@implements IDisposable
 
 <PageTitle>Auction Dashboard - Leagify Fantasy Auction</PageTitle>
 
@@ -47,8 +48,23 @@
                                  Color="white">
                         @(isConnected ? "Connected" : "Disconnected")
                     </FluentBadge>
-                    
-                    <FluentButton Appearance="Appearance.Neutral" 
+
+                    <FluentButton Appearance="Appearance.Stealth"
+                                  IconStart="@(new Icons.Regular.Size16.ArrowClockwise())"
+                                  OnClick="@HandleRefresh"
+                                  Loading="@isRefreshing"
+                                  Title="Refresh to check for role updates">
+                        @if (isRefreshing)
+                        {
+                            <span>Refreshing...</span>
+                        }
+                        else
+                        {
+                            <span>Refresh</span>
+                        }
+                    </FluentButton>
+
+                    <FluentButton Appearance="Appearance.Neutral"
                                   IconStart="@(new Icons.Regular.Size16.ArrowExit())"
                                   OnClick="@HandleLogout">
                         Leave Auction
@@ -157,6 +173,10 @@
     private bool isConnected = false;
     private string? auctionName;
     private int participantCount = 0;
+    private bool isRefreshing = false;
+
+    private Timer? autoRefreshTimer;
+    private readonly TimeSpan AutoRefreshInterval = TimeSpan.FromSeconds(30); // Auto-refresh every 30 seconds
 
     protected override async Task OnInitializedAsync()
     {
@@ -164,6 +184,65 @@
         if (session != null)
         {
             await LoadDashboardData();
+            StartAutoRefresh();
+        }
+    }
+
+    public void Dispose()
+    {
+        StopAutoRefresh();
+    }
+
+    private void StartAutoRefresh()
+    {
+        // Auto-refresh every 30 seconds to check for role updates
+        autoRefreshTimer = new Timer(async _ =>
+        {
+            if (!isRefreshing && session != null)
+            {
+                try
+                {
+                    await InvokeAsync(async () =>
+                    {
+                        await LoadDashboardData();
+                        StateHasChanged();
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Auto-refresh error: {ex.Message}");
+                }
+            }
+        }, null, AutoRefreshInterval, AutoRefreshInterval);
+    }
+
+    private void StopAutoRefresh()
+    {
+        autoRefreshTimer?.Dispose();
+        autoRefreshTimer = null;
+    }
+
+    private async Task HandleRefresh()
+    {
+        if (isRefreshing || session == null) return;
+
+        try
+        {
+            isRefreshing = true;
+            StateHasChanged();
+
+            Console.WriteLine("=== MANUAL REFRESH TRIGGERED ===");
+            await LoadDashboardData();
+            Console.WriteLine("✓ Dashboard data refreshed");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Refresh error: {ex.Message}");
+        }
+        finally
+        {
+            isRefreshing = false;
+            StateHasChanged();
         }
     }
 
@@ -220,8 +299,21 @@
                     var currentUser = participants.FirstOrDefault(p => p.UserId == session.UserId);
                     if (currentUser != null)
                     {
+                        var previousRoleCount = userRoles.Count;
                         userRoles = currentUser.Roles;
                         isConnected = currentUser.IsConnected;
+
+                        // Log role changes for user awareness
+                        if (userRoles.Count != previousRoleCount)
+                        {
+                            Console.WriteLine($"=== ROLE UPDATE DETECTED ===");
+                            Console.WriteLine($"Previous roles: {previousRoleCount}, Current roles: {userRoles.Count}");
+                            foreach (var role in userRoles)
+                            {
+                                var teamInfo = !string.IsNullOrEmpty(role.TeamName) ? $" (Team: {role.TeamName})" : "";
+                                Console.WriteLine($"✓ Assigned role: {role.Role}{teamInfo}");
+                            }
+                        }
                     }
                 }
             }
