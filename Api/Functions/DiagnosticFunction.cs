@@ -199,6 +199,16 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "diagnostic/auction/{auctionId:int}/participants")] HttpRequestData req,
         int auctionId)
     {
+        // Validate management token
+        var validation = ManagementAuthFunction.ValidateManagementToken(req);
+        if (!validation.IsValid)
+        {
+            logger.LogWarning("Unauthorized diagnostic request: {ErrorMessage}", validation.ErrorMessage);
+            var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
+            await unauthorizedResponse.WriteStringAsync("Unauthorized");
+            return unauthorizedResponse;
+        }
+
         try
         {
             logger.LogInformation("Getting detailed participant data for auction {AuctionId}", auctionId);
@@ -256,6 +266,16 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "diagnostic/auction/{auctionId:int}/reset")] HttpRequestData req,
         int auctionId)
     {
+        // Validate management token
+        var validation = ManagementAuthFunction.ValidateManagementToken(req);
+        if (!validation.IsValid)
+        {
+            logger.LogWarning("Unauthorized diagnostic request: {ErrorMessage}", validation.ErrorMessage);
+            var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
+            await unauthorizedResponse.WriteStringAsync("Unauthorized");
+            return unauthorizedResponse;
+        }
+
         try
         {
             logger.LogInformation("Resetting auction {AuctionId} - removing all participants, teams, and roles", auctionId);
@@ -326,6 +346,16 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
         [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "diagnostic/auction/{auctionId:int}")] HttpRequestData req,
         int auctionId)
     {
+        // Validate management token
+        var validation = ManagementAuthFunction.ValidateManagementToken(req);
+        if (!validation.IsValid)
+        {
+            logger.LogWarning("Unauthorized diagnostic request: {ErrorMessage}", validation.ErrorMessage);
+            var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
+            await unauthorizedResponse.WriteStringAsync("Unauthorized");
+            return unauthorizedResponse;
+        }
+
         try
         {
             logger.LogInformation("DELETING entire auction {AuctionId} and all related data", auctionId);
@@ -397,6 +427,16 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
     public async Task<HttpResponseData> CleanupTestAuctions(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "diagnostic/cleanup-test-auctions")] HttpRequestData req)
     {
+        // Validate management token
+        var validation = ManagementAuthFunction.ValidateManagementToken(req);
+        if (!validation.IsValid)
+        {
+            logger.LogWarning("Unauthorized diagnostic request: {ErrorMessage}", validation.ErrorMessage);
+            var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
+            await unauthorizedResponse.WriteStringAsync("Unauthorized");
+            return unauthorizedResponse;
+        }
+
         try
         {
             logger.LogInformation("Starting bulk cleanup of test auctions");
@@ -483,6 +523,16 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "diagnostic/auction/{auctionId:int}/fix-duplicate-teams")] HttpRequestData req,
         int auctionId)
     {
+        // Validate management token
+        var validation = ManagementAuthFunction.ValidateManagementToken(req);
+        if (!validation.IsValid)
+        {
+            logger.LogWarning("Unauthorized diagnostic request: {ErrorMessage}", validation.ErrorMessage);
+            var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
+            await unauthorizedResponse.WriteStringAsync("Unauthorized");
+            return unauthorizedResponse;
+        }
+
         try
         {
             logger.LogInformation("Fixing duplicate TeamId issue for auction {AuctionId}", auctionId);
