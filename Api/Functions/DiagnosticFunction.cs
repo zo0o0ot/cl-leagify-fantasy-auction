@@ -65,6 +65,16 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
     public async Task<HttpResponseData> CreateTestData(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "diagnostic/create-test-data")] HttpRequestData req)
     {
+        // Validate management token
+        var validation = ManagementAuthFunction.ValidateManagementToken(req);
+        if (!validation.IsValid)
+        {
+            logger.LogWarning("Unauthorized diagnostic request: {ErrorMessage}", validation.ErrorMessage);
+            var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
+            await unauthorizedResponse.WriteStringAsync("Unauthorized");
+            return unauthorizedResponse;
+        }
+
         try
         {
             logger.LogInformation("Creating test auction with participants and team assignments");

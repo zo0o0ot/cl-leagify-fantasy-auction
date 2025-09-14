@@ -53,11 +53,17 @@
                         Create Test Data
                     </FluentButton>
 
-                    <FluentButton Appearance="Appearance.Neutral"
-                                  OnClick="FixDuplicateTeamIds"
-                                  Loading="@isFixingDuplicates">
-                        Fix Duplicate Team IDs
-                    </FluentButton>
+                    <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="8">
+                        <FluentNumberField @bind-Value="auctionIdForDuplicateFix"
+                                           Placeholder="Auction ID"
+                                           Style="width: 100px;" />
+                        <FluentButton Appearance="Appearance.Neutral"
+                                      OnClick="FixDuplicateTeamIds"
+                                      Loading="@isFixingDuplicates"
+                                      Disabled="@(auctionIdForDuplicateFix <= 0)">
+                            Fix Duplicate Team IDs
+                        </FluentButton>
+                    </FluentStack>
 
                     <FluentButton Appearance="Appearance.Accent"
                                   OnClick="CleanupTestAuctions"
@@ -84,10 +90,14 @@
                     Warning: These operations modify or delete auction data permanently
                 </FluentLabel>
 
+                <FluentLabel Typo="Typography.Body" Style="margin-bottom: 8px;">
+                    Enter Auction ID for operations below:
+                </FluentLabel>
+
                 <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="12">
                     <FluentNumberField @bind-Value="auctionIdForOperations"
-                                       Placeholder="Auction ID"
-                                       Style="width: 120px;" />
+                                       Placeholder="Enter Auction ID (e.g., 37)"
+                                       Style="width: 180px;" />
 
                     <FluentButton Appearance="Appearance.Stealth"
                                   OnClick="GetDetailedParticipants"
@@ -181,12 +191,33 @@
     private bool isDeletingAuction = false;
 
     private int auctionIdForOperations = 0;
+    private int auctionIdForDuplicateFix = 0;
 
     private string auctionSummary = string.Empty;
     private string dataManagementResult = string.Empty;
     private string auctionOperationResult = string.Empty;
     private string statusMessage = string.Empty;
     private MessageIntent statusMessageType = MessageIntent.Info;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await SetupManagementToken();
+    }
+
+    private async Task SetupManagementToken()
+    {
+        var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+        if (string.IsNullOrEmpty(token))
+        {
+            // Redirect to login if no token
+            Navigation.NavigateTo("/management/login");
+            return;
+        }
+
+        // Set up HTTP client with management token
+        Http.DefaultRequestHeaders.Remove("X-Management-Token");
+        Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+    }
 
     private async Task GetAuctionSummary()
     {
@@ -222,7 +253,7 @@
         isCreatingTestData = true;
         try
         {
-            var response = await Http.PostAsync("/api/diagnostic/test-data", null);
+            var response = await Http.PostAsync("/api/diagnostic/create-test-data", null);
             var result = await response.Content.ReadAsStringAsync();
 
             dataManagementResult = FormatJson(result);
@@ -252,7 +283,7 @@
         isFixingDuplicates = true;
         try
         {
-            var response = await Http.PostAsync("/api/diagnostic/fix-duplicate-teams", null);
+            var response = await Http.PostAsync($"/api/diagnostic/auction/{auctionIdForDuplicateFix}/fix-duplicate-teams", null);
             var result = await response.Content.ReadAsStringAsync();
 
             dataManagementResult = FormatJson(result);
@@ -282,7 +313,7 @@
         isCleaningUp = true;
         try
         {
-            var response = await Http.DeleteAsync("/api/diagnostic/cleanup-tests");
+            var response = await Http.PostAsync("/api/diagnostic/cleanup-test-auctions", null);
             var result = await response.Content.ReadAsStringAsync();
 
             dataManagementResult = FormatJson(result);
@@ -312,7 +343,7 @@
         isGettingParticipants = true;
         try
         {
-            var response = await Http.GetAsync($"/api/diagnostic/auctions/{auctionIdForOperations}/participants");
+            var response = await Http.GetAsync($"/api/diagnostic/auction/{auctionIdForOperations}/participants");
             var result = await response.Content.ReadAsStringAsync();
 
             auctionOperationResult = FormatJson(result);
@@ -342,7 +373,7 @@
         isResettingAuction = true;
         try
         {
-            var response = await Http.PostAsync($"/api/diagnostic/auctions/{auctionIdForOperations}/reset", null);
+            var response = await Http.PostAsync($"/api/diagnostic/auction/{auctionIdForOperations}/reset", null);
             var result = await response.Content.ReadAsStringAsync();
 
             auctionOperationResult = FormatJson(result);
@@ -382,7 +413,7 @@
                 return;
             }
 
-            var response = await Http.DeleteAsync($"/api/diagnostic/auctions/{auctionIdForOperations}");
+            var response = await Http.DeleteAsync($"/api/diagnostic/auction/{auctionIdForOperations}");
             var result = await response.Content.ReadAsStringAsync();
 
             auctionOperationResult = FormatJson(result);
