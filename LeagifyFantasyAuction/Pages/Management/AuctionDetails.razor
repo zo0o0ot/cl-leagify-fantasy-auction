@@ -13,30 +13,24 @@
     
     <!-- Header Section -->
     <div class="details-header">
-        <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="16">
-            <FluentButton IconStart="@(new Icons.Regular.Size20.ArrowLeft())" 
-                          Appearance="Appearance.Neutral" 
+        <!-- Top row with Back button and Action buttons -->
+        <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="16" Style="margin-bottom: 16px;">
+            <FluentButton IconStart="@(new Icons.Regular.Size20.ArrowLeft())"
+                          Appearance="Appearance.Neutral"
                           OnClick="@NavigateBack">
                 Back to Auctions
             </FluentButton>
-            
-            <FluentStack Orientation="Orientation.Vertical" Style="flex: 1;" VerticalGap="4">
-                <FluentLabel Typo="Typography.Header" Style="margin: 0; line-height: 1.3;">
-                    @(auction?.Name ?? "Loading...")
-                </FluentLabel>
-                <FluentLabel Style="color: #666; margin: 0; line-height: 1.4;">
-                    Manage participants, roles, and auction settings
-                </FluentLabel>
-            </FluentStack>
-            
+
+            <div style="flex: 1;"></div> <!-- Spacer to push buttons to the right -->
+
             @if (auction != null)
             {
                 <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12">
                     <FluentBadge Appearance="@GetStatusBadgeAppearance(auction.Status)">
                         @auction.Status
                     </FluentBadge>
-                    
-                    <FluentButton Appearance="Appearance.Accent" 
+
+                    <FluentButton Appearance="Appearance.Accent"
                                   IconStart="@(new Icons.Regular.Size16.Settings())"
                                   OnClick="@(() => Navigation.NavigateTo($"/management/auctions/{auctionId}/setup"))">
                         Setup Auction
@@ -44,6 +38,16 @@
                 </FluentStack>
             }
         </FluentStack>
+
+        <!-- Bottom section with auction info (now has full width) -->
+        <div class="auction-info-section">
+            <FluentLabel Typo="Typography.Header" Style="margin: 0 0 8px 0; line-height: 1.3; display: block;">
+                @(auction?.Name ?? "Loading...")
+            </FluentLabel>
+            <FluentLabel Style="color: #666; margin: 0; line-height: 1.4; display: block;">
+                Manage participants, roles, and auction settings
+            </FluentLabel>
+        </div>
     </div>
 
     <!-- Loading State -->
@@ -292,6 +296,16 @@
         overflow: hidden;
     }
 
+    .auction-info-section {
+        width: 100%;
+        max-width: none; /* Ensure full width usage */
+    }
+
+    .auction-info-section fluent-label {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+
     .details-header fluent-stack {
         gap: 12px;
         flex-wrap: wrap;
@@ -327,5 +341,16 @@
 
     .mobile-layout .details-header {
         padding: 20px;
+    }
+
+    /* Responsive styles for mobile layout */
+    .mobile-layout .details-header fluent-stack {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .mobile-layout .auction-info-section {
+        margin-top: 8px;
     }
 </style>
