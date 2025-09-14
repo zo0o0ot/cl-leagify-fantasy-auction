@@ -1,0 +1,429 @@
+@page "/management/system-admin"
+@layout ManagementLayout
+@using System.Net.Http.Json
+@using System.Text.Json
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+
+<PageTitle>System Administration - Leagify Fantasy Auction</PageTitle>
+
+<div class="system-admin-container">
+    <div class="admin-header">
+        <FluentButton IconStart="@(new Icons.Regular.Size20.ArrowLeft())"
+                      Appearance="Appearance.Neutral"
+                      OnClick="@(() => Navigation.NavigateTo("/management"))">
+            Back to Dashboard
+        </FluentButton>
+        <FluentLabel Typo="Typography.Header">System Administration</FluentLabel>
+    </div>
+
+    <FluentStack Orientation="Orientation.Vertical" VerticalGap="24">
+
+        <!-- Auction Information Section -->
+        <FluentCard>
+            <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+                <FluentLabel Typo="Typography.Subject">📊 Auction Information</FluentLabel>
+
+                <FluentButton Appearance="Appearance.Accent"
+                              OnClick="GetAuctionSummary"
+                              Loading="@isLoadingAuctions">
+                    Get Auction Summary
+                </FluentButton>
+
+                @if (!string.IsNullOrEmpty(auctionSummary))
+                {
+                    <div class="result-section">
+                        <FluentLabel Typo="Typography.Body">Results:</FluentLabel>
+                        <pre class="json-result">@auctionSummary</pre>
+                    </div>
+                }
+            </FluentStack>
+        </FluentCard>
+
+        <!-- Data Management Section -->
+        <FluentCard>
+            <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+                <FluentLabel Typo="Typography.Subject">🔧 Data Management</FluentLabel>
+
+                <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12" Wrap="true">
+                    <FluentButton Appearance="Appearance.Neutral"
+                                  OnClick="CreateTestData"
+                                  Loading="@isCreatingTestData">
+                        Create Test Data
+                    </FluentButton>
+
+                    <FluentButton Appearance="Appearance.Neutral"
+                                  OnClick="FixDuplicateTeamIds"
+                                  Loading="@isFixingDuplicates">
+                        Fix Duplicate Team IDs
+                    </FluentButton>
+
+                    <FluentButton Appearance="Appearance.Accent"
+                                  OnClick="CleanupTestAuctions"
+                                  Loading="@isCleaningUp">
+                        Cleanup Test Auctions
+                    </FluentButton>
+                </FluentStack>
+
+                @if (!string.IsNullOrEmpty(dataManagementResult))
+                {
+                    <div class="result-section">
+                        <FluentLabel Typo="Typography.Body">Results:</FluentLabel>
+                        <pre class="json-result">@dataManagementResult</pre>
+                    </div>
+                }
+            </FluentStack>
+        </FluentCard>
+
+        <!-- Auction Operations Section -->
+        <FluentCard>
+            <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+                <FluentLabel Typo="Typography.Subject">⚠️ Auction Operations</FluentLabel>
+                <FluentLabel Typo="Typography.Body" Style="color: #d13438; font-size: 0.9em;">
+                    Warning: These operations modify or delete auction data permanently
+                </FluentLabel>
+
+                <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="12">
+                    <FluentNumberField @bind-Value="auctionIdForOperations"
+                                       Placeholder="Auction ID"
+                                       Style="width: 120px;" />
+
+                    <FluentButton Appearance="Appearance.Stealth"
+                                  OnClick="GetDetailedParticipants"
+                                  Loading="@isGettingParticipants"
+                                  Disabled="@(auctionIdForOperations <= 0)">
+                        Get Participants
+                    </FluentButton>
+
+                    <FluentButton Appearance="Appearance.Neutral"
+                                  OnClick="ResetAuction"
+                                  Loading="@isResettingAuction"
+                                  Disabled="@(auctionIdForOperations <= 0)">
+                        Reset Auction
+                    </FluentButton>
+
+                    <FluentButton Appearance="Appearance.Outline"
+                                  OnClick="DeleteAuction"
+                                  Loading="@isDeletingAuction"
+                                  Disabled="@(auctionIdForOperations <= 0)">
+                        Delete Auction
+                    </FluentButton>
+                </FluentStack>
+
+                @if (!string.IsNullOrEmpty(auctionOperationResult))
+                {
+                    <div class="result-section">
+                        <FluentLabel Typo="Typography.Body">Results:</FluentLabel>
+                        <pre class="json-result">@auctionOperationResult</pre>
+                    </div>
+                }
+            </FluentStack>
+        </FluentCard>
+
+        <!-- Status Messages -->
+        @if (!string.IsNullOrEmpty(statusMessage))
+        {
+            <FluentMessageBar Intent="@statusMessageType"
+                              OnDismiss="@(() => statusMessage = string.Empty)">
+                @statusMessage
+            </FluentMessageBar>
+        }
+
+    </FluentStack>
+</div>
+
+<style>
+    .system-admin-container {
+        padding: 24px;
+        max-width: 1200px;
+    }
+
+    .admin-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .result-section {
+        background: #f5f5f5;
+        border-radius: 4px;
+        padding: 12px;
+        margin-top: 12px;
+    }
+
+    .json-result {
+        margin: 8px 0 0 0;
+        padding: 12px;
+        background: #ffffff;
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 12px;
+        white-space: pre-wrap;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .fluent-card {
+        padding: 20px;
+    }
+</style>
+
+@code {
+    private bool isLoadingAuctions = false;
+    private bool isCreatingTestData = false;
+    private bool isFixingDuplicates = false;
+    private bool isCleaningUp = false;
+    private bool isGettingParticipants = false;
+    private bool isResettingAuction = false;
+    private bool isDeletingAuction = false;
+
+    private int auctionIdForOperations = 0;
+
+    private string auctionSummary = string.Empty;
+    private string dataManagementResult = string.Empty;
+    private string auctionOperationResult = string.Empty;
+    private string statusMessage = string.Empty;
+    private MessageIntent statusMessageType = MessageIntent.Info;
+
+    private async Task GetAuctionSummary()
+    {
+        isLoadingAuctions = true;
+        try
+        {
+            var response = await Http.GetAsync("/api/diagnostic/auctions");
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                auctionSummary = FormatJson(json);
+                ShowStatus("Auction summary retrieved successfully", MessageIntent.Success);
+            }
+            else
+            {
+                auctionSummary = $"Error: {response.StatusCode}";
+                ShowStatus($"Failed to get auction summary: {response.StatusCode}", MessageIntent.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            auctionSummary = $"Exception: {ex.Message}";
+            ShowStatus($"Error: {ex.Message}", MessageIntent.Error);
+        }
+        finally
+        {
+            isLoadingAuctions = false;
+        }
+    }
+
+    private async Task CreateTestData()
+    {
+        isCreatingTestData = true;
+        try
+        {
+            var response = await Http.PostAsync("/api/diagnostic/test-data", null);
+            var result = await response.Content.ReadAsStringAsync();
+
+            dataManagementResult = FormatJson(result);
+
+            if (response.IsSuccessStatusCode)
+            {
+                ShowStatus("Test data created successfully", MessageIntent.Success);
+            }
+            else
+            {
+                ShowStatus($"Failed to create test data: {response.StatusCode}", MessageIntent.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            dataManagementResult = $"Exception: {ex.Message}";
+            ShowStatus($"Error: {ex.Message}", MessageIntent.Error);
+        }
+        finally
+        {
+            isCreatingTestData = false;
+        }
+    }
+
+    private async Task FixDuplicateTeamIds()
+    {
+        isFixingDuplicates = true;
+        try
+        {
+            var response = await Http.PostAsync("/api/diagnostic/fix-duplicate-teams", null);
+            var result = await response.Content.ReadAsStringAsync();
+
+            dataManagementResult = FormatJson(result);
+
+            if (response.IsSuccessStatusCode)
+            {
+                ShowStatus("Duplicate team IDs fixed successfully", MessageIntent.Success);
+            }
+            else
+            {
+                ShowStatus($"Failed to fix duplicates: {response.StatusCode}", MessageIntent.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            dataManagementResult = $"Exception: {ex.Message}";
+            ShowStatus($"Error: {ex.Message}", MessageIntent.Error);
+        }
+        finally
+        {
+            isFixingDuplicates = false;
+        }
+    }
+
+    private async Task CleanupTestAuctions()
+    {
+        isCleaningUp = true;
+        try
+        {
+            var response = await Http.DeleteAsync("/api/diagnostic/cleanup-tests");
+            var result = await response.Content.ReadAsStringAsync();
+
+            dataManagementResult = FormatJson(result);
+
+            if (response.IsSuccessStatusCode)
+            {
+                ShowStatus("Test auctions cleaned up successfully", MessageIntent.Success);
+            }
+            else
+            {
+                ShowStatus($"Failed to cleanup: {response.StatusCode}", MessageIntent.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            dataManagementResult = $"Exception: {ex.Message}";
+            ShowStatus($"Error: {ex.Message}", MessageIntent.Error);
+        }
+        finally
+        {
+            isCleaningUp = false;
+        }
+    }
+
+    private async Task GetDetailedParticipants()
+    {
+        isGettingParticipants = true;
+        try
+        {
+            var response = await Http.GetAsync($"/api/diagnostic/auctions/{auctionIdForOperations}/participants");
+            var result = await response.Content.ReadAsStringAsync();
+
+            auctionOperationResult = FormatJson(result);
+
+            if (response.IsSuccessStatusCode)
+            {
+                ShowStatus($"Retrieved participants for auction {auctionIdForOperations}", MessageIntent.Success);
+            }
+            else
+            {
+                ShowStatus($"Failed to get participants: {response.StatusCode}", MessageIntent.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            auctionOperationResult = $"Exception: {ex.Message}";
+            ShowStatus($"Error: {ex.Message}", MessageIntent.Error);
+        }
+        finally
+        {
+            isGettingParticipants = false;
+        }
+    }
+
+    private async Task ResetAuction()
+    {
+        isResettingAuction = true;
+        try
+        {
+            var response = await Http.PostAsync($"/api/diagnostic/auctions/{auctionIdForOperations}/reset", null);
+            var result = await response.Content.ReadAsStringAsync();
+
+            auctionOperationResult = FormatJson(result);
+
+            if (response.IsSuccessStatusCode)
+            {
+                ShowStatus($"Auction {auctionIdForOperations} reset successfully", MessageIntent.Success);
+            }
+            else
+            {
+                ShowStatus($"Failed to reset auction: {response.StatusCode}", MessageIntent.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            auctionOperationResult = $"Exception: {ex.Message}";
+            ShowStatus($"Error: {ex.Message}", MessageIntent.Error);
+        }
+        finally
+        {
+            isResettingAuction = false;
+        }
+    }
+
+    private async Task DeleteAuction()
+    {
+        isDeletingAuction = true;
+        try
+        {
+            // Show confirmation dialog
+            var confirmed = await JSRuntime.InvokeAsync<bool>("confirm",
+                $"Are you sure you want to DELETE auction {auctionIdForOperations}? This action cannot be undone.");
+
+            if (!confirmed)
+            {
+                isDeletingAuction = false;
+                return;
+            }
+
+            var response = await Http.DeleteAsync($"/api/diagnostic/auctions/{auctionIdForOperations}");
+            var result = await response.Content.ReadAsStringAsync();
+
+            auctionOperationResult = FormatJson(result);
+
+            if (response.IsSuccessStatusCode)
+            {
+                ShowStatus($"Auction {auctionIdForOperations} deleted successfully", MessageIntent.Success);
+                auctionIdForOperations = 0; // Clear the input
+            }
+            else
+            {
+                ShowStatus($"Failed to delete auction: {response.StatusCode}", MessageIntent.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            auctionOperationResult = $"Exception: {ex.Message}";
+            ShowStatus($"Error: {ex.Message}", MessageIntent.Error);
+        }
+        finally
+        {
+            isDeletingAuction = false;
+        }
+    }
+
+    private string FormatJson(string json)
+    {
+        try
+        {
+            var jsonDocument = JsonDocument.Parse(json);
+            return JsonSerializer.Serialize(jsonDocument, new JsonSerializerOptions { WriteIndented = true });
+        }
+        catch
+        {
+            return json; // Return as-is if parsing fails
+        }
+    }
+
+    private void ShowStatus(string message, MessageIntent intent)
+    {
+        statusMessage = message;
+        statusMessageType = intent;
+    }
+}

@@ -25,10 +25,10 @@
         </div>
         
         <div class="dashboard-card">
-            <h3>📊 System Status</h3>
-            <p>Monitor system health</p>
-            <button class="btn btn-secondary" disabled>
-                Coming Soon
+            <h3>🔧 System Administration</h3>
+            <p>Diagnostic tools and system management</p>
+            <button class="btn btn-primary" @onclick="@(() => Navigation.NavigateTo("/management/system-admin"))">
+                System Admin Tools
             </button>
         </div>
     </div>
