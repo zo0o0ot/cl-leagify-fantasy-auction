@@ -30,7 +30,10 @@
       "Bash(git config:*)",
       "Read(//home/woo/code/**)",
       "Bash(find:*)",
-      "Bash(timeout 30 dotnet test LeagifyFantasyAuction.Tests --filter \"DeleteConstraintTests\" --logger \"console;verbosity=minimal\")"
+      "Bash(timeout 30 dotnet test LeagifyFantasyAuction.Tests --filter \"DeleteConstraintTests\" --logger \"console;verbosity=minimal\")",
+      "Bash(for i in {1..3})",
+      "Bash(do echo \"Test $i:\")",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []

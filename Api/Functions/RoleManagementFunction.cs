@@ -247,20 +247,41 @@ public class RoleManagementFunction(ILoggerFactory loggerFactory, LeagifyAuction
 
             _logger.LogInformation("Found user {UserId} ({DisplayName})", userId, user.DisplayName);
 
-            // Check all foreign key references before deletion
+            // Check ALL foreign key references before deletion (comprehensive constraint checking)
             var bidHistories = await context.BidHistories.Where(bh => bh.UserId == userId).CountAsync();
             var nominatedPicks = await context.DraftPicks.Where(dp => dp.NominatedByUserId == userId).CountAsync();
             var wonPicks = await context.DraftPicks.Where(dp => dp.WonByUserId == userId).CountAsync();
             var adminActions = await context.AdminActions.Where(aa => aa.AdminUserId == userId).CountAsync();
             var nominationOrders = await context.NominationOrders.Where(no => no.UserId == userId).CountAsync();
 
-            _logger.LogInformation("User {UserId} foreign key references - BidHistories: {BidCount}, NominatedPicks: {NominatedCount}, WonPicks: {WonCount}, AdminActions: {AdminCount}, NominationOrders: {NominationCount}",
-                userId, bidHistories, nominatedPicks, wonPicks, adminActions, nominationOrders);
+            // MISSING CONSTRAINTS - These were causing the 500 errors!
+            var ownedTeams = await context.Teams.Where(t => t.UserId == userId).CountAsync();
+            var createdAuctions = await context.Auctions.Where(a => a.CreatedByUserId == userId).CountAsync();
+            var currentNominatorAuctions = await context.Auctions.Where(a => a.CurrentNominatorUserId == userId).CountAsync();
+            var currentHighBidderAuctions = await context.Auctions.Where(a => a.CurrentHighBidderUserId == userId).CountAsync();
 
-            if (bidHistories > 0 || nominatedPicks > 0 || wonPicks > 0 || adminActions > 0 || nominationOrders > 0)
+            _logger.LogInformation("User {UserId} foreign key references - BidHistories: {BidCount}, NominatedPicks: {NominatedCount}, WonPicks: {WonCount}, AdminActions: {AdminCount}, NominationOrders: {NominationCount}, OwnedTeams: {OwnedTeams}, CreatedAuctions: {CreatedAuctions}, CurrentNominator: {CurrentNominator}, CurrentHighBidder: {CurrentHighBidder}",
+                userId, bidHistories, nominatedPicks, wonPicks, adminActions, nominationOrders, ownedTeams, createdAuctions, currentNominatorAuctions, currentHighBidderAuctions);
+
+            // Check if user has ANY foreign key references that prevent deletion
+            var hasConstraints = bidHistories > 0 || nominatedPicks > 0 || wonPicks > 0 || adminActions > 0 || nominationOrders > 0 || ownedTeams > 0 || createdAuctions > 0 || currentNominatorAuctions > 0 || currentHighBidderAuctions > 0;
+
+            if (hasConstraints)
             {
-                _logger.LogWarning("❌ Cannot delete user {UserId} due to foreign key constraints. User has participated in auction activities.", userId);
-                return await CreateErrorResponse(req, HttpStatusCode.Conflict, "Cannot delete user who has participated in auction activities (bids, nominations, draft picks, etc.)");
+                var constraints = new List<string>();
+                if (bidHistories > 0) constraints.Add($"{bidHistories} bid histories");
+                if (nominatedPicks > 0) constraints.Add($"{nominatedPicks} nominations");
+                if (wonPicks > 0) constraints.Add($"{wonPicks} won picks");
+                if (adminActions > 0) constraints.Add($"{adminActions} admin actions");
+                if (nominationOrders > 0) constraints.Add($"{nominationOrders} nomination orders");
+                if (ownedTeams > 0) constraints.Add($"{ownedTeams} owned teams");
+                if (createdAuctions > 0) constraints.Add($"{createdAuctions} created auctions");
+                if (currentNominatorAuctions > 0) constraints.Add($"current nominator in {currentNominatorAuctions} auctions");
+                if (currentHighBidderAuctions > 0) constraints.Add($"current high bidder in {currentHighBidderAuctions} auctions");
+
+                var constraintMessage = string.Join(", ", constraints);
+                _logger.LogWarning("❌ Cannot delete user {UserId} due to foreign key constraints: {Constraints}", userId, constraintMessage);
+                return await CreateErrorResponse(req, HttpStatusCode.Conflict, $"Cannot delete user who has auction dependencies: {constraintMessage}");
             }
 
             // Remove all roles first - query separately to avoid EF tracking conflicts
