@@ -33,7 +33,9 @@
       "Bash(timeout 30 dotnet test LeagifyFantasyAuction.Tests --filter \"DeleteConstraintTests\" --logger \"console;verbosity=minimal\")",
       "Bash(for i in {1..3})",
       "Bash(do echo \"Test $i:\")",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(gh:*)",
+      "Bash(gemini:*)"
     ],
     "deny": [],
     "ask": []

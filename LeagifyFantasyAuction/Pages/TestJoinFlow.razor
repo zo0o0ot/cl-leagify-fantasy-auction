@@ -1,0 +1,489 @@
+@page "/test/join-flow"
+@using LeagifyFantasyAuction.Services
+@inject MockAuctionService MockService
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+
+<PageTitle>Test Join Flow - Mock Data</PageTitle>
+
+<div class="test-container">
+    <FluentLabel Typo="Typography.PageTitle" Style="margin-bottom: 24px;">
+        🧪 Join Auction Flow Testing (Mock Data)
+    </FluentLabel>
+
+    <FluentMessageBar Intent="MessageIntent.Info" Style="margin-bottom: 24px;">
+        <FluentIcon Value="@(new Icons.Regular.Size16.Info())" Style="margin-right: 8px;" />
+        This page tests the join auction flow using mock data while the database is paused.
+    </FluentMessageBar>
+
+    <!-- Available Test Auctions -->
+    <FluentCard Style="margin-bottom: 24px; padding: 24px;">
+        <FluentLabel Typo="Typography.Subject" Style="margin-bottom: 16px;">
+            🎯 Available Test Auctions
+        </FluentLabel>
+
+        <FluentStack Orientation="Orientation.Vertical" VerticalGap="12">
+            <FluentCard Style="padding: 16px; background: #f8f9fa;">
+                <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="16">
+                    <div style="flex: 1;">
+                        <FluentLabel Style="font-weight: 600;">Mock NFL Draft League 2024</FluentLabel>
+                        <FluentLabel Style="color: #666; font-size: 14px;">Status: Draft • 3 Teams Available</FluentLabel>
+                    </div>
+                    <FluentBadge Appearance="Appearance.Accent" BackgroundColor="#0078d4" Color="white">
+                        Join Code: MOCK24
+                    </FluentBadge>
+                </FluentStack>
+            </FluentCard>
+
+            <FluentCard Style="padding: 16px; background: #f8f9fa;">
+                <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="16">
+                    <div style="flex: 1;">
+                        <FluentLabel Style="font-weight: 600;">Test Fantasy Baseball</FluentLabel>
+                        <FluentLabel Style="color: #666; font-size: 14px;">Status: Draft • Open for Testing</FluentLabel>
+                    </div>
+                    <FluentBadge Appearance="Appearance.Accent" BackgroundColor="#107c10" Color="white">
+                        Join Code: BASE24
+                    </FluentBadge>
+                </FluentStack>
+            </FluentCard>
+        </FluentStack>
+    </FluentCard>
+
+    <!-- Join Auction Test Form -->
+    <FluentCard Style="margin-bottom: 24px; padding: 24px;">
+        <FluentLabel Typo="Typography.Subject" Style="margin-bottom: 16px;">
+            📝 Test Join Auction
+        </FluentLabel>
+
+        @if (!string.IsNullOrEmpty(testMessage))
+        {
+            <FluentMessageBar Intent="@testMessageType" Style="margin-bottom: 16px;">
+                @testMessage
+            </FluentMessageBar>
+        }
+
+        <EditForm Model="@testJoinRequest" OnValidSubmit="@HandleTestJoin">
+            <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="16" VerticalAlignment="VerticalAlignment.Bottom">
+                <div style="flex: 1;">
+                    <FluentLabel Style="margin-bottom: 8px;">Join Code:</FluentLabel>
+                    <FluentTextField @bind-Value="testJoinRequest.JoinCode"
+                                     Placeholder="Try MOCK24 or BASE24"
+                                     Style="width: 100%;"
+                                     Appearance="FluentInputAppearance.Outline" />
+                </div>
+
+                <div style="flex: 1;">
+                    <FluentLabel Style="margin-bottom: 8px;">Display Name:</FluentLabel>
+                    <FluentTextField @bind-Value="testJoinRequest.DisplayName"
+                                     Placeholder="Enter your test name"
+                                     Style="width: 100%;"
+                                     Appearance="FluentInputAppearance.Outline" />
+                </div>
+
+                <FluentButton Type="ButtonType.Submit"
+                              Appearance="Appearance.Accent"
+                              Loading="@isTestingJoin"
+                              IconStart="@(new Icons.Regular.Size16.PersonAdd())">
+                    Test Join
+                </FluentButton>
+            </FluentStack>
+        </EditForm>
+    </FluentCard>
+
+    <!-- Current Test Session -->
+    @if (currentTestSession != null)
+    {
+        <FluentCard Style="margin-bottom: 24px; padding: 24px;">
+            <FluentLabel Typo="Typography.Subject" Style="margin-bottom: 16px;">
+                👤 Current Test Session
+            </FluentLabel>
+
+            <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
+                <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="16">
+                    <FluentLabel Style="font-weight: 600; width: 120px;">User ID:</FluentLabel>
+                    <FluentLabel>@currentTestSession.UserId</FluentLabel>
+                </FluentStack>
+
+                <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="16">
+                    <FluentLabel Style="font-weight: 600; width: 120px;">Auction ID:</FluentLabel>
+                    <FluentLabel>@currentTestSession.AuctionId</FluentLabel>
+                </FluentStack>
+
+                <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="16">
+                    <FluentLabel Style="font-weight: 600; width: 120px;">Display Name:</FluentLabel>
+                    <FluentLabel>@currentTestSession.DisplayName</FluentLabel>
+                </FluentStack>
+
+                <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="16">
+                    <FluentLabel Style="font-weight: 600; width: 120px;">Session Token:</FluentLabel>
+                    <FluentLabel>@currentTestSession.SessionToken[..8]...</FluentLabel>
+                </FluentStack>
+            </FluentStack>
+
+            <div style="margin-top: 16px;">
+                <FluentButton Appearance="Appearance.Stealth"
+                              IconStart="@(new Icons.Regular.Size16.ArrowClockwise())"
+                              OnClick="@HandleTestValidation"
+                              Loading="@isValidating">
+                    Test Session Validation
+                </FluentButton>
+
+                <FluentButton Appearance="Appearance.Neutral"
+                              IconStart="@(new Icons.Regular.Size16.ArrowExit())"
+                              OnClick="@HandleTestLeave"
+                              Loading="@isLeavingTest"
+                              Style="margin-left: 12px;">
+                    Test Leave Auction
+                </FluentButton>
+            </div>
+        </FluentCard>
+    }
+
+    <!-- Auction Participants -->
+    @if (currentParticipants.Any())
+    {
+        <FluentCard Style="margin-bottom: 24px; padding: 24px;">
+            <FluentLabel Typo="Typography.Subject" Style="margin-bottom: 16px;">
+                👥 Current Participants (@currentParticipants.Count)
+            </FluentLabel>
+
+            <FluentDataGrid Items="@currentParticipants.AsQueryable()" ResizableColumns="true">
+                <PropertyColumn Property="@(p => p.DisplayName)" Title="Display Name" />
+                <PropertyColumn Property="@(p => p.IsConnected)" Title="Connected" />
+                <PropertyColumn Property="@(p => p.JoinedDate)" Title="Joined" Format="MM/dd HH:mm" />
+                <TemplateColumn Title="Roles">
+                    <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8">
+                        @foreach (var role in context.Roles)
+                        {
+                            <FluentBadge Appearance="Appearance.Lightweight" BackgroundColor="#e1f5fe">
+                                @role.Role
+                                @if (!string.IsNullOrEmpty(role.TeamName))
+                                {
+                                    <span> - @role.TeamName</span>
+                                }
+                            </FluentBadge>
+                        }
+                        @if (!context.Roles.Any())
+                        {
+                            <FluentLabel Style="color: #666; font-style: italic;">No role assigned</FluentLabel>
+                        }
+                    </FluentStack>
+                </TemplateColumn>
+                <TemplateColumn Title="Actions">
+                    <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8">
+                        <FluentButton Appearance="Appearance.Lightweight"
+                                      IconStart="@(new Icons.Regular.Size16.PersonSettings())"
+                                      OnClick="@(() => ShowRoleAssignment(context.UserId))"
+                                      Title="Assign Role">
+                            Role
+                        </FluentButton>
+                    </FluentStack>
+                </TemplateColumn>
+            </FluentDataGrid>
+        </FluentCard>
+    }
+
+    <!-- Role Assignment Panel -->
+    @if (roleAssignmentUserId.HasValue)
+    {
+        <FluentCard Style="margin-bottom: 24px; padding: 24px; border: 2px solid #0078d4;">
+            <FluentLabel Typo="Typography.Subject" Style="margin-bottom: 16px;">
+                🎭 Assign Role (Auction Master View)
+            </FluentLabel>
+
+            <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="16" VerticalAlignment="VerticalAlignment.Bottom">
+                <div>
+                    <FluentLabel Style="margin-bottom: 8px;">User:</FluentLabel>
+                    <FluentLabel Style="font-weight: 600;">
+                        @currentParticipants.FirstOrDefault(p => p.UserId == roleAssignmentUserId)?.DisplayName
+                    </FluentLabel>
+                </div>
+
+                <div style="flex: 1;">
+                    <FluentLabel Style="margin-bottom: 8px;">Role:</FluentLabel>
+                    <FluentSelect TOption="string" @bind-Value="selectedRole"
+                                  Style="width: 100%;"
+                                  Appearance="Appearance.Outline">
+                        <FluentOption TOption="string" Value="">-- Select Role --</FluentOption>
+                        <FluentOption TOption="string" Value="AuctionMaster">Auction Master</FluentOption>
+                        <FluentOption TOption="string" Value="TeamCoach">Team Coach</FluentOption>
+                        <FluentOption TOption="string" Value="ProxyCoach">Proxy Coach</FluentOption>
+                        <FluentOption TOption="string" Value="Viewer">Viewer</FluentOption>
+                    </FluentSelect>
+                </div>
+
+                @if (selectedRole == "TeamCoach" || selectedRole == "ProxyCoach")
+                {
+                    <div style="flex: 1;">
+                        <FluentLabel Style="margin-bottom: 8px;">Team:</FluentLabel>
+                        <FluentSelect TOption="string" @bind-Value="selectedTeamId"
+                                      Style="width: 100%;"
+                                      Appearance="Appearance.Outline">
+                            <FluentOption TOption="string" Value="">-- Select Team --</FluentOption>
+                            <FluentOption TOption="string" Value="1">Team Alpha</FluentOption>
+                            <FluentOption TOption="string" Value="2">Team Beta</FluentOption>
+                            <FluentOption TOption="string" Value="3">Team Gamma</FluentOption>
+                        </FluentSelect>
+                    </div>
+                }
+
+                <FluentButton Appearance="Appearance.Accent"
+                              OnClick="@HandleAssignRole"
+                              Loading="@isAssigningRole"
+                              Disabled="@string.IsNullOrEmpty(selectedRole)">
+                    Assign Role
+                </FluentButton>
+
+                <FluentButton Appearance="Appearance.Neutral"
+                              OnClick="@(() => roleAssignmentUserId = null)">
+                    Cancel
+                </FluentButton>
+            </FluentStack>
+        </FluentCard>
+    }
+
+    <!-- Test Actions -->
+    <FluentCard Style="padding: 24px;">
+        <FluentLabel Typo="Typography.Subject" Style="margin-bottom: 16px;">
+            🔧 Test Actions
+        </FluentLabel>
+
+        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12" Wrap="true">
+            <FluentButton Appearance="Appearance.Stealth"
+                          IconStart="@(new Icons.Regular.Size16.ArrowClockwise())"
+                          OnClick="@HandleRefreshParticipants"
+                          Loading="@isRefreshing">
+                Refresh Participants
+            </FluentButton>
+
+            <FluentButton Appearance="Appearance.Neutral"
+                          IconStart="@(new Icons.Regular.Size16.Home())"
+                          OnClick="@(() => Navigation.NavigateTo("/join"))">
+                Go to Real Join Page
+            </FluentButton>
+        </FluentStack>
+    </FluentCard>
+</div>
+
+@code {
+    private TestJoinRequest testJoinRequest = new();
+    private MockJoinResponse? currentTestSession;
+    private List<MockParticipant> currentParticipants = new();
+    private string testMessage = string.Empty;
+    private MessageIntent testMessageType = MessageIntent.Info;
+    private bool isTestingJoin = false;
+    private bool isValidating = false;
+    private bool isLeavingTest = false;
+    private bool isRefreshing = false;
+    private bool isAssigningRole = false;
+
+    private int? roleAssignmentUserId;
+    private string selectedRole = string.Empty;
+    private string selectedTeamId = string.Empty;
+    private string nameFilter = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await HandleRefreshParticipants();
+    }
+
+    private async Task HandleTestJoin()
+    {
+        if (isTestingJoin) return;
+
+        try
+        {
+            isTestingJoin = true;
+            testMessage = string.Empty;
+            StateHasChanged();
+
+            var result = await MockService.JoinAuctionAsync(testJoinRequest.JoinCode, testJoinRequest.DisplayName);
+
+            if (result.IsSuccess && result.Response != null)
+            {
+                currentTestSession = result.Response;
+                testMessage = $"✅ Successfully joined {result.Response.AuctionName}!";
+                testMessageType = MessageIntent.Success;
+
+                // Refresh participants list
+                await HandleRefreshParticipants();
+            }
+            else
+            {
+                testMessage = $"❌ {result.ErrorMessage}";
+                testMessageType = MessageIntent.Error;
+            }
+        }
+        catch (Exception ex)
+        {
+            testMessage = $"❌ Error: {ex.Message}";
+            testMessageType = MessageIntent.Error;
+        }
+        finally
+        {
+            isTestingJoin = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleTestValidation()
+    {
+        if (isValidating || currentTestSession == null) return;
+
+        try
+        {
+            isValidating = true;
+            StateHasChanged();
+
+            var user = await MockService.ValidateSessionAsync(currentTestSession.SessionToken);
+
+            if (user != null)
+            {
+                testMessage = "✅ Session validation successful!";
+                testMessageType = MessageIntent.Success;
+            }
+            else
+            {
+                testMessage = "❌ Session validation failed!";
+                testMessageType = MessageIntent.Error;
+            }
+        }
+        catch (Exception ex)
+        {
+            testMessage = $"❌ Validation error: {ex.Message}";
+            testMessageType = MessageIntent.Error;
+        }
+        finally
+        {
+            isValidating = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleTestLeave()
+    {
+        if (isLeavingTest || currentTestSession == null) return;
+
+        try
+        {
+            isLeavingTest = true;
+            StateHasChanged();
+
+            var success = await MockService.LeaveAuctionAsync(currentTestSession.SessionToken);
+
+            if (success)
+            {
+                testMessage = "✅ Successfully left the auction!";
+                testMessageType = MessageIntent.Success;
+                currentTestSession = null;
+                await HandleRefreshParticipants();
+            }
+            else
+            {
+                testMessage = "❌ Failed to leave auction!";
+                testMessageType = MessageIntent.Error;
+            }
+        }
+        catch (Exception ex)
+        {
+            testMessage = $"❌ Leave error: {ex.Message}";
+            testMessageType = MessageIntent.Error;
+        }
+        finally
+        {
+            isLeavingTest = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleRefreshParticipants()
+    {
+        if (isRefreshing) return;
+
+        try
+        {
+            isRefreshing = true;
+            StateHasChanged();
+
+            // Get participants for auction 1 (our main test auction)
+            currentParticipants = await MockService.GetAuctionParticipantsAsync(1);
+        }
+        catch (Exception ex)
+        {
+            testMessage = $"❌ Refresh error: {ex.Message}";
+            testMessageType = MessageIntent.Error;
+        }
+        finally
+        {
+            isRefreshing = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ShowRoleAssignment(int userId)
+    {
+        roleAssignmentUserId = userId;
+        selectedRole = string.Empty;
+        selectedTeamId = string.Empty;
+    }
+
+    private async Task HandleAssignRole()
+    {
+        if (isAssigningRole || !roleAssignmentUserId.HasValue || string.IsNullOrEmpty(selectedRole)) return;
+
+        try
+        {
+            isAssigningRole = true;
+            StateHasChanged();
+
+            int? teamId = null;
+            if (!string.IsNullOrEmpty(selectedTeamId) && int.TryParse(selectedTeamId, out var parsedTeamId))
+            {
+                teamId = parsedTeamId;
+            }
+
+            var success = await MockService.AssignRoleAsync(1, roleAssignmentUserId.Value, selectedRole, teamId);
+
+            if (success)
+            {
+                testMessage = $"✅ Role '{selectedRole}' assigned successfully!";
+                testMessageType = MessageIntent.Success;
+                roleAssignmentUserId = null;
+                await HandleRefreshParticipants();
+            }
+            else
+            {
+                testMessage = "❌ Failed to assign role!";
+                testMessageType = MessageIntent.Error;
+            }
+        }
+        catch (Exception ex)
+        {
+            testMessage = $"❌ Role assignment error: {ex.Message}";
+            testMessageType = MessageIntent.Error;
+        }
+        finally
+        {
+            isAssigningRole = false;
+            StateHasChanged();
+        }
+    }
+
+    private class TestJoinRequest
+    {
+        public string JoinCode { get; set; } = string.Empty;
+        public string DisplayName { get; set; } = string.Empty;
+    }
+}
+
+<style>
+    .test-container {
+        padding: 24px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .search-box {
+        width: 100%;
+    }
+</style>
