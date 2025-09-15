@@ -77,7 +77,7 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
 
         try
         {
-            logger.LogInformation("Creating test auction with participants and team assignments");
+            logger.LogInformation("Creating simple test auction only (no users/teams for now)");
 
             // Create test auction with unique identifiers to avoid conflicts
             var uniqueId = Guid.NewGuid().ToString("N")[..8]; // Use GUID for complete uniqueness
@@ -87,110 +87,29 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
                 JoinCode = $"DEBUG{uniqueId[..6].ToUpper()}",  // 6 chars from GUID
                 MasterRecoveryCode = $"MASTER{uniqueId[^4..].ToUpper()}",  // Last 4 chars of GUID
                 Status = "Draft",
-                CreatedDate = DateTime.UtcNow
+                CreatedDate = DateTime.UtcNow,
+                ModifiedDate = DateTime.UtcNow,
+                // Explicitly set nullable foreign keys to null
+                CreatedByUserId = null,
+                CurrentNominatorUserId = null,
+                CurrentSchoolId = null,
+                CurrentHighBidderUserId = null,
+                CurrentHighBid = null
             };
 
             logger.LogInformation("Adding auction: {AuctionName} with JoinCode: {JoinCode}", auction.Name, auction.JoinCode);
             context.Auctions.Add(auction);
             await context.SaveChangesAsync();
-            logger.LogInformation("Auction created with ID: {AuctionId}", auction.AuctionId);
-
-            // Create test users first (required for team foreign keys)
-            // Use separate GUIDs to ensure absolute uniqueness for display names
-            var userGuid1 = Guid.NewGuid().ToString("N")[..8];
-            var userGuid2 = Guid.NewGuid().ToString("N")[..8];
-
-            var user1 = new Api.Models.User
-            {
-                AuctionId = auction.AuctionId,
-                DisplayName = $"TestUser1_{userGuid1}",  // Absolutely unique user names
-                SessionToken = Guid.NewGuid().ToString(),
-                IsConnected = true,
-                JoinedDate = DateTime.UtcNow,
-                LastActiveDate = DateTime.UtcNow,
-                IsReconnectionPending = false
-            };
-
-            var user2 = new Api.Models.User
-            {
-                AuctionId = auction.AuctionId,
-                DisplayName = $"TestUser2_{userGuid2}",  // Absolutely unique user names
-                SessionToken = Guid.NewGuid().ToString(),
-                IsConnected = true,
-                JoinedDate = DateTime.UtcNow,
-                LastActiveDate = DateTime.UtcNow,
-                IsReconnectionPending = false
-            };
-
-            logger.LogInformation("Adding users: {User1} and {User2}", user1.DisplayName, user2.DisplayName);
-            context.Users.Add(user1);
-            context.Users.Add(user2);
-            await context.SaveChangesAsync();
-            logger.LogInformation("Users created with IDs: {User1Id}, {User2Id}", user1.UserId, user2.UserId);
-
-            // Create teams with valid user IDs
-            var team1 = new Api.Models.Team
-            {
-                AuctionId = auction.AuctionId,
-                UserId = user1.UserId, // Now we have a valid user ID
-                TeamName = $"Alpha Team {userGuid1[..4]}",  // Make team names unique too
-                Budget = 1000,
-                RemainingBudget = 1000,
-                NominationOrder = 1,
-                IsActive = true
-            };
-
-            var team2 = new Api.Models.Team
-            {
-                AuctionId = auction.AuctionId,
-                UserId = user2.UserId, // Now we have a valid user ID
-                TeamName = $"Beta Team {userGuid2[..4]}",   // Make team names unique too
-                Budget = 1000,
-                RemainingBudget = 1000,
-                NominationOrder = 2,
-                IsActive = true
-            };
-
-            logger.LogInformation("Adding teams: {Team1} and {Team2}", team1.TeamName, team2.TeamName);
-            context.Teams.Add(team1);
-            context.Teams.Add(team2);
-            await context.SaveChangesAsync();
-            logger.LogInformation("Teams created with IDs: {Team1Id}, {Team2Id}", team1.TeamId, team2.TeamId);
-
-            // Create user roles with team assignments
-            var role1 = new Api.Models.UserRole
-            {
-                UserId = user1.UserId,
-                Role = "TeamCoach",
-                TeamId = team1.TeamId,
-                AssignedDate = DateTime.UtcNow
-            };
-
-            var role2 = new Api.Models.UserRole
-            {
-                UserId = user2.UserId,
-                Role = "TeamCoach",
-                TeamId = team2.TeamId,
-                AssignedDate = DateTime.UtcNow
-            };
-
-            logger.LogInformation("Adding user roles");
-            context.UserRoles.Add(role1);
-            context.UserRoles.Add(role2);
-            await context.SaveChangesAsync();
-            logger.LogInformation("User roles created successfully");
+            logger.LogInformation("Auction created successfully with ID: {AuctionId}", auction.AuctionId);
 
             var response = req.CreateResponse(HttpStatusCode.OK);
             await response.WriteAsJsonAsync(new
             {
-                Message = "Test data created successfully",
+                Message = "Simple test auction created successfully",
                 AuctionId = auction.AuctionId,
                 JoinCode = auction.JoinCode,
-                Users = new[]
-                {
-                    new { user1.UserId, user1.DisplayName, user1.SessionToken, TeamName = team1.TeamName },
-                    new { user2.UserId, user2.DisplayName, user2.SessionToken, TeamName = team2.TeamName }
-                }
+                Name = auction.Name,
+                Status = auction.Status
             });
 
             return response;
