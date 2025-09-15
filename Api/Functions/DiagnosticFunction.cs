@@ -92,34 +92,7 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
             context.Auctions.Add(auction);
             await context.SaveChangesAsync();
 
-            // Create teams
-            var team1 = new Api.Models.Team
-            {
-                AuctionId = auction.AuctionId,
-                UserId = 0, // Temporary - will be assigned later
-                TeamName = "Alpha Team",
-                Budget = 1000,
-                RemainingBudget = 1000,
-                NominationOrder = 1,
-                IsActive = true
-            };
-
-            var team2 = new Api.Models.Team
-            {
-                AuctionId = auction.AuctionId,
-                UserId = 0,
-                TeamName = "Beta Team",
-                Budget = 1000,
-                RemainingBudget = 1000,
-                NominationOrder = 2,
-                IsActive = true
-            };
-
-            context.Teams.Add(team1);
-            context.Teams.Add(team2);
-            await context.SaveChangesAsync();
-
-            // Create test users
+            // Create test users first (required for team foreign keys)
             var user1 = new Api.Models.User
             {
                 AuctionId = auction.AuctionId,
@@ -144,6 +117,33 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
 
             context.Users.Add(user1);
             context.Users.Add(user2);
+            await context.SaveChangesAsync();
+
+            // Create teams with valid user IDs
+            var team1 = new Api.Models.Team
+            {
+                AuctionId = auction.AuctionId,
+                UserId = user1.UserId, // Now we have a valid user ID
+                TeamName = "Alpha Team",
+                Budget = 1000,
+                RemainingBudget = 1000,
+                NominationOrder = 1,
+                IsActive = true
+            };
+
+            var team2 = new Api.Models.Team
+            {
+                AuctionId = auction.AuctionId,
+                UserId = user2.UserId, // Now we have a valid user ID
+                TeamName = "Beta Team",
+                Budget = 1000,
+                RemainingBudget = 1000,
+                NominationOrder = 2,
+                IsActive = true
+            };
+
+            context.Teams.Add(team1);
+            context.Teams.Add(team2);
             await context.SaveChangesAsync();
 
             // Create user roles with team assignments
