@@ -94,10 +94,14 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
             await context.SaveChangesAsync();
 
             // Create test users first (required for team foreign keys)
+            // Use GUIDs to ensure absolute uniqueness for display names
+            var uniqueId1 = Guid.NewGuid().ToString("N")[..8]; // 8 characters from GUID
+            var uniqueId2 = Guid.NewGuid().ToString("N")[..8]; // 8 characters from GUID
+
             var user1 = new Api.Models.User
             {
                 AuctionId = auction.AuctionId,
-                DisplayName = $"TestUser1_{timestamp[^6..]}",  // Unique user names
+                DisplayName = $"TestUser1_{uniqueId1}",  // Absolutely unique user names
                 SessionToken = Guid.NewGuid().ToString(),
                 IsConnected = true,
                 JoinedDate = DateTime.UtcNow,
@@ -108,7 +112,7 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
             var user2 = new Api.Models.User
             {
                 AuctionId = auction.AuctionId,
-                DisplayName = $"TestUser2_{timestamp[^6..]}",  // Unique user names
+                DisplayName = $"TestUser2_{uniqueId2}",  // Absolutely unique user names
                 SessionToken = Guid.NewGuid().ToString(),
                 IsConnected = true,
                 JoinedDate = DateTime.UtcNow,
