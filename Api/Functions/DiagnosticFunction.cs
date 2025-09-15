@@ -80,28 +80,30 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
             logger.LogInformation("Creating test auction with participants and team assignments");
 
             // Create test auction with unique identifiers to avoid conflicts
-            var timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
+            var uniqueId = Guid.NewGuid().ToString("N")[..8]; // Use GUID for complete uniqueness
             var auction = new Api.Models.Auction
             {
-                Name = $"DEBUG Test Auction {timestamp}",
-                JoinCode = $"DEBUG{timestamp[^6..]}",  // Last 6 chars of timestamp
-                MasterRecoveryCode = $"MASTER{timestamp[^4..]}",  // Last 4 chars of timestamp
+                Name = $"DEBUG Test Auction {uniqueId}",
+                JoinCode = $"DEBUG{uniqueId[..6].ToUpper()}",  // 6 chars from GUID
+                MasterRecoveryCode = $"MASTER{uniqueId[^4..].ToUpper()}",  // Last 4 chars of GUID
                 Status = "Draft",
                 CreatedDate = DateTime.UtcNow
             };
 
+            logger.LogInformation("Adding auction: {AuctionName} with JoinCode: {JoinCode}", auction.Name, auction.JoinCode);
             context.Auctions.Add(auction);
             await context.SaveChangesAsync();
+            logger.LogInformation("Auction created with ID: {AuctionId}", auction.AuctionId);
 
             // Create test users first (required for team foreign keys)
-            // Use GUIDs to ensure absolute uniqueness for display names
-            var uniqueId1 = Guid.NewGuid().ToString("N")[..8]; // 8 characters from GUID
-            var uniqueId2 = Guid.NewGuid().ToString("N")[..8]; // 8 characters from GUID
+            // Use separate GUIDs to ensure absolute uniqueness for display names
+            var userGuid1 = Guid.NewGuid().ToString("N")[..8];
+            var userGuid2 = Guid.NewGuid().ToString("N")[..8];
 
             var user1 = new Api.Models.User
             {
                 AuctionId = auction.AuctionId,
-                DisplayName = $"TestUser1_{uniqueId1}",  // Absolutely unique user names
+                DisplayName = $"TestUser1_{userGuid1}",  // Absolutely unique user names
                 SessionToken = Guid.NewGuid().ToString(),
                 IsConnected = true,
                 JoinedDate = DateTime.UtcNow,
@@ -112,7 +114,7 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
             var user2 = new Api.Models.User
             {
                 AuctionId = auction.AuctionId,
-                DisplayName = $"TestUser2_{uniqueId2}",  // Absolutely unique user names
+                DisplayName = $"TestUser2_{userGuid2}",  // Absolutely unique user names
                 SessionToken = Guid.NewGuid().ToString(),
                 IsConnected = true,
                 JoinedDate = DateTime.UtcNow,
@@ -120,16 +122,18 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
                 IsReconnectionPending = false
             };
 
+            logger.LogInformation("Adding users: {User1} and {User2}", user1.DisplayName, user2.DisplayName);
             context.Users.Add(user1);
             context.Users.Add(user2);
             await context.SaveChangesAsync();
+            logger.LogInformation("Users created with IDs: {User1Id}, {User2Id}", user1.UserId, user2.UserId);
 
             // Create teams with valid user IDs
             var team1 = new Api.Models.Team
             {
                 AuctionId = auction.AuctionId,
                 UserId = user1.UserId, // Now we have a valid user ID
-                TeamName = "Alpha Team",
+                TeamName = $"Alpha Team {userGuid1[..4]}",  // Make team names unique too
                 Budget = 1000,
                 RemainingBudget = 1000,
                 NominationOrder = 1,
@@ -140,16 +144,18 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
             {
                 AuctionId = auction.AuctionId,
                 UserId = user2.UserId, // Now we have a valid user ID
-                TeamName = "Beta Team",
+                TeamName = $"Beta Team {userGuid2[..4]}",   // Make team names unique too
                 Budget = 1000,
                 RemainingBudget = 1000,
                 NominationOrder = 2,
                 IsActive = true
             };
 
+            logger.LogInformation("Adding teams: {Team1} and {Team2}", team1.TeamName, team2.TeamName);
             context.Teams.Add(team1);
             context.Teams.Add(team2);
             await context.SaveChangesAsync();
+            logger.LogInformation("Teams created with IDs: {Team1Id}, {Team2Id}", team1.TeamId, team2.TeamId);
 
             // Create user roles with team assignments
             var role1 = new Api.Models.UserRole
@@ -168,9 +174,11 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
                 AssignedDate = DateTime.UtcNow
             };
 
+            logger.LogInformation("Adding user roles");
             context.UserRoles.Add(role1);
             context.UserRoles.Add(role2);
             await context.SaveChangesAsync();
+            logger.LogInformation("User roles created successfully");
 
             var response = req.CreateResponse(HttpStatusCode.OK);
             await response.WriteAsJsonAsync(new
@@ -180,8 +188,8 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
                 JoinCode = auction.JoinCode,
                 Users = new[]
                 {
-                    new { user1.UserId, user1.DisplayName, user1.SessionToken, TeamName = "Alpha Team" },
-                    new { user2.UserId, user2.DisplayName, user2.SessionToken, TeamName = "Beta Team" }
+                    new { user1.UserId, user1.DisplayName, user1.SessionToken, TeamName = team1.TeamName },
+                    new { user2.UserId, user2.DisplayName, user2.SessionToken, TeamName = team2.TeamName }
                 }
             });
 
