@@ -79,12 +79,13 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
         {
             logger.LogInformation("Creating test auction with participants and team assignments");
 
-            // Create test auction
+            // Create test auction with unique identifiers to avoid conflicts
+            var timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
             var auction = new Api.Models.Auction
             {
-                Name = "DEBUG Test Auction",
-                JoinCode = "DEBUG1",
-                MasterRecoveryCode = "MASTER1",
+                Name = $"DEBUG Test Auction {timestamp}",
+                JoinCode = $"DEBUG{timestamp[^6..]}",  // Last 6 chars of timestamp
+                MasterRecoveryCode = $"MASTER{timestamp[^4..]}",  // Last 4 chars of timestamp
                 Status = "Draft",
                 CreatedDate = DateTime.UtcNow
             };
@@ -96,7 +97,7 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
             var user1 = new Api.Models.User
             {
                 AuctionId = auction.AuctionId,
-                DisplayName = "TestUser1",
+                DisplayName = $"TestUser1_{timestamp[^6..]}",  // Unique user names
                 SessionToken = Guid.NewGuid().ToString(),
                 IsConnected = true,
                 JoinedDate = DateTime.UtcNow,
@@ -107,7 +108,7 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
             var user2 = new Api.Models.User
             {
                 AuctionId = auction.AuctionId,
-                DisplayName = "TestUser2",
+                DisplayName = $"TestUser2_{timestamp[^6..]}",  // Unique user names
                 SessionToken = Guid.NewGuid().ToString(),
                 IsConnected = true,
                 JoinedDate = DateTime.UtcNow,
