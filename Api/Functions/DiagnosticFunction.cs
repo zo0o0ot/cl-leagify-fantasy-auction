@@ -86,15 +86,8 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
                 Name = $"DEBUG Test Auction {uniqueId}",
                 JoinCode = $"DEBUG{uniqueId[..6].ToUpper()}",  // 6 chars from GUID
                 MasterRecoveryCode = $"MASTER{uniqueId[^4..].ToUpper()}",  // Last 4 chars of GUID
-                Status = "Draft",
-                CreatedDate = DateTime.UtcNow,
-                ModifiedDate = DateTime.UtcNow,
-                // Explicitly set nullable foreign keys to null
-                CreatedByUserId = null,
-                CurrentNominatorUserId = null,
-                CurrentSchoolId = null,
-                CurrentHighBidderUserId = null,
-                CurrentHighBid = null
+                Status = "Draft"
+                // Let EF handle the rest with defaults
             };
 
             logger.LogInformation("Adding auction: {AuctionName} with JoinCode: {JoinCode}", auction.Name, auction.JoinCode);
