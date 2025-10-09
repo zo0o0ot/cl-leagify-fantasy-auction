@@ -135,7 +135,18 @@ public class AuctionSchool
     /// Used to filter available schools in auction interfaces.
     /// </remarks>
     public bool IsAvailable { get; set; } = true;
-    
+
+    /// <summary>
+    /// Gets or sets whether this is the test school used in the waiting room for practice bidding.
+    /// </summary>
+    /// <value>True if this is the Vermont A&M test school; false for regular auction schools.</value>
+    /// <remarks>
+    /// Only one school per auction should have this flag set to true.
+    /// Test bids on this school don't affect team budgets or rosters.
+    /// Used to identify and filter test bidding activity in the waiting room.
+    /// </remarks>
+    public bool IsTestSchool { get; set; } = false;
+
     /// <summary>
     /// Gets or sets the order in which this school was imported from the CSV data.
     /// </summary>

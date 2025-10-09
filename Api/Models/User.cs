@@ -26,6 +26,27 @@ public class User
     
     public bool IsReconnectionPending { get; set; } = false;
 
+    /// <summary>
+    /// Gets or sets whether the user has successfully placed at least one test bid in the waiting room.
+    /// </summary>
+    /// <value>True if the user has tested the bidding interface; false otherwise.</value>
+    /// <remarks>
+    /// This represents the technical readiness indicator (✅) in the waiting room.
+    /// Automatically set to true when the user places their first test bid on Vermont A&M.
+    /// </remarks>
+    public bool HasTestedBidding { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets whether the user has manually confirmed they are ready to start the live auction.
+    /// </summary>
+    /// <value>True if the user clicked "I'm Ready to Draft"; false if still testing or not ready.</value>
+    /// <remarks>
+    /// This represents the personal readiness indicator (🏈) in the waiting room.
+    /// Must be manually toggled by the user via the "I'm Ready to Draft" button.
+    /// Can be toggled back to false if user needs more time.
+    /// </remarks>
+    public bool IsReadyToDraft { get; set; } = false;
+
     // Navigation properties
     public virtual Auction Auction { get; set; } = null!;
     public virtual ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
