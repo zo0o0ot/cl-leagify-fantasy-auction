@@ -1,0 +1,491 @@
+@page "/auction/{auctionId:int}/waiting-room"
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+
+<PageTitle>Waiting Room - Leagify Fantasy Auction</PageTitle>
+
+<div class="waiting-room-container">
+    @if (isLoading)
+    {
+        <div class="loading-container">
+            <FluentProgressRing />
+            <FluentLabel Typo="Typography.Body" Style="margin-top: 16px;">
+                Loading waiting room...
+            </FluentLabel>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <FluentMessageBar Intent="MessageIntent.Error">
+            @errorMessage
+        </FluentMessageBar>
+    }
+    else if (auctionData != null && userData != null)
+    {
+        <!-- Waiting Room Header -->
+        <div class="waiting-room-header">
+            <FluentLabel Typo="Typography.PageTitle">
+                🏈 @auctionData.AuctionName - Waiting Room
+            </FluentLabel>
+            <FluentLabel Style="color: #666; margin-top: 8px;">
+                Practice bidding and prepare for the draft
+            </FluentLabel>
+        </div>
+
+        <!-- Test Bidding Section -->
+        <FluentCard Style="margin-bottom: 24px;">
+            <div class="test-bidding-section">
+                <FluentLabel Typo="Typography.Header">
+                    🎯 Test Bidding - Vermont A&M
+                </FluentLabel>
+                <FluentLabel Style="color: #666; margin-top: 8px; margin-bottom: 16px;">
+                    Practice bidding to test your connection. These bids don't affect your budget.
+                </FluentLabel>
+
+                @if (testSchool != null)
+                {
+                    <div class="current-bid-display">
+                        <FluentLabel Typo="Typography.Body" Style="font-weight: 600;">
+                            Current Test Bid: $@testSchool.CurrentBid
+                            @if (!string.IsNullOrEmpty(testSchool.CurrentBidderName))
+                            {
+                                <span style="color: #0078d4;">(@testSchool.CurrentBidderName)</span>
+                            }
+                        </FluentLabel>
+                        <FluentLabel Style="color: #666; font-size: 14px; margin-top: 4px;">
+                            Your Test Budget: $200 | Remaining: $@(200 - (userData.HasTestedBidding ? testSchool.CurrentBid : 0))
+                        </FluentLabel>
+                    </div>
+
+                    <div class="bid-buttons" style="margin-top: 16px;">
+                        <FluentButton Appearance="Appearance.Accent"
+                                      OnClick="@(() => PlaceTestBid(testSchool.CurrentBid + 1))"
+                                      Disabled="@isPlacingBid">
+                            Bid $@(testSchool.CurrentBid + 1)
+                        </FluentButton>
+                        <FluentButton Appearance="Appearance.Accent"
+                                      OnClick="@(() => PlaceTestBid(testSchool.CurrentBid + 5))"
+                                      Disabled="@isPlacingBid">
+                            Bid $@(testSchool.CurrentBid + 5)
+                        </FluentButton>
+                        <FluentButton Appearance="Appearance.Accent"
+                                      OnClick="@(() => PlaceTestBid(testSchool.CurrentBid + 10))"
+                                      Disabled="@isPlacingBid">
+                            Bid $@(testSchool.CurrentBid + 10)
+                        </FluentButton>
+                        <FluentButton Appearance="Appearance.Neutral"
+                                      Disabled="@isPlacingBid">
+                            Pass
+                        </FluentButton>
+                    </div>
+
+                    @if (testBidHistory.Any())
+                    {
+                        <div class="bid-history" style="margin-top: 16px;">
+                            <FluentLabel Typo="Typography.Body" Style="font-weight: 600; margin-bottom: 8px;">
+                                Recent Test Bids:
+                            </FluentLabel>
+                            @foreach (var bid in testBidHistory.Take(5))
+                            {
+                                <div style="margin: 4px 0; color: #666; font-size: 14px;">
+                                    • @bid.BidderName bid $@bid.Amount
+                                </div>
+                            }
+                        </div>
+                    }
+                }
+            </div>
+        </FluentCard>
+
+        <!-- Readiness Status -->
+        <FluentCard Style="margin-bottom: 24px;">
+            <div class="readiness-section">
+                <FluentLabel Typo="Typography.Header">
+                    📋 Readiness Status
+                </FluentLabel>
+
+                <div style="margin: 16px 0;">
+                    <div class="readiness-indicator">
+                        <span class="readiness-icon">@(userData.HasTestedBidding ? "✅" : "❓")</span>
+                        <FluentLabel Style="margin-left: 8px;">
+                            Technical: @(userData.HasTestedBidding ? "Bidding Tested" : "Not Tested Yet")
+                        </FluentLabel>
+                    </div>
+                    <div class="readiness-indicator" style="margin-top: 8px;">
+                        <span class="readiness-icon">@(userData.IsReadyToDraft ? "🏈" : "❓")</span>
+                        <FluentLabel Style="margin-left: 8px;">
+                            Personal: @(userData.IsReadyToDraft ? "Ready to Draft" : "Still Preparing")
+                        </FluentLabel>
+                    </div>
+                </div>
+
+                <FluentButton Appearance="@(userData.IsReadyToDraft ? Appearance.Neutral : Appearance.Accent)"
+                              OnClick="@ToggleReadiness"
+                              Disabled="@isUpdatingReadiness"
+                              Style="width: 100%; margin-top: 16px;">
+                    @if (userData.IsReadyToDraft)
+                    {
+                        <span>❌ I Need More Time</span>
+                    }
+                    else
+                    {
+                        <span>🏈 I'm Ready to Draft</span>
+                    }
+                </FluentButton>
+            </div>
+        </FluentCard>
+
+        <!-- School Preview -->
+        <FluentCard Style="margin-bottom: 24px;">
+            <div class="school-preview-section">
+                <FluentLabel Typo="Typography.Header">
+                    🏫 Available Schools (Read Only)
+                </FluentLabel>
+                <FluentLabel Style="color: #666; margin-top: 8px; margin-bottom: 16px;">
+                    Review schools available for the draft. Only Vermont A&M is available for test bidding.
+                </FluentLabel>
+
+                @if (schools.Any())
+                {
+                    <div class="school-grid">
+                        @foreach (var school in schools.Take(12))
+                        {
+                            <div class="school-card">
+                                <FluentLabel Style="font-weight: 600; font-size: 14px;">@school.Name</FluentLabel>
+                                <FluentLabel Style="color: #666; font-size: 12px;">@school.Conference</FluentLabel>
+                            </div>
+                        }
+                        @if (schools.Count > 12)
+                        {
+                            <div class="school-card" style="background: #f5f5f5;">
+                                <FluentLabel Style="color: #666; font-size: 14px;">
+                                    +@(schools.Count - 12) more schools
+                                </FluentLabel>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </FluentCard>
+
+        <!-- Nomination Order -->
+        @if (nominationOrder.Any())
+        {
+            <FluentCard>
+                <div class="nomination-order-section">
+                    <FluentLabel Typo="Typography.Header">
+                        📝 Draft Order
+                    </FluentLabel>
+                    <FluentLabel Style="color: #666; margin-top: 8px; margin-bottom: 16px;">
+                        This is the order teams will nominate schools
+                    </FluentLabel>
+
+                    <div class="order-list">
+                        @for (int i = 0; i < nominationOrder.Count; i++)
+                        {
+                            <div class="order-item">
+                                <span class="order-number">@(i + 1).</span>
+                                <FluentLabel>@nominationOrder[i]</FluentLabel>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </FluentCard>
+        }
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int AuctionId { get; set; }
+
+    private bool isLoading = true;
+    private string errorMessage = string.Empty;
+    private bool isPlacingBid = false;
+    private bool isUpdatingReadiness = false;
+
+    private AuctionData? auctionData;
+    private UserData? userData;
+    private TestSchoolData? testSchool;
+    private List<TestBidData> testBidHistory = new();
+    private List<SchoolData> schools = new();
+    private List<string> nominationOrder = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadWaitingRoomData();
+    }
+
+    private async Task LoadWaitingRoomData()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = string.Empty;
+            StateHasChanged();
+
+            // Get session from localStorage
+            var sessionJson = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "auctionSession");
+            if (string.IsNullOrEmpty(sessionJson))
+            {
+                Navigation.NavigateTo("/join");
+                return;
+            }
+
+            var session = System.Text.Json.JsonSerializer.Deserialize<UserSession>(sessionJson);
+            if (session == null || session.AuctionId != AuctionId)
+            {
+                Navigation.NavigateTo("/join");
+                return;
+            }
+
+            // Set auth header
+            Http.DefaultRequestHeaders.Remove("X-Auction-Token");
+            Http.DefaultRequestHeaders.Add("X-Auction-Token", session.SessionToken);
+
+            // Load waiting room data (we'll implement this API endpoint next)
+            var response = await Http.GetAsync($"/api/auction/{AuctionId}/waiting-room");
+
+            if (response.IsSuccessStatusCode)
+            {
+                var data = await response.Content.ReadFromJsonAsync<WaitingRoomResponse>();
+                if (data != null)
+                {
+                    auctionData = data.Auction;
+                    userData = data.User;
+                    testSchool = data.TestSchool;
+                    testBidHistory = data.TestBidHistory;
+                    schools = data.Schools;
+                    nominationOrder = data.NominationOrder;
+                }
+            }
+            else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "auctionSession");
+                Navigation.NavigateTo("/join");
+            }
+            else
+            {
+                errorMessage = "Unable to load waiting room data";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading waiting room: {ex.Message}";
+            Console.WriteLine($"Waiting room error: {ex}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task PlaceTestBid(decimal amount)
+    {
+        try
+        {
+            isPlacingBid = true;
+            StateHasChanged();
+
+            var response = await Http.PostAsJsonAsync($"/api/auction/{AuctionId}/test-bid", new { Amount = amount });
+
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadWaitingRoomData(); // Refresh data
+            }
+            else
+            {
+                errorMessage = "Failed to place test bid";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error placing bid: {ex.Message}";
+        }
+        finally
+        {
+            isPlacingBid = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ToggleReadiness()
+    {
+        try
+        {
+            isUpdatingReadiness = true;
+            StateHasChanged();
+
+            var newReadiness = !userData!.IsReadyToDraft;
+            var response = await Http.PostAsJsonAsync($"/api/auction/{AuctionId}/ready-status", new { IsReady = newReadiness });
+
+            if (response.IsSuccessStatusCode)
+            {
+                userData.IsReadyToDraft = newReadiness;
+            }
+            else
+            {
+                errorMessage = "Failed to update readiness status";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error updating readiness: {ex.Message}";
+        }
+        finally
+        {
+            isUpdatingReadiness = false;
+            StateHasChanged();
+        }
+    }
+
+    // Data models
+    private class UserSession
+    {
+        public int UserId { get; set; }
+        public int AuctionId { get; set; }
+        public string SessionToken { get; set; } = string.Empty;
+    }
+
+    private class WaitingRoomResponse
+    {
+        public AuctionData Auction { get; set; } = new();
+        public UserData User { get; set; } = new();
+        public TestSchoolData TestSchool { get; set; } = new();
+        public List<TestBidData> TestBidHistory { get; set; } = new();
+        public List<SchoolData> Schools { get; set; } = new();
+        public List<string> NominationOrder { get; set; } = new();
+    }
+
+    private class AuctionData
+    {
+        public string AuctionName { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+    }
+
+    private class UserData
+    {
+        public string DisplayName { get; set; } = string.Empty;
+        public bool HasTestedBidding { get; set; }
+        public bool IsReadyToDraft { get; set; }
+    }
+
+    private class TestSchoolData
+    {
+        public int SchoolId { get; set; }
+        public string Name { get; set; } = "Vermont A&M";
+        public decimal CurrentBid { get; set; }
+        public string CurrentBidderName { get; set; } = string.Empty;
+    }
+
+    private class TestBidData
+    {
+        public string BidderName { get; set; } = string.Empty;
+        public decimal Amount { get; set; }
+        public DateTime BidDate { get; set; }
+    }
+
+    private class SchoolData
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Conference { get; set; } = string.Empty;
+    }
+}
+
+<style>
+    .waiting-room-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px;
+    }
+
+    .loading-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 400px;
+    }
+
+    .waiting-room-header {
+        margin-bottom: 32px;
+        text-align: center;
+    }
+
+    .test-bidding-section,
+    .readiness-section,
+    .school-preview-section,
+    .nomination-order-section {
+        padding: 20px;
+    }
+
+    .current-bid-display {
+        background: #f5f5f5;
+        padding: 16px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+    }
+
+    .bid-buttons {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .bid-history {
+        background: #f9f9f9;
+        padding: 12px;
+        border-radius: 6px;
+        border-left: 3px solid #0078d4;
+    }
+
+    .readiness-indicator {
+        display: flex;
+        align-items: center;
+        padding: 8px;
+        background: #f5f5f5;
+        border-radius: 6px;
+    }
+
+    .readiness-icon {
+        font-size: 24px;
+    }
+
+    .school-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 12px;
+        margin-top: 16px;
+    }
+
+    .school-card {
+        padding: 12px;
+        border: 1px solid #e1e1e1;
+        border-radius: 6px;
+        background: white;
+    }
+
+    .order-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .order-item {
+        display: flex;
+        align-items: center;
+        padding: 12px;
+        background: #f5f5f5;
+        border-radius: 6px;
+    }
+
+    .order-number {
+        font-weight: 600;
+        margin-right: 12px;
+        color: #0078d4;
+        min-width: 30px;
+    }
+</style>
