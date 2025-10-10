@@ -55,13 +55,27 @@ using (var scope = host.Services.CreateScope())
     var dbContext = scope.ServiceProvider.GetRequiredService<LeagifyAuctionDbContext>();
     try
     {
-        // Apply any pending migrations to create database schema
-        dbContext.Database.Migrate();
-        Console.WriteLine("Database migrations applied successfully");
+        Console.WriteLine("Starting database migration check...");
+
+        // Check for pending migrations
+        var pendingMigrations = dbContext.Database.GetPendingMigrations().ToList();
+        if (pendingMigrations.Any())
+        {
+            Console.WriteLine($"Found {pendingMigrations.Count} pending migrations: {string.Join(", ", pendingMigrations)}");
+
+            // Apply any pending migrations to create database schema
+            dbContext.Database.Migrate();
+            Console.WriteLine("✅ Database migrations applied successfully");
+        }
+        else
+        {
+            Console.WriteLine("✅ Database is up to date - no pending migrations");
+        }
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"Database migration failed: {ex.Message}");
+        Console.WriteLine($"❌ Database migration failed: {ex.Message}");
+        Console.WriteLine($"Stack trace: {ex.StackTrace}");
         // Continue running even if database init fails - for Azure deployment scenarios
     }
 }
