@@ -17,6 +17,10 @@ public class WaitingRoomFunction
     private readonly LeagifyAuctionDbContext _context;
     private readonly ILogger<WaitingRoomFunction> _logger;
 
+    // Virtual test school ID (doesn't exist in database)
+    private const int VIRTUAL_TEST_SCHOOL_ID = -1;
+    private const string TEST_SCHOOL_NAME = "Vermont A&M";
+
     public WaitingRoomFunction(LeagifyAuctionDbContext context, ILogger<WaitingRoomFunction> logger)
     {
         _context = context;
@@ -52,23 +56,17 @@ public class WaitingRoomFunction
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
-            // Get test school (Vermont A&M)
-            var testSchool = await _context.AuctionSchools
-                .Include(s => s.School)
-                .AsNoTracking()
-                .FirstOrDefaultAsync(s => s.AuctionId == auctionId && s.IsTestSchool);
-
-            // Get current test bid info
+            // Get current test bid info for virtual test school
             var currentTestBid = await _context.BidHistories
                 .Include(b => b.User)
-                .Where(b => b.AuctionId == auctionId && testSchool != null && b.AuctionSchoolId == testSchool.AuctionSchoolId)
+                .Where(b => b.AuctionId == auctionId && b.BidType == "TestBid")
                 .OrderByDescending(b => b.BidDate)
                 .FirstOrDefaultAsync();
 
             // Get test bid history
             var testBidHistory = await _context.BidHistories
                 .Include(b => b.User)
-                .Where(b => b.AuctionId == auctionId && testSchool != null && b.AuctionSchoolId == testSchool.AuctionSchoolId)
+                .Where(b => b.AuctionId == auctionId && b.BidType == "TestBid")
                 .OrderByDescending(b => b.BidDate)
                 .Take(10)
                 .Select(b => new
@@ -79,10 +77,10 @@ public class WaitingRoomFunction
                 })
                 .ToListAsync();
 
-            // Get all schools (non-test schools)
+            // Get all schools for preview (all real schools in auction)
             var schools = await _context.AuctionSchools
                 .Include(s => s.School)
-                .Where(s => s.AuctionId == auctionId && !s.IsTestSchool)
+                .Where(s => s.AuctionId == auctionId)
                 .OrderBy(s => s.ImportOrder)
                 .Select(s => new
                 {
@@ -124,13 +122,13 @@ public class WaitingRoomFunction
                     HasTestedBidding = user.HasTestedBidding,
                     IsReadyToDraft = user.IsReadyToDraft
                 },
-                TestSchool = testSchool != null ? new
+                TestSchool = new
                 {
-                    SchoolId = testSchool.AuctionSchoolId,
-                    Name = testSchool.School.Name,
+                    SchoolId = VIRTUAL_TEST_SCHOOL_ID,
+                    Name = TEST_SCHOOL_NAME,
                     CurrentBid = currentTestBid?.BidAmount ?? 0,
                     CurrentBidderName = currentTestBid?.User.DisplayName ?? string.Empty
-                } : null,
+                },
                 TestBidHistory = testBidHistory,
                 Schools = schools,
                 NominationOrder = nominationOrder
@@ -179,20 +177,9 @@ public class WaitingRoomFunction
                 return badRequest;
             }
 
-            // Get test school
-            var testSchool = await _context.AuctionSchools
-                .FirstOrDefaultAsync(s => s.AuctionId == auctionId && s.IsTestSchool);
-
-            if (testSchool == null)
-            {
-                var notFound = req.CreateResponse(HttpStatusCode.NotFound);
-                await notFound.WriteStringAsync("Test school not found");
-                return notFound;
-            }
-
             // Validate bid amount (must be higher than current bid)
             var currentHighBid = await _context.BidHistories
-                .Where(b => b.AuctionSchoolId == testSchool.AuctionSchoolId)
+                .Where(b => b.AuctionId == auctionId && b.BidType == "TestBid")
                 .OrderByDescending(b => b.BidDate)
                 .Select(b => b.BidAmount)
                 .FirstOrDefaultAsync();
@@ -204,17 +191,18 @@ public class WaitingRoomFunction
                 return conflict;
             }
 
-            // Create test bid record
+            // Create test bid record (using virtual school - no AuctionSchoolId)
+            // Test bids have null AuctionSchoolId since Vermont A&M is virtual
             var testBid = new BidHistory
             {
                 AuctionId = auctionId,
-                AuctionSchoolId = testSchool.AuctionSchoolId,
+                AuctionSchoolId = null, // Virtual test school - no real school ID
                 UserId = user.UserId,
                 BidAmount = bidRequest.Amount,
                 BidType = "TestBid",
                 BidDate = DateTime.UtcNow,
                 IsWinningBid = false,
-                Notes = "Waiting room test bid"
+                Notes = $"Waiting room test bid on {TEST_SCHOOL_NAME}"
             };
 
             _context.BidHistories.Add(testBid);

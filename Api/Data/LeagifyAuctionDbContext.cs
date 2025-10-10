@@ -219,7 +219,8 @@ public class LeagifyAuctionDbContext : DbContext
             entity.HasOne(e => e.AuctionSchool)
                 .WithMany(e => e.BidHistories)
                 .HasForeignKey(e => e.AuctionSchoolId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false); // Allow null for test bids in waiting room
 
             entity.HasOne(e => e.User)
                 .WithMany(e => e.BidHistories)
