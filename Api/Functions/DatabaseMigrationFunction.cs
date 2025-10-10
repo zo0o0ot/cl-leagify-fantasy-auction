@@ -11,16 +11,8 @@ namespace LeagifyFantasyAuction.Api.Functions;
 /// Azure Function for managing database migrations.
 /// Provides endpoints to apply pending migrations automatically.
 /// </summary>
-public class DatabaseMigrationFunction
+public class DatabaseMigrationFunction(LeagifyAuctionDbContext context, ILogger<DatabaseMigrationFunction> logger)
 {
-    private readonly LeagifyAuctionDbContext _context;
-    private readonly ILogger<DatabaseMigrationFunction> _logger;
-
-    public DatabaseMigrationFunction(LeagifyAuctionDbContext context, ILogger<DatabaseMigrationFunction> logger)
-    {
-        _context = context;
-        _logger = logger;
-    }
 
     /// <summary>
     /// Applies all pending Entity Framework migrations to the database.
@@ -33,27 +25,27 @@ public class DatabaseMigrationFunction
     {
         try
         {
-            _logger.LogInformation("Migration request received");
+            logger.LogInformation("Migration request received");
 
             // Validate management token
             var validation = ManagementAuthFunction.ValidateManagementToken(req);
             if (!validation.IsValid)
             {
-                _logger.LogWarning("Unauthorized migration attempt: {ErrorMessage}", validation.ErrorMessage);
+                logger.LogWarning("Unauthorized migration attempt: {ErrorMessage}", validation.ErrorMessage);
                 var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
                 await unauthorizedResponse.WriteStringAsync($"Unauthorized: {validation.ErrorMessage}");
                 return unauthorizedResponse;
             }
 
-            _logger.LogInformation("Management token validated. Checking for pending migrations...");
+            logger.LogInformation("Management token validated. Checking for pending migrations...");
 
             // Get pending migrations
-            var pendingMigrations = await _context.Database.GetPendingMigrationsAsync();
+            var pendingMigrations = await context.Database.GetPendingMigrationsAsync();
             var pendingMigrationsList = pendingMigrations.ToList();
 
             if (!pendingMigrationsList.Any())
             {
-                _logger.LogInformation("No pending migrations found. Database is up to date.");
+                logger.LogInformation("No pending migrations found. Database is up to date.");
                 var response = req.CreateResponse(HttpStatusCode.OK);
                 await response.WriteAsJsonAsync(new
                 {
@@ -65,15 +57,15 @@ public class DatabaseMigrationFunction
                 return response;
             }
 
-            _logger.LogInformation("Found {Count} pending migrations: {Migrations}",
+            logger.LogInformation("Found {Count} pending migrations: {Migrations}",
                 pendingMigrationsList.Count,
                 string.Join(", ", pendingMigrationsList));
 
             // Apply migrations
-            _logger.LogInformation("Applying migrations to database...");
-            await _context.Database.MigrateAsync();
+            logger.LogInformation("Applying migrations to database...");
+            await context.Database.MigrateAsync();
 
-            _logger.LogInformation("✅ Successfully applied {Count} migrations", pendingMigrationsList.Count);
+            logger.LogInformation("✅ Successfully applied {Count} migrations", pendingMigrationsList.Count);
 
             var successResponse = req.CreateResponse(HttpStatusCode.OK);
             await successResponse.WriteAsJsonAsync(new
@@ -87,7 +79,7 @@ public class DatabaseMigrationFunction
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "❌ Error applying database migrations");
+            logger.LogError(ex, "❌ Error applying database migrations");
             var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
             await errorResponse.WriteStringAsync($"Error applying migrations: {ex.Message}\n\nStack trace: {ex.StackTrace}");
             return errorResponse;
@@ -104,26 +96,26 @@ public class DatabaseMigrationFunction
     {
         try
         {
-            _logger.LogInformation("Migration status request received");
+            logger.LogInformation("Migration status request received");
 
             // Validate management token
             var validation = ManagementAuthFunction.ValidateManagementToken(req);
             if (!validation.IsValid)
             {
-                _logger.LogWarning("Unauthorized migration status check: {ErrorMessage}", validation.ErrorMessage);
+                logger.LogWarning("Unauthorized migration status check: {ErrorMessage}", validation.ErrorMessage);
                 var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
                 await unauthorizedResponse.WriteStringAsync($"Unauthorized: {validation.ErrorMessage}");
                 return unauthorizedResponse;
             }
 
             // Get migration information
-            var pendingMigrations = await _context.Database.GetPendingMigrationsAsync();
-            var appliedMigrations = await _context.Database.GetAppliedMigrationsAsync();
+            var pendingMigrations = await context.Database.GetPendingMigrationsAsync();
+            var appliedMigrations = await context.Database.GetAppliedMigrationsAsync();
 
             var pendingList = pendingMigrations.ToList();
             var appliedList = appliedMigrations.ToList();
 
-            _logger.LogInformation("Migration status: {AppliedCount} applied, {PendingCount} pending",
+            logger.LogInformation("Migration status: {AppliedCount} applied, {PendingCount} pending",
                 appliedList.Count, pendingList.Count);
 
             var response = req.CreateResponse(HttpStatusCode.OK);
@@ -147,7 +139,7 @@ public class DatabaseMigrationFunction
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting migration status");
+            logger.LogError(ex, "Error getting migration status");
             var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
             await errorResponse.WriteStringAsync($"Error getting migration status: {ex.Message}");
             return errorResponse;
@@ -161,7 +153,7 @@ public class DatabaseMigrationFunction
     {
         try
         {
-            return await _context.Database.CanConnectAsync();
+            return await context.Database.CanConnectAsync();
         }
         catch
         {
