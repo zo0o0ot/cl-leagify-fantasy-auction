@@ -554,4 +554,73 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
         // If somehow we can't find an available ID, use a high number
         return existingIds.Max() + 1;
     }
+
+    /// <summary>
+    /// TEMPORARY WORKAROUND: Apply database migrations via diagnostic endpoint
+    /// The dedicated DatabaseMigrationFunction returns 404 for unknown reasons
+    /// </summary>
+    [Function("ApplyDatabaseMigrations")]
+    public async Task<HttpResponseData> ApplyDatabaseMigrations(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "diagnostic/apply-migrations")] HttpRequestData req)
+    {
+        // Validate management token
+        var validation = ManagementAuthFunction.ValidateManagementToken(req);
+        if (!validation.IsValid)
+        {
+            logger.LogWarning("Unauthorized migration attempt: {ErrorMessage}", validation.ErrorMessage);
+            var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
+            await unauthorizedResponse.WriteStringAsync($"Unauthorized: {validation.ErrorMessage}");
+            return unauthorizedResponse;
+        }
+
+        try
+        {
+            logger.LogInformation("🔧 Migration request received via diagnostic endpoint");
+
+            // Get pending migrations
+            var pendingMigrations = await context.Database.GetPendingMigrationsAsync();
+            var pendingMigrationsList = pendingMigrations.ToList();
+
+            if (!pendingMigrationsList.Any())
+            {
+                logger.LogInformation("No pending migrations found. Database is up to date.");
+                var response = req.CreateResponse(HttpStatusCode.OK);
+                await response.WriteAsJsonAsync(new
+                {
+                    Success = true,
+                    Message = "Database is already up to date",
+                    PendingMigrations = 0,
+                    AppliedMigrations = Array.Empty<string>()
+                });
+                return response;
+            }
+
+            logger.LogInformation("Found {Count} pending migrations: {Migrations}",
+                pendingMigrationsList.Count,
+                string.Join(", ", pendingMigrationsList));
+
+            // Apply migrations
+            logger.LogInformation("Applying migrations to database...");
+            await context.Database.MigrateAsync();
+
+            logger.LogInformation("✅ Successfully applied {Count} migrations", pendingMigrationsList.Count);
+
+            var successResponse = req.CreateResponse(HttpStatusCode.OK);
+            await successResponse.WriteAsJsonAsync(new
+            {
+                Success = true,
+                Message = $"Successfully applied {pendingMigrationsList.Count} migration(s)",
+                PendingMigrations = pendingMigrationsList.Count,
+                AppliedMigrations = pendingMigrationsList
+            });
+            return successResponse;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "❌ Error applying database migrations");
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync($"Error applying migrations: {ex.Message}\n\nStack trace: {ex.StackTrace}");
+            return errorResponse;
+        }
+    }
 }
