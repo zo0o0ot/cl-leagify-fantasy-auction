@@ -1,8 +1,10 @@
 @page "/auction/{auctionId:int}/waiting-room"
 @using System.Net.Http.Json
+@using Microsoft.AspNetCore.SignalR.Client
 @inject HttpClient Http
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Navigation
+@implements IAsyncDisposable
 
 <PageTitle>Waiting Room - Leagify Fantasy Auction</PageTitle>
 
@@ -26,12 +28,21 @@
     {
         <!-- Waiting Room Header -->
         <div class="waiting-room-header">
-            <FluentLabel Typo="Typography.PageTitle">
-                🏈 @auctionData.AuctionName - Waiting Room
-            </FluentLabel>
-            <FluentLabel Style="color: #666; margin-top: 8px;">
-                Practice bidding and prepare for the draft
-            </FluentLabel>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <FluentLabel Typo="Typography.PageTitle">
+                        🏈 @auctionData.AuctionName - Waiting Room
+                    </FluentLabel>
+                    <FluentLabel Style="color: #666; margin-top: 8px;">
+                        Practice bidding and prepare for the draft
+                    </FluentLabel>
+                </div>
+                <FluentBadge Appearance="@(isConnectedToSignalR ? Appearance.Accent : Appearance.Neutral)"
+                             BackgroundColor="@(isConnectedToSignalR ? "#28a745" : "#6c757d")"
+                             Color="white">
+                    @(isConnectedToSignalR ? "🟢 Live" : "⚫ Offline")
+                </FluentBadge>
+            </div>
         </div>
 
         <!-- Test Bidding Section -->
@@ -213,9 +224,115 @@
     private List<SchoolData> schools = new();
     private List<string> nominationOrder = new();
 
+    private HubConnection? hubConnection;
+    private bool isConnectedToSignalR = false;
+
     protected override async Task OnInitializedAsync()
     {
         await LoadWaitingRoomData();
+        await InitializeSignalR();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+
+    private async Task InitializeSignalR()
+    {
+        try
+        {
+            // Get session from localStorage
+            var sessionJson = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "auctionSession");
+            if (string.IsNullOrEmpty(sessionJson))
+            {
+                Console.WriteLine("No session found for SignalR connection");
+                return;
+            }
+
+            var session = System.Text.Json.JsonSerializer.Deserialize<UserSession>(sessionJson);
+            if (session == null || session.AuctionId != AuctionId)
+            {
+                Console.WriteLine("Invalid session for SignalR connection");
+                return;
+            }
+
+            Console.WriteLine($"🔌 Initializing SignalR connection for auction {AuctionId}");
+
+            // Build SignalR connection
+            hubConnection = new HubConnectionBuilder()
+                .WithUrl(Navigation.ToAbsoluteUri("/api/signalr"))
+                .WithAutomaticReconnect()
+                .Build();
+
+            // Register event handlers BEFORE starting connection
+            hubConnection.On<string, decimal, DateTime>("TestBidPlaced", (bidderName, amount, bidDate) =>
+            {
+                Console.WriteLine($"📢 SignalR: Test bid received - {bidderName} bid ${amount}");
+
+                // Update test school current bid
+                if (testSchool != null)
+                {
+                    testSchool.CurrentBid = amount;
+                    testSchool.CurrentBidderName = bidderName;
+                }
+
+                // Add to bid history
+                testBidHistory.Insert(0, new TestBidData
+                {
+                    BidderName = bidderName,
+                    Amount = amount,
+                    BidDate = bidDate
+                });
+
+                // Keep only last 10 bids
+                if (testBidHistory.Count > 10)
+                {
+                    testBidHistory = testBidHistory.Take(10).ToList();
+                }
+
+                InvokeAsync(StateHasChanged);
+            });
+
+            hubConnection.On<string, bool>("ReadinessUpdated", (displayName, isReady) =>
+            {
+                Console.WriteLine($"📢 SignalR: Readiness updated - {displayName} is {(isReady ? "ready" : "not ready")}");
+                // Could update a participants list here if we had one
+                InvokeAsync(StateHasChanged);
+            });
+
+            hubConnection.On<string>("UserJoinedWaitingRoom", (displayName) =>
+            {
+                Console.WriteLine($"📢 SignalR: {displayName} joined the waiting room");
+                InvokeAsync(StateHasChanged);
+            });
+
+            hubConnection.On<string>("UserTestedBidding", (displayName) =>
+            {
+                Console.WriteLine($"📢 SignalR: {displayName} tested bidding for the first time");
+                InvokeAsync(StateHasChanged);
+            });
+
+            // Start connection
+            await hubConnection.StartAsync();
+            isConnectedToSignalR = true;
+            Console.WriteLine("✅ SignalR connected successfully");
+
+            // Join waiting room group
+            await hubConnection.InvokeAsync("JoinWaitingRoom", AuctionId, session.DisplayName);
+            Console.WriteLine($"✅ Joined waiting room group for auction {AuctionId}");
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ SignalR connection error: {ex.Message}");
+            isConnectedToSignalR = false;
+            // Don't block the UI if SignalR fails - fall back to polling
+        }
     }
 
     private async Task LoadWaitingRoomData()

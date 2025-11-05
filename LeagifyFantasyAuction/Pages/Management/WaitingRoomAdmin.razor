@@ -1,0 +1,414 @@
+@page "/management/auction/{auctionId:int}/waiting-room-admin"
+@using System.Net.Http.Json
+@layout ManagementLayout
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+
+<PageTitle>Waiting Room Admin - Leagify Fantasy Auction</PageTitle>
+
+<div class="admin-container">
+    @if (isLoading)
+    {
+        <div class="loading-container">
+            <FluentProgressRing />
+            <FluentLabel>Loading waiting room status...</FluentLabel>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <FluentMessageBar Intent="MessageIntent.Error">
+            @errorMessage
+        </FluentMessageBar>
+        <FluentButton Appearance="Appearance.Accent"
+                      OnClick="@(() => Navigation.NavigateTo("/management/auctions"))">
+            Back to Auctions
+        </FluentButton>
+    }
+    else if (auction != null)
+    {
+        <!-- Header -->
+        <div class="admin-header">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <FluentLabel Typo="Typography.PageTitle">
+                        Waiting Room - @auction.Name
+                    </FluentLabel>
+                    <FluentLabel Style="color: #666; margin-top: 8px;">
+                        Monitor participant readiness before starting the auction
+                    </FluentLabel>
+                </div>
+                <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12">
+                    <FluentButton Appearance="Appearance.Stealth"
+                                  IconStart="@(new Icons.Regular.Size16.ArrowClockwise())"
+                                  OnClick="@LoadWaitingRoomStatus"
+                                  Loading="@isRefreshing">
+                        Refresh
+                    </FluentButton>
+                    <FluentButton Appearance="Appearance.Accent"
+                                  IconStart="@(new Icons.Regular.Size16.Play())"
+                                  OnClick="@StartAuction"
+                                  Disabled="@(!CanStartAuction() || isStartingAuction)">
+                        Start Auction
+                    </FluentButton>
+                </FluentStack>
+            </div>
+        </div>
+
+        <!-- Readiness Summary -->
+        <FluentCard Style="margin-bottom: 24px;">
+            <FluentLabel Typo="Typography.Header" Style="margin-bottom: 16px;">
+                📊 Readiness Summary
+            </FluentLabel>
+
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <FluentLabel Typo="Typography.Subject">Total Participants</FluentLabel>
+                    <FluentLabel Typo="Typography.PageTitle" Style="color: #0078d4;">
+                        @participants.Count
+                    </FluentLabel>
+                </div>
+
+                <div class="summary-card">
+                    <FluentLabel Typo="Typography.Subject">Tested Bidding</FluentLabel>
+                    <FluentLabel Typo="Typography.PageTitle" Style="color: @(AllTestedBidding() ? "#28a745" : "#ffc107")">
+                        @participants.Count(p => p.HasTestedBidding) / @participants.Count
+                    </FluentLabel>
+                </div>
+
+                <div class="summary-card">
+                    <FluentLabel Typo="Typography.Subject">Ready to Draft</FluentLabel>
+                    <FluentLabel Typo="Typography.PageTitle" Style="color: @(AllReady() ? "#28a745" : "#ffc107")">
+                        @participants.Count(p => p.IsReadyToDraft) / @participants.Count
+                    </FluentLabel>
+                </div>
+
+                <div class="summary-card">
+                    <FluentLabel Typo="Typography.Subject">Connection Status</FluentLabel>
+                    <FluentLabel Typo="Typography.PageTitle" Style="color: @(AllConnected() ? "#28a745" : "#dc3545")">
+                        @participants.Count(p => p.IsConnected) / @participants.Count
+                    </FluentLabel>
+                </div>
+            </div>
+
+            @if (CanStartAuction())
+            {
+                <FluentMessageBar Intent="MessageIntent.Success" Style="margin-top: 16px;">
+                    ✅ All participants are ready! You can start the auction.
+                </FluentMessageBar>
+            }
+            else
+            {
+                <FluentMessageBar Intent="MessageIntent.Info" Style="margin-top: 16px;">
+                    ⏳ Waiting for all participants to test bidding and mark themselves as ready.
+                </FluentMessageBar>
+            }
+        </FluentCard>
+
+        <!-- Participants Table -->
+        <FluentCard>
+            <FluentLabel Typo="Typography.Header" Style="margin-bottom: 16px;">
+                👥 Participant Status
+            </FluentLabel>
+
+            @if (!participants.Any())
+            {
+                <FluentLabel Style="color: #666; font-style: italic;">
+                    No participants have joined the waiting room yet.
+                </FluentLabel>
+            }
+            else
+            {
+                <FluentDataGrid Items="@participants.AsQueryable()"
+                                GridTemplateColumns="1fr 1fr 1fr 1fr 1fr"
+                                Style="width: 100%;">
+                    <PropertyColumn Property="@(p => p.DisplayName)" Title="Participant" Sortable="true">
+                        <ColumnOptions>
+                            <div style="font-weight: 600;">@context.DisplayName</div>
+                        </ColumnOptions>
+                    </PropertyColumn>
+
+                    <TemplateColumn Title="Connection">
+                        <FluentBadge Appearance="@(context.IsConnected ? Appearance.Accent : Appearance.Neutral)"
+                                     BackgroundColor="@(context.IsConnected ? "#28a745" : "#6c757d")"
+                                     Color="white">
+                            @(context.IsConnected ? "🟢 Connected" : "⚫ Offline")
+                        </FluentBadge>
+                    </TemplateColumn>
+
+                    <TemplateColumn Title="Tested Bidding">
+                        @if (context.HasTestedBidding)
+                        {
+                            <FluentBadge Appearance="Appearance.Accent"
+                                         BackgroundColor="#28a745"
+                                         Color="white">
+                                ✅ Tested
+                            </FluentBadge>
+                        }
+                        else
+                        {
+                            <FluentBadge Appearance="Appearance.Neutral"
+                                         BackgroundColor="#ffc107"
+                                         Color="black">
+                                ❓ Not Tested
+                            </FluentBadge>
+                        }
+                    </TemplateColumn>
+
+                    <TemplateColumn Title="Ready Status">
+                        @if (context.IsReadyToDraft)
+                        {
+                            <FluentBadge Appearance="Appearance.Accent"
+                                         BackgroundColor="#28a745"
+                                         Color="white">
+                                🏈 Ready
+                            </FluentBadge>
+                        }
+                        else
+                        {
+                            <FluentBadge Appearance="Appearance.Neutral"
+                                         BackgroundColor="#6c757d"
+                                         Color="white">
+                                ⏳ Not Ready
+                            </FluentBadge>
+                        }
+                    </TemplateColumn>
+
+                    <TemplateColumn Title="Last Active">
+                        <FluentLabel Style="font-size: 14px;">
+                            @GetTimeAgo(context.LastActiveDate)
+                        </FluentLabel>
+                    </TemplateColumn>
+                </FluentDataGrid>
+            }
+        </FluentCard>
+
+        <!-- Instructions for Auction Master -->
+        <FluentCard Style="margin-top: 24px;">
+            <FluentLabel Typo="Typography.Header" Style="margin-bottom: 16px;">
+                📋 Instructions
+            </FluentLabel>
+
+            <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
+                <FluentLabel>1. Wait for all participants to join the waiting room</FluentLabel>
+                <FluentLabel>2. Ensure all participants have tested bidding (green ✅)</FluentLabel>
+                <FluentLabel>3. Confirm all participants have marked themselves as ready (🏈)</FluentLabel>
+                <FluentLabel>4. Click "Start Auction" when everyone is ready</FluentLabel>
+                <FluentLabel Style="color: #666; font-size: 14px; margin-top: 12px;">
+                    💡 Tip: Use the refresh button to update participant status, or enable auto-refresh for real-time monitoring.
+                </FluentLabel>
+            </FluentStack>
+        </FluentCard>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int AuctionId { get; set; }
+
+    private AuctionData? auction;
+    private List<ParticipantStatus> participants = new();
+    private bool isLoading = true;
+    private bool isRefreshing = false;
+    private bool isStartingAuction = false;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadWaitingRoomStatus();
+    }
+
+    private async Task LoadWaitingRoomStatus()
+    {
+        try
+        {
+            isRefreshing = true;
+            errorMessage = string.Empty;
+            StateHasChanged();
+
+            // Set management token
+            var managementToken = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(managementToken))
+            {
+                Navigation.NavigateTo("/management/login");
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", managementToken);
+
+            // Load auction basic info
+            var auctionResponse = await Http.GetAsync($"/api/auction/{AuctionId}");
+            if (auctionResponse.IsSuccessStatusCode)
+            {
+                auction = await auctionResponse.Content.ReadFromJsonAsync<AuctionData>();
+            }
+
+            // Load participants with waiting room status
+            var participantsResponse = await Http.GetAsync($"/api/auction/{AuctionId}/participants");
+            if (participantsResponse.IsSuccessStatusCode)
+            {
+                var allParticipants = await participantsResponse.Content.ReadFromJsonAsync<List<ParticipantDto>>();
+                if (allParticipants != null)
+                {
+                    participants = allParticipants.Select(p => new ParticipantStatus
+                    {
+                        UserId = p.UserId,
+                        DisplayName = p.DisplayName,
+                        IsConnected = p.IsConnected,
+                        HasTestedBidding = p.HasTestedBidding,
+                        IsReadyToDraft = p.IsReadyToDraft,
+                        LastActiveDate = p.LastActiveDate
+                    }).ToList();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading waiting room status: {ex.Message}");
+            errorMessage = $"Error loading status: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            isRefreshing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task StartAuction()
+    {
+        if (!CanStartAuction())
+        {
+            errorMessage = "Not all participants are ready to start the auction.";
+            return;
+        }
+
+        try
+        {
+            isStartingAuction = true;
+            StateHasChanged();
+
+            // TODO: Implement auction start endpoint
+            // This will:
+            // 1. Change auction status from "Draft" to "InProgress"
+            // 2. Navigate all waiting room participants to live auction page
+            // 3. Broadcast "AuctionStarted" event via SignalR
+
+            var response = await Http.PostAsync($"/api/auction/{AuctionId}/start", null);
+
+            if (response.IsSuccessStatusCode)
+            {
+                // Navigate to live auction admin page
+                Navigation.NavigateTo($"/management/auction/{AuctionId}/live-admin");
+            }
+            else
+            {
+                errorMessage = "Failed to start auction. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error starting auction: {ex.Message}");
+            errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isStartingAuction = false;
+            StateHasChanged();
+        }
+    }
+
+    private bool CanStartAuction()
+    {
+        return participants.Any() &&
+               participants.All(p => p.HasTestedBidding) &&
+               participants.All(p => p.IsReadyToDraft) &&
+               participants.All(p => p.IsConnected);
+    }
+
+    private bool AllTestedBidding() => participants.Any() && participants.All(p => p.HasTestedBidding);
+    private bool AllReady() => participants.Any() && participants.All(p => p.IsReadyToDraft);
+    private bool AllConnected() => participants.Any() && participants.All(p => p.IsConnected);
+
+    private string GetTimeAgo(DateTime dateTime)
+    {
+        var timeSpan = DateTime.UtcNow - dateTime;
+
+        if (timeSpan.TotalSeconds < 60)
+            return "Just now";
+        if (timeSpan.TotalMinutes < 60)
+            return $"{(int)timeSpan.TotalMinutes}m ago";
+        if (timeSpan.TotalHours < 24)
+            return $"{(int)timeSpan.TotalHours}h ago";
+
+        return $"{(int)timeSpan.TotalDays}d ago";
+    }
+
+    // DTOs
+    private class AuctionData
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+    }
+
+    private class ParticipantStatus
+    {
+        public int UserId { get; set; }
+        public string DisplayName { get; set; } = string.Empty;
+        public bool IsConnected { get; set; }
+        public bool HasTestedBidding { get; set; }
+        public bool IsReadyToDraft { get; set; }
+        public DateTime LastActiveDate { get; set; }
+    }
+
+    private class ParticipantDto
+    {
+        public int UserId { get; set; }
+        public string DisplayName { get; set; } = string.Empty;
+        public bool IsConnected { get; set; }
+        public bool HasTestedBidding { get; set; }
+        public bool IsReadyToDraft { get; set; }
+        public DateTime JoinedDate { get; set; }
+        public DateTime LastActiveDate { get; set; }
+    }
+}
+
+<style>
+    .admin-container {
+        padding: 24px;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .loading-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 400px;
+        gap: 16px;
+    }
+
+    .admin-header {
+        margin-bottom: 32px;
+    }
+
+    .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+
+    .summary-card {
+        padding: 20px;
+        background: #f5f5f5;
+        border-radius: 8px;
+        text-align: center;
+    }
+
+    .summary-card fluent-label:first-child {
+        margin-bottom: 8px;
+    }
+</style>
