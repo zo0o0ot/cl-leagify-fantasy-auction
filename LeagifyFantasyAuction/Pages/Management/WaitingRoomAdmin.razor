@@ -71,21 +71,21 @@
 
                 <div class="summary-card">
                     <FluentLabel Typo="Typography.Subject">Tested Bidding</FluentLabel>
-                    <FluentLabel Typo="Typography.PageTitle" Style="color: @(AllTestedBidding() ? "#28a745" : "#ffc107")">
+                    <FluentLabel Typo="Typography.PageTitle" Style="@GetTestBiddingColor()">
                         @participants.Count(p => p.HasTestedBidding) / @participants.Count
                     </FluentLabel>
                 </div>
 
                 <div class="summary-card">
                     <FluentLabel Typo="Typography.Subject">Ready to Draft</FluentLabel>
-                    <FluentLabel Typo="Typography.PageTitle" Style="color: @(AllReady() ? "#28a745" : "#ffc107")">
+                    <FluentLabel Typo="Typography.PageTitle" Style="@GetReadyColor()">
                         @participants.Count(p => p.IsReadyToDraft) / @participants.Count
                     </FluentLabel>
                 </div>
 
                 <div class="summary-card">
                     <FluentLabel Typo="Typography.Subject">Connection Status</FluentLabel>
-                    <FluentLabel Typo="Typography.PageTitle" Style="color: @(AllConnected() ? "#28a745" : "#dc3545")">
+                    <FluentLabel Typo="Typography.PageTitle" Style="@GetConnectionColor()">
                         @participants.Count(p => p.IsConnected) / @participants.Count
                     </FluentLabel>
                 </div>
@@ -122,11 +122,8 @@
                 <FluentDataGrid Items="@participants.AsQueryable()"
                                 GridTemplateColumns="1fr 1fr 1fr 1fr 1fr"
                                 Style="width: 100%;">
-                    <PropertyColumn Property="@(p => p.DisplayName)" Title="Participant" Sortable="true">
-                        <ColumnOptions>
-                            <div style="font-weight: 600;">@context.DisplayName</div>
-                        </ColumnOptions>
-                    </PropertyColumn>
+                    <PropertyColumn Property="@(p => p.DisplayName)" Title="Participant" Sortable="true" />
+
 
                     <TemplateColumn Title="Connection">
                         <FluentBadge Appearance="@(context.IsConnected ? Appearance.Accent : Appearance.Neutral)"
@@ -330,6 +327,10 @@
     private bool AllTestedBidding() => participants.Any() && participants.All(p => p.HasTestedBidding);
     private bool AllReady() => participants.Any() && participants.All(p => p.IsReadyToDraft);
     private bool AllConnected() => participants.Any() && participants.All(p => p.IsConnected);
+
+    private string GetTestBiddingColor() => $"color: {(AllTestedBidding() ? "#28a745" : "#ffc107")}";
+    private string GetReadyColor() => $"color: {(AllReady() ? "#28a745" : "#ffc107")}";
+    private string GetConnectionColor() => $"color: {(AllConnected() ? "#28a745" : "#dc3545")}";
 
     private string GetTimeAgo(DateTime dateTime)
     {
