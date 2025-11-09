@@ -35,6 +35,15 @@
                                   OnClick="@(() => Navigation.NavigateTo($"/management/auctions/{auctionId}/setup"))">
                         Setup Auction
                     </FluentButton>
+
+                    @if (auction.Status == "Draft" && participantCount > 0)
+                    {
+                        <FluentButton Appearance="Appearance.Accent"
+                                      IconStart="@(new Icons.Regular.Size16.Clock())"
+                                      OnClick="@(() => Navigation.NavigateTo($"/management/auction/{auctionId}/waiting-room-admin"))">
+                            Waiting Room
+                        </FluentButton>
+                    }
                 </FluentStack>
             }
         </FluentStack>

@@ -8,6 +8,7 @@ public class AuctionHub : Hub
     // Group names for different auction permissions
     private static string GetAuctionGroup(int auctionId) => $"auction-{auctionId}";
     private static string GetAdminGroup(int auctionId) => $"admin-{auctionId}";
+    private static string GetWaitingRoomGroup(int auctionId) => $"waiting-{auctionId}";
 
     /// <summary>
     /// Join an auction group when user connects
@@ -15,10 +16,51 @@ public class AuctionHub : Hub
     public async Task JoinAuction(int auctionId, string displayName)
     {
         await Groups.AddToGroupAsync(Context.ConnectionId, GetAuctionGroup(auctionId));
-        
+
         // Notify other users that someone joined
         await Clients.Group(GetAuctionGroup(auctionId))
             .SendAsync("UserJoined", displayName, Context.ConnectionId);
+    }
+
+    /// <summary>
+    /// Join waiting room group for pre-auction lobby
+    /// </summary>
+    public async Task JoinWaitingRoom(int auctionId, string displayName)
+    {
+        await Groups.AddToGroupAsync(Context.ConnectionId, GetWaitingRoomGroup(auctionId));
+        await Groups.AddToGroupAsync(Context.ConnectionId, GetAuctionGroup(auctionId));
+
+        // Notify other users in waiting room that someone joined
+        await Clients.OthersInGroup(GetWaitingRoomGroup(auctionId))
+            .SendAsync("UserJoinedWaitingRoom", displayName);
+    }
+
+    /// <summary>
+    /// Broadcast a test bid to all waiting room participants
+    /// Called from WaitingRoomFunction after successful bid placement
+    /// </summary>
+    public async Task BroadcastTestBid(int auctionId, string bidderName, decimal amount)
+    {
+        await Clients.Group(GetWaitingRoomGroup(auctionId))
+            .SendAsync("TestBidPlaced", bidderName, amount, DateTime.UtcNow);
+    }
+
+    /// <summary>
+    /// Broadcast readiness status update to all waiting room participants
+    /// </summary>
+    public async Task BroadcastReadinessUpdate(int auctionId, string displayName, bool isReady)
+    {
+        await Clients.Group(GetWaitingRoomGroup(auctionId))
+            .SendAsync("ReadinessUpdated", displayName, isReady);
+    }
+
+    /// <summary>
+    /// Broadcast that a user tested bidding for the first time
+    /// </summary>
+    public async Task BroadcastFirstTestBid(int auctionId, string displayName)
+    {
+        await Clients.Group(GetWaitingRoomGroup(auctionId))
+            .SendAsync("UserTestedBidding", displayName);
     }
 
     /// <summary>

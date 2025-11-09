@@ -218,11 +218,16 @@ public class WaitingRoomFunction
 
             _logger.LogInformation("Test bid placed: User {UserId} bid ${Amount} on test school", user.UserId, bidRequest.Amount);
 
+            // TODO: Broadcast test bid to all waiting room participants via SignalR
+            // This will be implemented once we wire up Azure SignalR Service
+            // await BroadcastTestBidToWaitingRoom(auctionId, user.DisplayName, bidRequest.Amount);
+
             var response = req.CreateResponse(HttpStatusCode.OK);
             await response.WriteAsJsonAsync(new
             {
                 Success = true,
                 BidAmount = bidRequest.Amount,
+                BidderName = user.DisplayName,
                 HasTestedBidding = true
             });
             return response;
@@ -275,10 +280,14 @@ public class WaitingRoomFunction
                 user.UserId,
                 readyRequest.IsReady ? "ready" : "not ready");
 
+            // TODO: Broadcast readiness update to all waiting room participants via SignalR
+            // await BroadcastReadinessUpdate(auctionId, user.DisplayName, readyRequest.IsReady);
+
             var response = req.CreateResponse(HttpStatusCode.OK);
             await response.WriteAsJsonAsync(new
             {
                 Success = true,
+                DisplayName = user.DisplayName,
                 IsReadyToDraft = user.IsReadyToDraft
             });
             return response;

@@ -211,6 +211,8 @@ public class AuctionJoinFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbC
                     UserId = u.UserId,
                     DisplayName = u.DisplayName,
                     IsConnected = u.IsConnected,
+                    HasTestedBidding = u.HasTestedBidding,
+                    IsReadyToDraft = u.IsReadyToDraft,
                     JoinedDate = u.JoinedDate,
                     LastActiveDate = u.LastActiveDate,
                     IsReconnectionPending = u.IsReconnectionPending,
@@ -363,6 +365,8 @@ public class ParticipantDto
     public int UserId { get; set; }
     public string DisplayName { get; set; } = string.Empty;
     public bool IsConnected { get; set; }
+    public bool HasTestedBidding { get; set; }
+    public bool IsReadyToDraft { get; set; }
     public DateTime JoinedDate { get; set; }
     public DateTime LastActiveDate { get; set; }
     public bool IsReconnectionPending { get; set; }
