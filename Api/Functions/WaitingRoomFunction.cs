@@ -371,7 +371,7 @@ public class WaitingRoomFunction
     }
 
     // Response classes for multi-output functions (HTTP + SignalR)
-    private class TestBidResponse
+    public class TestBidResponse
     {
         [HttpResult]
         public HttpResponseData? HttpResponse { get; set; }
@@ -380,7 +380,7 @@ public class WaitingRoomFunction
         public SignalRMessageAction[]? SignalRMessages { get; set; }
     }
 
-    private class ReadyStatusResponse
+    public class ReadyStatusResponse
     {
         [HttpResult]
         public HttpResponseData? HttpResponse { get; set; }
