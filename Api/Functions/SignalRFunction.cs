@@ -131,9 +131,9 @@ public class SignalRFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbConte
     /// Used for broadcasting auction events and status updates in real-time.
     /// </summary>
     [Function("BroadcastToAuction")]
-    public async Task<HttpResponseData> BroadcastToAuction(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "signalr/broadcast")] HttpRequestData req,
-        [SignalROutput(HubName = "auctionhub")] IAsyncCollector<SignalRMessageAction> signalRMessages)
+    [SignalROutput(HubName = "auctionhub")]
+    public async Task<SignalRMessageAction> BroadcastToAuction(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "signalr/broadcast")] HttpRequestData req)
     {
         try
         {
@@ -142,13 +142,13 @@ public class SignalRFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbConte
 
             if (broadcastRequest?.AuctionId == null || string.IsNullOrEmpty(broadcastRequest.EventName))
             {
-                return await CreateErrorResponse(req, HttpStatusCode.BadRequest, "Invalid broadcast request");
+                throw new ArgumentException("Invalid broadcast request");
             }
 
             _logger.LogInformation("Broadcasting {EventName} to auction {AuctionId}",
                 broadcastRequest.EventName, broadcastRequest.AuctionId);
 
-            // Broadcast message to the specified group (or all if no group specified)
+            // Return SignalR message action
             var message = new SignalRMessageAction(broadcastRequest.EventName)
             {
                 Arguments = broadcastRequest.Arguments ?? Array.Empty<object>()
@@ -159,15 +159,12 @@ public class SignalRFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbConte
                 message.GroupName = broadcastRequest.GroupName;
             }
 
-            await signalRMessages.AddAsync(message);
-
-            var response = req.CreateResponse(HttpStatusCode.OK);
-            return response;
+            return message;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error broadcasting to auction");
-            return await CreateErrorResponse(req, HttpStatusCode.InternalServerError, "Broadcast failed");
+            throw;
         }
     }
 
@@ -176,9 +173,9 @@ public class SignalRFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbConte
     /// Called when a user joins the waiting room or auction.
     /// </summary>
     [Function("AddToGroup")]
-    public async Task<HttpResponseData> AddToGroup(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "signalr/groups/add")] HttpRequestData req,
-        [SignalROutput(HubName = "auctionhub")] IAsyncCollector<SignalRGroupAction> signalRGroupActions)
+    [SignalROutput(HubName = "auctionhub")]
+    public async Task<SignalRGroupAction> AddToGroup(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "signalr/groups/add")] HttpRequestData req)
     {
         try
         {
@@ -187,25 +184,22 @@ public class SignalRFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbConte
 
             if (groupRequest == null || string.IsNullOrEmpty(groupRequest.ConnectionId) || string.IsNullOrEmpty(groupRequest.GroupName))
             {
-                return await CreateErrorResponse(req, HttpStatusCode.BadRequest, "Invalid group request");
+                throw new ArgumentException("Invalid group request");
             }
 
             _logger.LogInformation("Adding connection {ConnectionId} to group {GroupName}",
                 groupRequest.ConnectionId, groupRequest.GroupName);
 
-            await signalRGroupActions.AddAsync(new SignalRGroupAction(SignalRGroupActionType.Add)
+            return new SignalRGroupAction(SignalRGroupActionType.Add)
             {
                 GroupName = groupRequest.GroupName,
                 ConnectionId = groupRequest.ConnectionId
-            });
-
-            var response = req.CreateResponse(HttpStatusCode.OK);
-            return response;
+            };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error adding connection to group");
-            return await CreateErrorResponse(req, HttpStatusCode.InternalServerError, "Failed to add to group");
+            throw;
         }
     }
 
@@ -214,9 +208,9 @@ public class SignalRFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbConte
     /// Called when a user leaves the waiting room or disconnects.
     /// </summary>
     [Function("RemoveFromGroup")]
-    public async Task<HttpResponseData> RemoveFromGroup(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "signalr/groups/remove")] HttpRequestData req,
-        [SignalROutput(HubName = "auctionhub")] IAsyncCollector<SignalRGroupAction> signalRGroupActions)
+    [SignalROutput(HubName = "auctionhub")]
+    public async Task<SignalRGroupAction> RemoveFromGroup(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "signalr/groups/remove")] HttpRequestData req)
     {
         try
         {
@@ -225,25 +219,22 @@ public class SignalRFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbConte
 
             if (groupRequest == null || string.IsNullOrEmpty(groupRequest.ConnectionId) || string.IsNullOrEmpty(groupRequest.GroupName))
             {
-                return await CreateErrorResponse(req, HttpStatusCode.BadRequest, "Invalid group request");
+                throw new ArgumentException("Invalid group request");
             }
 
             _logger.LogInformation("Removing connection {ConnectionId} from group {GroupName}",
                 groupRequest.ConnectionId, groupRequest.GroupName);
 
-            await signalRGroupActions.AddAsync(new SignalRGroupAction(SignalRGroupActionType.Remove)
+            return new SignalRGroupAction(SignalRGroupActionType.Remove)
             {
                 GroupName = groupRequest.GroupName,
                 ConnectionId = groupRequest.ConnectionId
-            });
-
-            var response = req.CreateResponse(HttpStatusCode.OK);
-            return response;
+            };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error removing connection from group");
-            return await CreateErrorResponse(req, HttpStatusCode.InternalServerError, "Failed to remove from group");
+            throw;
         }
     }
 
