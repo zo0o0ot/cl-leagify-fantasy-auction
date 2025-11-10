@@ -181,8 +181,13 @@
                     var sessionJson = System.Text.Json.JsonSerializer.Serialize(session);
                     await JSRuntime.InvokeVoidAsync("localStorage.setItem", "auctionSession", sessionJson);
 
-                    // Redirect to dashboard
-                    Navigation.NavigateTo($"/auction/{joinResponse.AuctionId}/dashboard");
+                    // Redirect based on auction status
+                    // Draft auctions go to waiting room, others go to dashboard
+                    var targetPage = joinResponse.AuctionStatus == "Draft"
+                        ? $"/auction/{joinResponse.AuctionId}/waiting-room"
+                        : $"/auction/{joinResponse.AuctionId}/dashboard";
+
+                    Navigation.NavigateTo(targetPage);
                 }
             }
             else
@@ -229,6 +234,7 @@
         public string DisplayName { get; set; } = string.Empty;
         public string SessionToken { get; set; } = string.Empty;
         public string AuctionName { get; set; } = string.Empty;
+        public string AuctionStatus { get; set; } = string.Empty;
     }
 
     private class UserSession
