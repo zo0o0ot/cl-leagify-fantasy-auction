@@ -128,7 +128,8 @@ public class AuctionJoinFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbC
                 AuctionId = auction.AuctionId,
                 DisplayName = user.DisplayName,
                 SessionToken = sessionToken,
-                AuctionName = auction.Name
+                AuctionName = auction.Name,
+                AuctionStatus = auction.Status
             });
 
             return response;
@@ -355,6 +356,7 @@ public class JoinAuctionResponse
     public string DisplayName { get; set; } = string.Empty;
     public string SessionToken { get; set; } = string.Empty;
     public string AuctionName { get; set; } = string.Empty;
+    public string AuctionStatus { get; set; } = string.Empty;
 }
 
 /// <summary>

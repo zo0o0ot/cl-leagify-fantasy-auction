@@ -284,9 +284,28 @@
             Http.DefaultRequestHeaders.Remove("X-Auction-Token");
             Http.DefaultRequestHeaders.Add("X-Auction-Token", session.SessionToken);
 
-            // Load auction basic info (we'll need an endpoint for this)
-            // For now, just set a placeholder
-            auctionName = "Fantasy Draft Auction";
+            // Check auction status - if Draft, redirect to waiting room
+            var auctionResponse = await Http.GetAsync($"/api/auction/{AuctionId}");
+            if (auctionResponse.IsSuccessStatusCode)
+            {
+                var auctionData = await auctionResponse.Content.ReadFromJsonAsync<AuctionData>();
+                if (auctionData != null)
+                {
+                    auctionName = auctionData.Name;
+
+                    // Redirect Draft auctions to waiting room
+                    if (auctionData.Status == "Draft")
+                    {
+                        Navigation.NavigateTo($"/auction/{AuctionId}/waiting-room", replace: true);
+                        return;
+                    }
+                }
+            }
+            else
+            {
+                // Fallback if we can't get auction details
+                auctionName = "Fantasy Draft Auction";
+            }
             
             // Load participants to get count and user roles
             var participantsResponse = await Http.GetAsync($"/api/auction/{AuctionId}/participants");
@@ -514,6 +533,12 @@
         public string DisplayName { get; set; } = string.Empty;
         public string SessionToken { get; set; } = string.Empty;
         public DateTime JoinedDate { get; set; }
+    }
+
+    private class AuctionData
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
     }
 
     private class ParticipantDto
