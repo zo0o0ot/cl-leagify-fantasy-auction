@@ -6,6 +6,7 @@ using System.Net;
 using System.Text.Json;
 using LeagifyFantasyAuction.Api.Data;
 using LeagifyFantasyAuction.Api.Models;
+using Microsoft.Azure.Functions.Worker.Extensions.SignalRService;
 
 namespace LeagifyFantasyAuction.Api.Functions;
 
@@ -149,11 +150,13 @@ public class WaitingRoomFunction
 
     /// <summary>
     /// Places a test bid on Vermont A&M during the waiting room phase.
+    /// Broadcasts the bid to all participants in the waiting room via SignalR.
     /// </summary>
     [Function("PlaceTestBid")]
     public async Task<HttpResponseData> PlaceTestBid(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "auction/{auctionId}/test-bid")] HttpRequestData req,
-        int auctionId)
+        int auctionId,
+        [SignalROutput(HubName = "auctionhub")] IAsyncCollector<SignalRMessageAction> signalRMessages)
     {
         try
         {
@@ -208,7 +211,8 @@ public class WaitingRoomFunction
             _context.BidHistories.Add(testBid);
 
             // Update user's HasTestedBidding flag
-            if (!user.HasTestedBidding)
+            var isFirstTestBid = !user.HasTestedBidding;
+            if (isFirstTestBid)
             {
                 user.HasTestedBidding = true;
                 _context.Users.Update(user);
@@ -218,9 +222,22 @@ public class WaitingRoomFunction
 
             _logger.LogInformation("Test bid placed: User {UserId} bid ${Amount} on test school", user.UserId, bidRequest.Amount);
 
-            // TODO: Broadcast test bid to all waiting room participants via SignalR
-            // This will be implemented once we wire up Azure SignalR Service
-            // await BroadcastTestBidToWaitingRoom(auctionId, user.DisplayName, bidRequest.Amount);
+            // Broadcast test bid to all waiting room participants via SignalR
+            await signalRMessages.AddAsync(new SignalRMessageAction("TestBidPlaced")
+            {
+                GroupName = $"waiting-{auctionId}",
+                Arguments = new object[] { user.DisplayName, bidRequest.Amount, testBid.BidDate }
+            });
+
+            // If this is user's first test bid, broadcast that too
+            if (isFirstTestBid)
+            {
+                await signalRMessages.AddAsync(new SignalRMessageAction("UserTestedBidding")
+                {
+                    GroupName = $"waiting-{auctionId}",
+                    Arguments = new object[] { user.DisplayName }
+                });
+            }
 
             var response = req.CreateResponse(HttpStatusCode.OK);
             await response.WriteAsJsonAsync(new
@@ -243,11 +260,13 @@ public class WaitingRoomFunction
 
     /// <summary>
     /// Updates user's readiness status (IsReadyToDraft flag).
+    /// Broadcasts the status change to all participants in the waiting room via SignalR.
     /// </summary>
     [Function("UpdateReadyStatus")]
     public async Task<HttpResponseData> UpdateReadyStatus(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "auction/{auctionId}/ready-status")] HttpRequestData req,
-        int auctionId)
+        int auctionId,
+        [SignalROutput(HubName = "auctionhub")] IAsyncCollector<SignalRMessageAction> signalRMessages)
     {
         try
         {
@@ -280,8 +299,12 @@ public class WaitingRoomFunction
                 user.UserId,
                 readyRequest.IsReady ? "ready" : "not ready");
 
-            // TODO: Broadcast readiness update to all waiting room participants via SignalR
-            // await BroadcastReadinessUpdate(auctionId, user.DisplayName, readyRequest.IsReady);
+            // Broadcast readiness update to all waiting room participants via SignalR
+            await signalRMessages.AddAsync(new SignalRMessageAction("ReadinessUpdated")
+            {
+                GroupName = $"waiting-{auctionId}",
+                Arguments = new object[] { user.DisplayName, readyRequest.IsReady }
+            });
 
             var response = req.CreateResponse(HttpStatusCode.OK);
             await response.WriteAsJsonAsync(new
