@@ -50,8 +50,17 @@
                         <ChildContent Context="auction">
                             <div class="join-code">
                                 <code>@auction.JoinCode</code>
-                                <FluentButton Appearance="Appearance.Stealth" IconStart="@(new Icons.Regular.Size16.Copy())" 
-                                              OnClick="@(() => CopyToClipboard(auction.JoinCode))" Title="Copy join code" />
+                                @if (copiedCode == auction.JoinCode)
+                                {
+                                    <FluentBadge Appearance="Appearance.Accent" BackgroundColor="#28a745" Color="white">
+                                        ✓ Copied!
+                                    </FluentBadge>
+                                }
+                                else
+                                {
+                                    <FluentButton Appearance="Appearance.Stealth" IconStart="@(new Icons.Regular.Size16.Copy())"
+                                                  OnClick="@(() => CopyToClipboard(auction.JoinCode))" Title="Copy join code" />
+                                }
                             </div>
                         </ChildContent>
                     </TemplateColumn>
@@ -59,8 +68,17 @@
                         <ChildContent Context="auction">
                             <div class="master-code">
                                 <code class="master-code-text">@auction.MasterCode</code>
-                                <FluentButton Appearance="Appearance.Stealth" IconStart="@(new Icons.Regular.Size16.Copy())" 
-                                              OnClick="@(() => CopyToClipboard(auction.MasterCode))" Title="Copy master code" />
+                                @if (copiedCode == auction.MasterCode)
+                                {
+                                    <FluentBadge Appearance="Appearance.Accent" BackgroundColor="#28a745" Color="white">
+                                        ✓ Copied!
+                                    </FluentBadge>
+                                }
+                                else
+                                {
+                                    <FluentButton Appearance="Appearance.Stealth" IconStart="@(new Icons.Regular.Size16.Copy())"
+                                                  OnClick="@(() => CopyToClipboard(auction.MasterCode))" Title="Copy master code" />
+                                }
                             </div>
                         </ChildContent>
                     </TemplateColumn>
@@ -488,7 +506,10 @@
     
     // Match filtering
     private MatchFilter currentFilter = MatchFilter.All;
-    
+
+    // Copy to clipboard state
+    private string? copiedCode = null;
+
     // Roster design state
     private bool showRosterDesign = false;
     private bool isLoadingRosterConfig = false;
@@ -885,12 +906,27 @@
         try
         {
             await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", text);
-            await JSRuntime.InvokeVoidAsync("alert", $"Copied '{text}' to clipboard!");
+
+            // Show visual indicator that code was copied
+            copiedCode = text;
+            StateHasChanged();
+
+            // Clear the indicator after 2 seconds
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(2000);
+                await InvokeAsync(() =>
+                {
+                    copiedCode = null;
+                    StateHasChanged();
+                });
+            });
         }
         catch (Exception)
         {
             // Fallback for browsers that don't support clipboard API
-            await JSRuntime.InvokeVoidAsync("alert", $"Join Code: {text}\n\nPlease copy this manually.");
+            // Still show popup for this edge case since manual copy is needed
+            await JSRuntime.InvokeVoidAsync("alert", $"Code: {text}\n\nPlease copy this manually.");
         }
     }
 
