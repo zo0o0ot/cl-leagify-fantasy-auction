@@ -321,9 +321,28 @@
             isConnectedToSignalR = true;
             Console.WriteLine("✅ SignalR connected successfully");
 
-            // Join waiting room group
-            await hubConnection.InvokeAsync("JoinWaitingRoom", AuctionId, session.DisplayName);
-            Console.WriteLine($"✅ Joined waiting room group for auction {AuctionId}");
+            // Get connection ID
+            var connectionId = hubConnection.ConnectionId;
+            if (!string.IsNullOrEmpty(connectionId))
+            {
+                // Join waiting room group via API
+                var groupRequest = new
+                {
+                    ConnectionId = connectionId,
+                    GroupName = $"waiting-{AuctionId}",
+                    AuctionId = AuctionId
+                };
+
+                var groupResponse = await Http.PostAsJsonAsync("/api/signalr/groups/add", groupRequest);
+                if (groupResponse.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($"✅ Joined waiting room group for auction {AuctionId}");
+                }
+                else
+                {
+                    Console.WriteLine($"⚠️ Failed to join waiting room group: {groupResponse.StatusCode}");
+                }
+            }
 
             StateHasChanged();
         }
