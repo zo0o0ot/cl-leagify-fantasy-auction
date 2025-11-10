@@ -373,9 +373,9 @@
                     auctionData = data.Auction;
                     userData = data.User;
                     testSchool = data.TestSchool;
-                    testBidHistory = data.TestBidHistory;
-                    schools = data.Schools;
-                    nominationOrder = data.NominationOrder;
+                    testBidHistory = data.TestBidHistory ?? new List<TestBidData>();
+                    schools = data.Schools ?? new List<SchoolData>();
+                    nominationOrder = data.NominationOrder ?? new List<string>();
                 }
             }
             else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
