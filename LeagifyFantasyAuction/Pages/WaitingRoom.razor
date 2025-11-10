@@ -194,11 +194,11 @@
                     </FluentLabel>
 
                     <div class="order-list">
-                        @for (int i = 0; i < nominationOrder.Count; i++)
+                        @foreach (var (displayName, index) in nominationOrder.Select((name, idx) => (name, idx)))
                         {
                             <div class="order-item">
-                                <span class="order-number">@(i + 1).</span>
-                                <FluentLabel>@nominationOrder[i]</FluentLabel>
+                                <span class="order-number">@(index + 1).</span>
+                                <FluentLabel>@displayName</FluentLabel>
                             </div>
                         }
                     </div>
