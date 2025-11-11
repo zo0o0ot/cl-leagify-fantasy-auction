@@ -87,6 +87,7 @@
                             Bid $@(testSchool.CurrentBid + 10)
                         </FluentButton>
                         <FluentButton Appearance="Appearance.Neutral"
+                                      OnClick="@PassOnBidding"
                                       Disabled="@isPlacingBid">
                             Pass
                         </FluentButton>
@@ -437,6 +438,14 @@
             isPlacingBid = false;
             StateHasChanged();
         }
+    }
+
+    private void PassOnBidding()
+    {
+        Console.WriteLine("User passed on test bidding");
+        // In the waiting room, passing just means you're done bidding for now
+        // No server-side action needed - this is just for UX
+        // In the real auction (Phase 5), this would notify other bidders
     }
 
     private async Task ToggleReadiness()
