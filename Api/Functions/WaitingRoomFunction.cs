@@ -165,20 +165,27 @@ public class WaitingRoomFunction
             var user = await ValidateSessionToken(req, auctionId);
             if (user == null)
             {
+                _logger.LogWarning("Unauthorized test bid attempt for auction {AuctionId}", auctionId);
                 var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
                 return new TestBidResponse { HttpResponse = unauthorizedResponse };
             }
 
             // Parse request body
             var requestBody = await req.ReadAsStringAsync();
+            _logger.LogInformation("Test bid request body: {RequestBody}", requestBody);
+
             var bidRequest = JsonSerializer.Deserialize<TestBidRequest>(requestBody ?? "{}");
 
             if (bidRequest == null || bidRequest.Amount <= 0)
             {
+                _logger.LogWarning("Invalid bid amount for auction {AuctionId}: {Amount}", auctionId, bidRequest?.Amount);
                 var badRequest = req.CreateResponse(HttpStatusCode.BadRequest);
                 await badRequest.WriteStringAsync("Invalid bid amount");
                 return new TestBidResponse { HttpResponse = badRequest };
             }
+
+            _logger.LogInformation("Processing test bid: Auction={AuctionId}, User={UserId}, Amount={Amount}",
+                auctionId, user.UserId, bidRequest.Amount);
 
             // Validate bid amount (must be higher than current bid)
             var currentHighBid = await _context.BidHistories
