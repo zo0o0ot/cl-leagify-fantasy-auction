@@ -30,9 +30,11 @@ The Leagify Fantasy Auction application uses Azure SignalR Service to provide:
    - **Pricing Tier**:
      - **Free**: 20 concurrent connections, 20,000 messages/day (good for development)
      - **Standard**: Scales to thousands of connections (required for production)
-   - **Service Mode**: **Default** (allows both REST API and persistent connections)
+   - **Service Mode**: **Serverless** ⚠️ **CRITICAL** - Must be Serverless for Azure Functions
 4. Click **Review + create** → **Create**
 5. Wait 2-3 minutes for deployment to complete
+
+> **⚠️ Important**: Service Mode must be **Serverless** for Azure Functions. Do NOT use Default mode (that's for persistent ASP.NET Core SignalR servers).
 
 ### Option B: Using Azure CLI
 
@@ -43,12 +45,13 @@ SIGNALR_NAME="signalr-leagify-auction"
 LOCATION="eastus"  # Use same location as your Static Web App
 
 # Create SignalR Service (Free tier for development)
+# IMPORTANT: Must use Serverless mode for Azure Functions
 az signalr create \
   --name $SIGNALR_NAME \
   --resource-group $RESOURCE_GROUP \
   --location $LOCATION \
   --sku Free_F1 \
-  --service-mode Default
+  --service-mode Serverless
 
 # For production, use Standard tier with auto-scaling
 # az signalr create \
@@ -57,7 +60,7 @@ az signalr create \
 #   --location $LOCATION \
 #   --sku Standard_S1 \
 #   --unit-count 1 \
-#   --service-mode Default
+#   --service-mode Serverless
 ```
 
 ## Step 2: Get Connection String
@@ -228,6 +231,17 @@ Open browser DevTools Console, you should see:
 
 ## Troubleshooting
 
+### ⚠️ SignalR Connection Fails: "app servers are not connected"
+
+- **Symptom**: `Unable to complete handshake with the server... SignalR Service is now in 'Default' service mode... However app servers are not connected`
+- **Cause**: SignalR Service is in wrong service mode (Default instead of Serverless)
+- **Fix**:
+  1. Azure Portal → SignalR Service → Settings → **Service Mode**
+  2. Change from **Default** to **Serverless**
+  3. Click Save, wait 30 seconds
+  4. Refresh the browser
+- **Why**: Azure Functions require Serverless mode. Default mode expects persistent server connections.
+
 ### SignalR Connection Fails with 404
 
 - **Symptom**: `POST /api/signalr/negotiate 404 (Not Found)`
@@ -287,10 +301,11 @@ Open browser DevTools Console, you should see:
    - Use Azure Static Web App configuration (encrypted at rest)
    - Rotate access keys periodically
 
-2. **Service Mode**
-   - Use **Default** mode for Azure Functions integration
-   - Avoid **Serverless** mode (doesn't support persistent connections)
-   - **Classic** mode is legacy, not recommended
+2. **Service Mode** ⚠️ CRITICAL
+   - **MUST use Serverless mode** for Azure Functions
+   - Default mode expects persistent ASP.NET Core SignalR servers (won't work with Functions)
+   - Classic mode is legacy, not recommended
+   - If you see "app servers are not connected" error, mode is set incorrectly
 
 3. **CORS Configuration**
    - SignalR Service auto-configures CORS for Azure Static Web Apps
