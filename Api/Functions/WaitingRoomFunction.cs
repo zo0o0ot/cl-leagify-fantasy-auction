@@ -174,13 +174,22 @@ public class WaitingRoomFunction
             var requestBody = await req.ReadAsStringAsync();
             _logger.LogInformation("Test bid request body: {RequestBody}", requestBody);
 
-            var bidRequest = JsonSerializer.Deserialize<TestBidRequest>(requestBody ?? "{}");
+            var bidRequest = JsonSerializer.Deserialize<TestBidRequest>(requestBody ?? "{}",
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-            if (bidRequest == null || bidRequest.Amount <= 0)
+            if (bidRequest == null)
             {
-                _logger.LogWarning("Invalid bid amount for auction {AuctionId}: {Amount}", auctionId, bidRequest?.Amount);
+                _logger.LogError("Failed to deserialize test bid request for auction {AuctionId}", auctionId);
                 var badRequest = req.CreateResponse(HttpStatusCode.BadRequest);
-                await badRequest.WriteStringAsync("Invalid bid amount");
+                await badRequest.WriteStringAsync("Failed to parse request body");
+                return new TestBidResponse { HttpResponse = badRequest };
+            }
+
+            if (bidRequest.Amount <= 0)
+            {
+                _logger.LogWarning("Invalid bid amount for auction {AuctionId}: {Amount}", auctionId, bidRequest.Amount);
+                var badRequest = req.CreateResponse(HttpStatusCode.BadRequest);
+                await badRequest.WriteStringAsync($"Invalid bid amount: {bidRequest.Amount}. Must be greater than 0.");
                 return new TestBidResponse { HttpResponse = badRequest };
             }
 
