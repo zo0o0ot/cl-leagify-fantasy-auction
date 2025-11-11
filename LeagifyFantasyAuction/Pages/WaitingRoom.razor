@@ -269,8 +269,12 @@
                 .Build();
 
             // Register event handlers BEFORE starting connection
-            hubConnection.On<string, decimal, DateTime>("TestBidPlaced", (bidderName, amount, bidDate) =>
+            // Note: First parameter is always auction ID for filtering
+            hubConnection.On<int, string, decimal, DateTime>("TestBidPlaced", (messageAuctionId, bidderName, amount, bidDate) =>
             {
+                // Filter messages for this auction only
+                if (messageAuctionId != AuctionId) return;
+
                 Console.WriteLine($"📢 SignalR: Test bid received - {bidderName} bid ${amount}");
 
                 // Update test school current bid
@@ -297,21 +301,30 @@
                 InvokeAsync(StateHasChanged);
             });
 
-            hubConnection.On<string, bool>("ReadinessUpdated", (displayName, isReady) =>
+            hubConnection.On<int, string, bool>("ReadinessUpdated", (messageAuctionId, displayName, isReady) =>
             {
+                // Filter messages for this auction only
+                if (messageAuctionId != AuctionId) return;
+
                 Console.WriteLine($"📢 SignalR: Readiness updated - {displayName} is {(isReady ? "ready" : "not ready")}");
                 // Could update a participants list here if we had one
                 InvokeAsync(StateHasChanged);
             });
 
-            hubConnection.On<string>("UserJoinedWaitingRoom", (displayName) =>
+            hubConnection.On<int, string>("UserJoinedWaitingRoom", (messageAuctionId, displayName) =>
             {
+                // Filter messages for this auction only
+                if (messageAuctionId != AuctionId) return;
+
                 Console.WriteLine($"📢 SignalR: {displayName} joined the waiting room");
                 InvokeAsync(StateHasChanged);
             });
 
-            hubConnection.On<string>("UserTestedBidding", (displayName) =>
+            hubConnection.On<int, string>("UserTestedBidding", (messageAuctionId, displayName) =>
             {
+                // Filter messages for this auction only
+                if (messageAuctionId != AuctionId) return;
+
                 Console.WriteLine($"📢 SignalR: {displayName} tested bidding for the first time");
                 InvokeAsync(StateHasChanged);
             });
@@ -320,29 +333,7 @@
             await hubConnection.StartAsync();
             isConnectedToSignalR = true;
             Console.WriteLine("✅ SignalR connected successfully");
-
-            // Get connection ID
-            var connectionId = hubConnection.ConnectionId;
-            if (!string.IsNullOrEmpty(connectionId))
-            {
-                // Join waiting room group via API
-                var groupRequest = new
-                {
-                    ConnectionId = connectionId,
-                    GroupName = $"waiting-{AuctionId}",
-                    AuctionId = AuctionId
-                };
-
-                var groupResponse = await Http.PostAsJsonAsync("/api/signalr/groups/add", groupRequest);
-                if (groupResponse.IsSuccessStatusCode)
-                {
-                    Console.WriteLine($"✅ Joined waiting room group for auction {AuctionId}");
-                }
-                else
-                {
-                    Console.WriteLine($"⚠️ Failed to join waiting room group: {groupResponse.StatusCode}");
-                }
-            }
+            Console.WriteLine($"✅ Listening for auction {AuctionId} messages");
 
             StateHasChanged();
         }

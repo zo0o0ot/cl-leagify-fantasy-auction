@@ -222,13 +222,13 @@ public class WaitingRoomFunction
 
             _logger.LogInformation("Test bid placed: User {UserId} bid ${Amount} on test school", user.UserId, bidRequest.Amount);
 
-            // Build SignalR messages list
+            // Build SignalR messages list - broadcast to all (clients filter by auction ID)
             var signalRMessages = new List<SignalRMessageAction>
             {
                 new SignalRMessageAction("TestBidPlaced")
                 {
-                    GroupName = $"waiting-{auctionId}",
-                    Arguments = new object[] { user.DisplayName, bidRequest.Amount, testBid.BidDate }
+                    // No GroupName - broadcast to all connections
+                    Arguments = new object[] { auctionId, user.DisplayName, bidRequest.Amount, testBid.BidDate }
                 }
             };
 
@@ -237,8 +237,8 @@ public class WaitingRoomFunction
             {
                 signalRMessages.Add(new SignalRMessageAction("UserTestedBidding")
                 {
-                    GroupName = $"waiting-{auctionId}",
-                    Arguments = new object[] { user.DisplayName }
+                    // No GroupName - broadcast to all connections
+                    Arguments = new object[] { auctionId, user.DisplayName }
                 });
             }
 
@@ -307,11 +307,11 @@ public class WaitingRoomFunction
                 user.UserId,
                 readyRequest.IsReady ? "ready" : "not ready");
 
-            // Create SignalR message
+            // Create SignalR message - broadcast to all (clients filter by auction ID)
             var signalRMessage = new SignalRMessageAction("ReadinessUpdated")
             {
-                GroupName = $"waiting-{auctionId}",
-                Arguments = new object[] { user.DisplayName, readyRequest.IsReady }
+                // No GroupName - broadcast to all connections
+                Arguments = new object[] { auctionId, user.DisplayName, readyRequest.IsReady }
             };
 
             var response = req.CreateResponse(HttpStatusCode.OK);
