@@ -66,7 +66,7 @@
                             }
                         </FluentLabel>
                         <FluentLabel Style="color: #666; font-size: 14px; margin-top: 4px;">
-                            Your Test Budget: $200 | Remaining: $@(200 - (userData.HasTestedBidding ? testSchool.CurrentBid : 0)).ToString("N0")
+                            Your Test Budget: $200 | Remaining: $@((200 - (userData.HasTestedBidding ? testSchool.CurrentBid : 0)).ToString("N0"))
                         </FluentLabel>
                     </div>
 
