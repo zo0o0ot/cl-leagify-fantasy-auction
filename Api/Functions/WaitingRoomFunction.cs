@@ -78,15 +78,15 @@ public class WaitingRoomFunction
                 })
                 .ToListAsync();
 
-            // Get all schools for preview (all real schools in auction)
-            var schools = await _context.AuctionSchools
-                .Include(s => s.School)
-                .Where(s => s.AuctionId == auctionId)
-                .OrderBy(s => s.ImportOrder)
+            // Get all schools for preview - show default schools from School table
+            // These are the available schools that users can bid on (system-wide, not auction-specific)
+            var schools = await _context.Schools
+                .AsNoTracking()
+                .OrderBy(s => s.Name)
                 .Select(s => new
                 {
-                    Name = s.School.Name,
-                    Conference = s.Conference
+                    Name = s.Name,
+                    Conference = s.Conference ?? "N/A"
                 })
                 .ToListAsync();
 
