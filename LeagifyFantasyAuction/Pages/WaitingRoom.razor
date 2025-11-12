@@ -66,7 +66,7 @@
                             }
                         </FluentLabel>
                         <FluentLabel Style="color: #666; font-size: 14px; margin-top: 4px;">
-                            Your Test Budget: $200 | Remaining: $@(200 - (userData.HasTestedBidding ? testSchool.CurrentBid : 0)).ToString("N0")
+                            Your Test Budget: $200 | Remaining: $@((200 - (userData.HasTestedBidding ? testSchool.CurrentBid : 0)).ToString("N0"))
                         </FluentLabel>
                     </div>
 
@@ -88,8 +88,8 @@
                         </FluentButton>
                         <FluentButton Appearance="Appearance.Neutral"
                                       OnClick="@PassOnBidding"
-                                      Disabled="@isPlacingBid">
-                            Pass
+                                      Disabled="@(isPlacingBid || isPassingOnBid)">
+                            @(isPassingOnBid ? "Passing..." : "Pass")
                         </FluentButton>
                     </div>
 
@@ -110,6 +110,60 @@
                 }
             </div>
         </FluentCard>
+
+        <!-- Participants & Bidding Status -->
+        @if (participants.Any())
+        {
+            <FluentCard Style="margin-bottom: 24px;">
+                <div class="participants-section">
+                    <FluentLabel Typo="Typography.Header">
+                        👥 Participants & Bidding Status
+                    </FluentLabel>
+                    <FluentLabel Style="color: #666; margin-top: 8px; margin-bottom: 16px;">
+                        See who's actively bidding and who has passed on the current test bid
+                    </FluentLabel>
+
+                    <div class="participants-list">
+                        @foreach (var participant in participants)
+                        {
+                            <div class="participant-item">
+                                <div class="participant-info">
+                                    <FluentLabel Style="font-weight: 600;">@participant.DisplayName</FluentLabel>
+                                    @if (participant.HasPassedOnTestBid)
+                                    {
+                                        <FluentBadge Appearance="Appearance.Neutral"
+                                                     BackgroundColor="#6c757d"
+                                                     Color="white"
+                                                     Style="margin-left: 8px;">
+                                            Passed
+                                        </FluentBadge>
+                                    }
+                                    else
+                                    {
+                                        <FluentBadge Appearance="Appearance.Accent"
+                                                     BackgroundColor="#28a745"
+                                                     Color="white"
+                                                     Style="margin-left: 8px;">
+                                            Active
+                                        </FluentBadge>
+                                    }
+                                </div>
+                                <div class="participant-status">
+                                    @if (participant.IsConnected)
+                                    {
+                                        <span style="color: #28a745;">🟢 Online</span>
+                                    }
+                                    else
+                                    {
+                                        <span style="color: #6c757d;">⚫ Offline</span>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </FluentCard>
+        }
 
         <!-- Readiness Status -->
         <FluentCard Style="margin-bottom: 24px;">
@@ -234,9 +288,11 @@
     private List<TestBidData> testBidHistory = new();
     private List<SchoolData> schools = new();
     private List<string> nominationOrder = new();
+    private List<ParticipantData> participants = new();
 
     private HubConnection? hubConnection;
     private bool isConnectedToSignalR = false;
+    private bool isPassingOnBid = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -309,6 +365,18 @@
                     testBidHistory = testBidHistory.Take(10).ToList();
                 }
 
+                // Reset all participants' pass status when a new bid is placed
+                foreach (var participant in participants)
+                {
+                    participant.HasPassedOnTestBid = false;
+                }
+
+                // Update current user's pass status if needed
+                if (userData != null)
+                {
+                    userData.HasPassedOnTestBid = false;
+                }
+
                 InvokeAsync(StateHasChanged);
             });
 
@@ -337,6 +405,29 @@
                 if (messageAuctionId != AuctionId) return;
 
                 Console.WriteLine($"📢 SignalR: {displayName} tested bidding for the first time");
+                InvokeAsync(StateHasChanged);
+            });
+
+            hubConnection.On<int, string>("UserPassedOnTestBid", (messageAuctionId, displayName) =>
+            {
+                // Filter messages for this auction only
+                if (messageAuctionId != AuctionId) return;
+
+                Console.WriteLine($"📢 SignalR: {displayName} passed on test bid");
+
+                // Update participant's pass status
+                var participant = participants.FirstOrDefault(p => p.DisplayName == displayName);
+                if (participant != null)
+                {
+                    participant.HasPassedOnTestBid = true;
+                }
+
+                // Update current user's status if it's them
+                if (userData != null && userData.DisplayName == displayName)
+                {
+                    userData.HasPassedOnTestBid = true;
+                }
+
                 InvokeAsync(StateHasChanged);
             });
 
@@ -397,6 +488,7 @@
                     testBidHistory = data.TestBidHistory ?? new List<TestBidData>();
                     schools = data.Schools ?? new List<SchoolData>();
                     nominationOrder = data.NominationOrder ?? new List<string>();
+                    participants = data.Participants ?? new List<ParticipantData>();
                 }
             }
             else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
@@ -450,12 +542,38 @@
         }
     }
 
-    private void PassOnBidding()
+    private async Task PassOnBidding()
     {
-        Console.WriteLine("User passed on test bidding");
-        // In the waiting room, passing just means you're done bidding for now
-        // No server-side action needed - this is just for UX
-        // In the real auction (Phase 5), this would notify other bidders
+        try
+        {
+            isPassingOnBid = true;
+            StateHasChanged();
+
+            Console.WriteLine("User passing on test bidding...");
+
+            var response = await Http.PostAsync($"/api/auction/{AuctionId}/test-bid/pass", null);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("✅ Pass recorded successfully");
+                // SignalR will update the UI via UserPassedOnTestBid event
+            }
+            else
+            {
+                errorMessage = "Failed to record pass action";
+                Console.WriteLine($"❌ Pass failed: {response.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error passing on bid: {ex.Message}";
+            Console.WriteLine($"❌ Pass error: {ex.Message}");
+        }
+        finally
+        {
+            isPassingOnBid = false;
+            StateHasChanged();
+        }
     }
 
     private async Task ToggleReadiness()
@@ -505,6 +623,7 @@
         public List<TestBidData> TestBidHistory { get; set; } = new();
         public List<SchoolData> Schools { get; set; } = new();
         public List<string> NominationOrder { get; set; } = new();
+        public List<ParticipantData> Participants { get; set; } = new();
     }
 
     private class AuctionData
@@ -518,6 +637,7 @@
         public string DisplayName { get; set; } = string.Empty;
         public bool HasTestedBidding { get; set; }
         public bool IsReadyToDraft { get; set; }
+        public bool HasPassedOnTestBid { get; set; }
     }
 
     private class TestSchoolData
@@ -539,6 +659,15 @@
     {
         public string Name { get; set; } = string.Empty;
         public string Conference { get; set; } = string.Empty;
+    }
+
+    private class ParticipantData
+    {
+        public string DisplayName { get; set; } = string.Empty;
+        public bool HasTestedBidding { get; set; }
+        public bool IsReadyToDraft { get; set; }
+        public bool HasPassedOnTestBid { get; set; }
+        public bool IsConnected { get; set; }
     }
 }
 
@@ -634,5 +763,35 @@
         margin-right: 12px;
         color: #0078d4;
         min-width: 30px;
+    }
+
+    .participants-section {
+        padding: 20px;
+    }
+
+    .participants-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-top: 16px;
+    }
+
+    .participant-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px;
+        background: #f5f5f5;
+        border-radius: 6px;
+    }
+
+    .participant-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .participant-status {
+        font-size: 14px;
     }
 </style>

@@ -78,15 +78,17 @@ public class WaitingRoomFunction
                 })
                 .ToListAsync();
 
-            // Get all schools for preview (all real schools in auction)
+            // Get all schools for preview - show schools for this auction with conference data
+            // These are the available schools that users can bid on in this specific auction
             var schools = await _context.AuctionSchools
-                .Include(s => s.School)
-                .Where(s => s.AuctionId == auctionId)
-                .OrderBy(s => s.ImportOrder)
-                .Select(s => new
+                .Include(a => a.School)
+                .Where(a => a.AuctionId == auctionId && !a.IsTestSchool)
+                .AsNoTracking()
+                .OrderBy(a => a.School.Name)
+                .Select(a => new
                 {
-                    Name = s.School.Name,
-                    Conference = s.Conference
+                    Name = a.School.Name,
+                    Conference = a.Conference
                 })
                 .ToListAsync();
 
@@ -109,6 +111,20 @@ public class WaitingRoomFunction
                     .ToListAsync();
             }
 
+            // Get all participants with their bidding status
+            var participants = await _context.Users
+                .Where(u => u.AuctionId == auctionId)
+                .OrderBy(u => u.DisplayName)
+                .Select(u => new
+                {
+                    DisplayName = u.DisplayName,
+                    HasTestedBidding = u.HasTestedBidding,
+                    IsReadyToDraft = u.IsReadyToDraft,
+                    HasPassedOnTestBid = u.HasPassedOnTestBid,
+                    IsConnected = u.IsConnected
+                })
+                .ToListAsync();
+
             // Build response
             var response = new
             {
@@ -121,7 +137,8 @@ public class WaitingRoomFunction
                 {
                     DisplayName = user.DisplayName,
                     HasTestedBidding = user.HasTestedBidding,
-                    IsReadyToDraft = user.IsReadyToDraft
+                    IsReadyToDraft = user.IsReadyToDraft,
+                    HasPassedOnTestBid = user.HasPassedOnTestBid
                 },
                 TestSchool = new
                 {
@@ -132,7 +149,8 @@ public class WaitingRoomFunction
                 },
                 TestBidHistory = testBidHistory,
                 Schools = schools,
-                NominationOrder = nominationOrder
+                NominationOrder = nominationOrder,
+                Participants = participants
             };
 
             var httpResponse = req.CreateResponse(HttpStatusCode.OK);
@@ -210,6 +228,14 @@ public class WaitingRoomFunction
                 return new TestBidResponse { HttpResponse = conflict };
             }
 
+            // Validate user hasn't passed (permanent pass - cannot bid again)
+            if (user.HasPassedOnTestBid)
+            {
+                var conflict = req.CreateResponse(HttpStatusCode.Conflict);
+                await conflict.WriteStringAsync("You have already passed on this school and cannot bid again");
+                return new TestBidResponse { HttpResponse = conflict };
+            }
+
             // Create test bid record (using virtual school - no AuctionSchoolId)
             // Test bids have null AuctionSchoolId since Vermont A&M is virtual
             var testBid = new BidHistory
@@ -231,8 +257,10 @@ public class WaitingRoomFunction
             if (isFirstTestBid)
             {
                 user.HasTestedBidding = true;
-                _context.Users.Update(user);
             }
+
+            // NOTE: Passing is PERMANENT - users who pass cannot bid again on this school
+            // This matches regular auction behavior where passing is a primary win condition
 
             await _context.SaveChangesAsync();
 
@@ -354,6 +382,65 @@ public class WaitingRoomFunction
     }
 
     /// <summary>
+    /// Marks the user as having passed on the current test bid.
+    /// Broadcasts the pass status to all participants in the waiting room via SignalR.
+    /// </summary>
+    [Function("PassOnTestBid")]
+    public async Task<PassResponse> PassOnTestBid(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "auction/{auctionId}/test-bid/pass")] HttpRequestData req,
+        int auctionId)
+    {
+        try
+        {
+            _logger.LogInformation("User passing on test bid for auction {AuctionId}", auctionId);
+
+            // Validate session token
+            var user = await ValidateSessionToken(req, auctionId);
+            if (user == null)
+            {
+                var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
+                return new PassResponse { HttpResponse = unauthorizedResponse };
+            }
+
+            // Update user's pass status
+            user.HasPassedOnTestBid = true;
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Pass status updated: User {UserId} ({DisplayName}) passed on test bid",
+                user.UserId, user.DisplayName);
+
+            // Create SignalR message - broadcast to all (clients filter by auction ID)
+            var signalRMessage = new SignalRMessageAction("UserPassedOnTestBid")
+            {
+                // No GroupName - broadcast to all connections
+                Arguments = new object[] { auctionId, user.DisplayName }
+            };
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(new
+            {
+                Success = true,
+                DisplayName = user.DisplayName,
+                HasPassedOnTestBid = true
+            });
+
+            return new PassResponse
+            {
+                HttpResponse = response,
+                SignalRMessages = new[] { signalRMessage }
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing pass on test bid for auction {AuctionId}", auctionId);
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync($"Error: {ex.Message}");
+            return new PassResponse { HttpResponse = errorResponse };
+        }
+    }
+
+    /// <summary>
     /// Validates the session token from the request header and returns the authenticated user.
     /// </summary>
     private async Task<User?> ValidateSessionToken(HttpRequestData req, int auctionId)
@@ -397,6 +484,15 @@ public class WaitingRoomFunction
     }
 
     public class ReadyStatusResponse
+    {
+        [HttpResult]
+        public HttpResponseData? HttpResponse { get; set; }
+
+        [SignalROutput(HubName = "auctionhub")]
+        public SignalRMessageAction[]? SignalRMessages { get; set; }
+    }
+
+    public class PassResponse
     {
         [HttpResult]
         public HttpResponseData? HttpResponse { get; set; }

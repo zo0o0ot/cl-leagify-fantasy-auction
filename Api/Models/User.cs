@@ -47,6 +47,16 @@ public class User
     /// </remarks>
     public bool IsReadyToDraft { get; set; } = false;
 
+    /// <summary>
+    /// Gets or sets whether the user has passed on the current test bid in the waiting room.
+    /// </summary>
+    /// <value>True if the user clicked "Pass" on the current test bidding round; false if still actively bidding.</value>
+    /// <remarks>
+    /// This flag is reset to false whenever a new test bid is placed by anyone.
+    /// Used to show which participants are actively bidding vs. who has passed.
+    /// </remarks>
+    public bool HasPassedOnTestBid { get; set; } = false;
+
     // Navigation properties
     public virtual Auction Auction { get; set; } = null!;
     public virtual ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
