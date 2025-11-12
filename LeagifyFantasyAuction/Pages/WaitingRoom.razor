@@ -59,14 +59,14 @@
                 {
                     <div class="current-bid-display">
                         <FluentLabel Typo="Typography.Body" Style="font-weight: 600;">
-                            Current Test Bid: $@testSchool.CurrentBid
+                            Current Test Bid: $@testSchool.CurrentBid.ToString("N0")
                             @if (!string.IsNullOrEmpty(testSchool.CurrentBidderName))
                             {
                                 <span style="color: #0078d4;">(@testSchool.CurrentBidderName)</span>
                             }
                         </FluentLabel>
                         <FluentLabel Style="color: #666; font-size: 14px; margin-top: 4px;">
-                            Your Test Budget: $200 | Remaining: $@(200 - (userData.HasTestedBidding ? testSchool.CurrentBid : 0))
+                            Your Test Budget: $200 | Remaining: $@(200 - (userData.HasTestedBidding ? testSchool.CurrentBid : 0)).ToString("N0")
                         </FluentLabel>
                     </div>
 
@@ -74,17 +74,17 @@
                         <FluentButton Appearance="Appearance.Accent"
                                       OnClick="@(() => PlaceTestBid(testSchool.CurrentBid + 1))"
                                       Disabled="@isPlacingBid">
-                            Bid $@(testSchool.CurrentBid + 1)
+                            Bid $@((testSchool.CurrentBid + 1).ToString("N0"))
                         </FluentButton>
                         <FluentButton Appearance="Appearance.Accent"
                                       OnClick="@(() => PlaceTestBid(testSchool.CurrentBid + 5))"
                                       Disabled="@isPlacingBid">
-                            Bid $@(testSchool.CurrentBid + 5)
+                            Bid $@((testSchool.CurrentBid + 5).ToString("N0"))
                         </FluentButton>
                         <FluentButton Appearance="Appearance.Accent"
                                       OnClick="@(() => PlaceTestBid(testSchool.CurrentBid + 10))"
                                       Disabled="@isPlacingBid">
-                            Bid $@(testSchool.CurrentBid + 10)
+                            Bid $@((testSchool.CurrentBid + 10).ToString("N0"))
                         </FluentButton>
                         <FluentButton Appearance="Appearance.Neutral"
                                       OnClick="@PassOnBidding"
@@ -102,7 +102,7 @@
                             @foreach (var bid in testBidHistory.Take(5))
                             {
                                 <div style="margin: 4px 0; color: #666; font-size: 14px;">
-                                    • @bid.BidderName bid $@bid.Amount
+                                    • @bid.BidderName bid $@bid.Amount.ToString("N0")
                                 </div>
                             }
                         </div>
