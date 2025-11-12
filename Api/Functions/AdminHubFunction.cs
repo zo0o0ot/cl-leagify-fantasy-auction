@@ -288,7 +288,7 @@ public class AdminHubFunction
 
         // Check if user is Auction Master
         var isAuctionMaster = await _context.UserRoles
-            .AnyAsync(r => r.UserId == user.UserId && r.RoleType == "AuctionMaster");
+            .AnyAsync(r => r.UserId == user.UserId && r.Role == "AuctionMaster");
 
         return isAuctionMaster ? user : null;
     }

@@ -309,7 +309,7 @@ public class AuctionHub : Hub
             }
 
             // Join admin group if user is Auction Master
-            var isAuctionMaster = user.UserRoles.Any(r => r.RoleType == "AuctionMaster");
+            var isAuctionMaster = user.UserRoles.Any(r => r.Role == "AuctionMaster");
             if (isAuctionMaster)
             {
                 await Groups.AddToGroupAsync(Context.ConnectionId, GetAdminGroup(user.AuctionId));
@@ -364,12 +364,12 @@ public class AuctionHub : Hub
     /// <summary>
     /// Check if user has Auction Master role for the specified auction
     /// </summary>
-    private async Task<bool> IsAuctionMaster(User user, int auctionId)
+    private Task<bool> IsAuctionMaster(User user, int auctionId)
     {
         if (user.AuctionId != auctionId)
-            return false;
+            return Task.FromResult(false);
 
-        return user.UserRoles.Any(r => r.RoleType == "AuctionMaster");
+        return Task.FromResult(user.UserRoles.Any(r => r.Role == "AuctionMaster"));
     }
 
     /// <summary>
