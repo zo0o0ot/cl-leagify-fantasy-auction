@@ -179,6 +179,16 @@
                         }
                     </div>
                 }
+                else
+                {
+                    <FluentMessageBar Intent="MessageIntent.Info" Style="margin-top: 16px;">
+                        <strong>No schools imported yet.</strong>
+                        <div style="margin-top: 8px;">
+                            The Auction Master needs to import schools from a CSV file before the draft can begin.
+                            Once schools are imported, they will appear here.
+                        </div>
+                    </FluentMessageBar>
+                }
             </div>
         </FluentCard>
 
