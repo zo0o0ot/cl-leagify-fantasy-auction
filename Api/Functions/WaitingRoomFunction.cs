@@ -226,6 +226,14 @@ public class WaitingRoomFunction
                 return new TestBidResponse { HttpResponse = conflict };
             }
 
+            // Validate user hasn't passed (permanent pass - cannot bid again)
+            if (user.HasPassedOnTestBid)
+            {
+                var conflict = req.CreateResponse(HttpStatusCode.Conflict);
+                await conflict.WriteStringAsync("You have already passed on this school and cannot bid again");
+                return new TestBidResponse { HttpResponse = conflict };
+            }
+
             // Create test bid record (using virtual school - no AuctionSchoolId)
             // Test bids have null AuctionSchoolId since Vermont A&M is virtual
             var testBid = new BidHistory
@@ -249,16 +257,8 @@ public class WaitingRoomFunction
                 user.HasTestedBidding = true;
             }
 
-            // Reset pass status for ALL users when a new bid is placed
-            // Everyone gets a fresh chance to bid or pass on the new amount
-            var allUsersInAuction = await _context.Users
-                .Where(u => u.AuctionId == auctionId)
-                .ToListAsync();
-
-            foreach (var auctionUser in allUsersInAuction)
-            {
-                auctionUser.HasPassedOnTestBid = false;
-            }
+            // NOTE: Passing is PERMANENT - users who pass cannot bid again on this school
+            // This matches regular auction behavior where passing is a primary win condition
 
             await _context.SaveChangesAsync();
 
