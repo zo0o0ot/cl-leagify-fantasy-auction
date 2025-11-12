@@ -65,11 +65,10 @@ public class SignalRFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbConte
                 
                 await context.SaveChangesAsync();
                 
-                _logger.LogInformation("User {UserId} connected to auction {AuctionId}", 
+                _logger.LogInformation("User {UserId} connected to auction {AuctionId}",
                     user.UserId, user.AuctionId);
 
-                // Notify other participants that user connected
-                await BroadcastUserStatusUpdate(user.AuctionId, user.UserId, user.DisplayName, true);
+                // Notify other participants that user connected - will be done via separate broadcast call
             }
 
             var response = req.CreateResponse(HttpStatusCode.OK);
@@ -109,11 +108,10 @@ public class SignalRFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbConte
                 
                 await context.SaveChangesAsync();
                 
-                _logger.LogInformation("User {UserId} disconnected from auction {AuctionId}", 
+                _logger.LogInformation("User {UserId} disconnected from auction {AuctionId}",
                     user.UserId, user.AuctionId);
 
-                // Notify other participants that user disconnected
-                await BroadcastUserStatusUpdate(user.AuctionId, user.UserId, user.DisplayName, false);
+                // Notify other participants that user disconnected - will be done via separate broadcast call
             }
 
             var response = req.CreateResponse(HttpStatusCode.OK);
@@ -296,19 +294,81 @@ public class SignalRFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbConte
         return endpointPart?.Substring("Endpoint=".Length) ?? "/api/signalr";
     }
 
-    private async Task BroadcastUserStatusUpdate(int auctionId, int userId, string displayName, bool isConnected)
+    /// <summary>
+    /// Broadcast user connection status updates to auction participants and admins.
+    /// Called when users connect or disconnect from the auction.
+    /// </summary>
+    [Function("BroadcastUserStatus")]
+    [SignalROutput(HubName = "auctionhub")]
+    public async Task<SignalRMessageAction[]> BroadcastUserStatusUpdate(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "signalr/broadcast-user-status")] HttpRequestData req)
     {
         try
         {
-            // TODO: Implement actual SignalR broadcasting
-            // This would use Azure SignalR Service to broadcast to all auction participants
-            _logger.LogInformation("User {DisplayName} (ID: {UserId}) {Status} in auction {AuctionId}", 
-                displayName, userId, isConnected ? "connected" : "disconnected", auctionId);
+            var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+            var statusUpdate = JsonSerializer.Deserialize<UserStatusUpdate>(requestBody,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (statusUpdate == null)
+            {
+                _logger.LogWarning("Invalid user status update request");
+                return Array.Empty<SignalRMessageAction>();
+            }
+
+            _logger.LogInformation("User {DisplayName} (ID: {UserId}) {Status} in auction {AuctionId}",
+                statusUpdate.DisplayName, statusUpdate.UserId,
+                statusUpdate.IsConnected ? "connected" : "disconnected",
+                statusUpdate.AuctionId);
+
+            var messages = new List<SignalRMessageAction>();
+
+            // Broadcast to all auction participants
+            messages.Add(new SignalRMessageAction(statusUpdate.IsConnected ? "UserConnected" : "UserDisconnected")
+            {
+                GroupName = $"auction-{statusUpdate.AuctionId}",
+                Arguments = new object[]
+                {
+                    statusUpdate.UserId,
+                    statusUpdate.DisplayName,
+                    DateTime.UtcNow
+                }
+            });
+
+            // Broadcast to admin group with additional details
+            messages.Add(new SignalRMessageAction(
+                statusUpdate.IsConnected ? "AdminNotifyConnection" : "AdminNotifyDisconnection")
+            {
+                GroupName = $"admin-{statusUpdate.AuctionId}",
+                Arguments = new object[]
+                {
+                    new
+                    {
+                        UserId = statusUpdate.UserId,
+                        DisplayName = statusUpdate.DisplayName,
+                        Timestamp = DateTime.UtcNow,
+                        HasTestedBidding = statusUpdate.HasTestedBidding,
+                        IsReadyToDraft = statusUpdate.IsReadyToDraft
+                    }
+                }
+            });
+
+            return messages.ToArray();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error broadcasting user status update");
+            return Array.Empty<SignalRMessageAction>();
         }
+    }
+
+    private class UserStatusUpdate
+    {
+        public int AuctionId { get; set; }
+        public int UserId { get; set; }
+        public string DisplayName { get; set; } = string.Empty;
+        public bool IsConnected { get; set; }
+        public bool HasTestedBidding { get; set; }
+        public bool IsReadyToDraft { get; set; }
     }
 
     private static async Task<HttpResponseData> CreateErrorResponse(HttpRequestData req, HttpStatusCode statusCode, string message)
