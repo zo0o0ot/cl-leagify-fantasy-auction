@@ -1,0 +1,151 @@
+@* Reconnection Loading Screen Component *@
+@* Displays while user state is being synchronized after reconnection approval *@
+
+<div class="reconnection-overlay">
+    <div class="reconnection-content">
+        <FluentProgressRing Style="width: 60px; height: 60px;" />
+
+        <FluentLabel Typo="Typography.Header" Style="margin-top: 24px; color: #0078d4;">
+            @Title
+        </FluentLabel>
+
+        <FluentLabel Style="margin-top: 8px; color: #666; text-align: center; max-width: 400px;">
+            @Message
+        </FluentLabel>
+
+        @if (ShowDetails && !string.IsNullOrEmpty(Details))
+        {
+            <div class="reconnection-details">
+                <FluentLabel Style="font-size: 14px; color: #666;">
+                    @Details
+                </FluentLabel>
+            </div>
+        }
+
+        @if (ShowProgress)
+        {
+            <div class="reconnection-progress">
+                <FluentStack Orientation="Orientation.Vertical" VerticalGap="8" Style="width: 100%; max-width: 400px; margin-top: 24px;">
+                    @foreach (var step in ProgressSteps)
+                    {
+                        <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="12">
+                            @if (step.IsComplete)
+                            {
+                                <FluentIcon Value="@(new Icons.Regular.Size20.CheckmarkCircle())" Style="color: #28a745;" />
+                            }
+                            else if (step.IsActive)
+                            {
+                                <FluentProgressRing Style="width: 20px; height: 20px;" />
+                            }
+                            else
+                            {
+                                <FluentIcon Value="@(new Icons.Regular.Size20.Circle())" Style="color: #ccc;" />
+                            }
+
+                            <FluentLabel Style="@($"color: {(step.IsComplete ? "#28a745" : step.IsActive ? "#0078d4" : "#999")};")">
+                                @step.Text
+                            </FluentLabel>
+                        </FluentStack>
+                    }
+                </FluentStack>
+            </div>
+        }
+
+        @if (ShowCancelButton)
+        {
+            <FluentButton Appearance="Appearance.Stealth"
+                          OnClick="OnCancel"
+                          Style="margin-top: 24px;">
+                Cancel
+            </FluentButton>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "Reconnecting to Auction";
+    [Parameter] public string Message { get; set; } = "Please wait while we synchronize your session...";
+    [Parameter] public string Details { get; set; } = "";
+    [Parameter] public bool ShowDetails { get; set; } = false;
+    [Parameter] public bool ShowProgress { get; set; } = false;
+    [Parameter] public bool ShowCancelButton { get; set; } = false;
+    [Parameter] public EventCallback OnCancel { get; set; }
+    [Parameter] public List<ProgressStep> ProgressSteps { get; set; } = new();
+
+    public class ProgressStep
+    {
+        public string Text { get; set; } = "";
+        public bool IsActive { get; set; }
+        public bool IsComplete { get; set; }
+    }
+}
+
+<style>
+    .reconnection-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        animation: fadeIn 0.3s ease-in-out;
+    }
+
+    .reconnection-content {
+        background: white;
+        padding: 48px;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        max-width: 90vw;
+        animation: slideUp 0.4s ease-out;
+    }
+
+    .reconnection-details {
+        margin-top: 16px;
+        padding: 12px 16px;
+        background-color: #f8f9fa;
+        border-radius: 6px;
+        border-left: 4px solid #0078d4;
+    }
+
+    .reconnection-progress {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+
+    @keyframes slideUp {
+        from {
+            transform: translateY(20px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    /* Mobile responsive */
+    @media (max-width: 600px) {
+        .reconnection-content {
+            padding: 32px 24px;
+            width: 90%;
+        }
+    }
+</style>

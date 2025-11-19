@@ -18,6 +18,46 @@
         </FluentButton>
     </div>
 
+    <!-- Search and Filter Section -->
+    @if (!isLoading && auctions.Any())
+    {
+        <div class="filter-section">
+            <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12" Wrap="true">
+                <FluentSearch @bind-Value="searchText"
+                              @bind-Value:after="ApplyFilters"
+                              Placeholder="Search auctions by name..."
+                              Style="flex: 1; min-width: 250px;" />
+
+                <FluentSelect @bind-Value="statusFilter"
+                              @bind-Value:after="ApplyFilters"
+                              Items="@statusFilterOptions"
+                              OptionText="@(item => item)"
+                              OptionValue="@(item => item)"
+                              Style="min-width: 150px;">
+                    <OptionTemplate>
+                        @context
+                    </OptionTemplate>
+                </FluentSelect>
+
+                @if (!string.IsNullOrEmpty(searchText) || statusFilter != "All Status")
+                {
+                    <FluentButton Appearance="Appearance.Stealth"
+                                  IconStart="@(new Icons.Regular.Size20.DismissCircle())"
+                                  OnClick="ClearFilters">
+                        Clear Filters
+                    </FluentButton>
+                }
+
+                @if (filteredAuctions.Count != auctions.Count)
+                {
+                    <FluentLabel Style="align-self: center; color: #666;">
+                        Showing @filteredAuctions.Count of @auctions.Count auctions
+                    </FluentLabel>
+                }
+            </FluentStack>
+        </div>
+    }
+
     @if (isLoading)
     {
         <div class="loading-container">
@@ -34,9 +74,9 @@
     else
     {
         <div class="auctions-grid">
-            @if (auctions.Any())
+            @if (filteredAuctions.Any())
             {
-                <FluentDataGrid Items="@auctions.AsQueryable()" Pagination="@pagination" GridTemplateColumns="1fr 150px 120px 150px 200px 120px">
+                <FluentDataGrid Items="@filteredAuctions.AsQueryable()" Pagination="@pagination" GridTemplateColumns="1fr 150px 120px 150px 200px 120px">
                     <PropertyColumn Property="@(a => a.Name)" Title="Auction Name" Sortable="true" />
                     <TemplateColumn Title="Status" Sortable="true">
                         <ChildContent Context="auction">
@@ -519,6 +559,18 @@
     private NewRosterPosition newPosition = new();
     private List<string> availablePositions = new();
 
+    // Filtering and search state
+    private List<AuctionDto> filteredAuctions = new();
+    private string searchText = "";
+    private string statusFilter = "All Status";
+    private readonly List<string> statusFilterOptions = new()
+    {
+        "All Status",
+        "Draft",
+        "InProgress",
+        "Completed"
+    };
+
     public enum MatchFilter
     {
         All,
@@ -553,6 +605,7 @@
 
             var response = await Http.GetFromJsonAsync<List<AuctionDto>>("/api/management/auctions");
             auctions = response ?? new List<AuctionDto>();
+            ApplyFilters(); // Apply any active filters
         }
         catch (Exception ex)
         {
@@ -564,6 +617,39 @@
             isLoading = false;
             StateHasChanged();
         }
+    }
+
+    private void ApplyFilters()
+    {
+        filteredAuctions = auctions;
+
+        // Apply status filter
+        if (statusFilter != "All Status")
+        {
+            filteredAuctions = filteredAuctions
+                .Where(a => a.Status.Equals(statusFilter, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        // Apply search text filter
+        if (!string.IsNullOrWhiteSpace(searchText))
+        {
+            var searchLower = searchText.ToLower();
+            filteredAuctions = filteredAuctions
+                .Where(a => a.Name.ToLower().Contains(searchLower) ||
+                           a.Description?.ToLower().Contains(searchLower) == true ||
+                           a.JoinCode.ToLower().Contains(searchLower))
+                .ToList();
+        }
+
+        StateHasChanged();
+    }
+
+    private void ClearFilters()
+    {
+        searchText = "";
+        statusFilter = "All Status";
+        ApplyFilters();
     }
 
     private void OpenCreateAuctionDialog()
@@ -1480,5 +1566,13 @@
 
     fluent-data-grid {
         border: none;
+    }
+
+    .filter-section {
+        margin-bottom: 24px;
+        padding: 16px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
 </style>
