@@ -498,7 +498,7 @@ public class LogoManagementFunction(LeagifyAuctionDbContext context, ILogger<Log
         return response;
     }
 
-    private static async Task<HttpResponseData> CreateNotFoundResponse(HttpResponseData req, string message)
+    private static async Task<HttpResponseData> CreateNotFoundResponse(HttpRequestData req, string message)
     {
         var response = req.CreateResponse(HttpStatusCode.NotFound);
         await response.WriteStringAsync(message);
