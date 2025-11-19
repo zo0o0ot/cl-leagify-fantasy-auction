@@ -289,7 +289,7 @@
     {
         await LoadSummaryData();
         await LoadAuctionConfiguration();
-        await ValidateConfiguration();
+        ValidateConfiguration();
         isLoading = false;
         StateHasChanged();
     }
@@ -366,7 +366,7 @@
         }
     }
 
-    private async Task ValidateConfiguration()
+    private void ValidateConfiguration()
     {
         validationWarnings.Clear();
         validationErrors.Clear();
@@ -435,10 +435,10 @@
     {
         isLoading = true;
         StateHasChanged();
-        
+
         await LoadSummaryData();
-        await ValidateConfiguration();
-        
+        ValidateConfiguration();
+
         isLoading = false;
         StateHasChanged();
     }

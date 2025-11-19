@@ -125,13 +125,7 @@
                     @if (participants.Any())
                     {
                         <FluentDataGrid Items="@participants.AsQueryable()" ResizableColumns="true">
-                            <PropertyColumn Property="@(p => p.DisplayName)" Title="Display Name" Sortable="true">
-                                <ColumnOptions>
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <FluentLabel>@context.DisplayName</FluentLabel>
-                                    </div>
-                                </ColumnOptions>
-                            </PropertyColumn>
+                            <PropertyColumn Property="@(p => p.DisplayName)" Title="Display Name" Sortable="true" />
 
                             <TemplateColumn Title="Connection Status" Sortable="true">
                                 <FluentBadge Appearance="@(context.IsConnected ? Appearance.Accent : Appearance.Neutral)"
