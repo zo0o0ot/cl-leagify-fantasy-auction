@@ -480,21 +480,64 @@ Based on the requirement: **School Management → Auction Creation → Join Auct
 - Integration with RoleAssignmentPanel component for participant management
 - Professional UI with FluentDataGrid, cards, and responsive design
 
-### Task 6.2: School Logo Management
-**Priority:** Low  
-**Estimated Effort:** 4-6 hours  
+### Task 6.2: School Logo Management ✅
+**Priority:** Low
+**Estimated Effort:** 4-6 hours
 **Dependencies:** Task 1.2
+**Completion:** 100%
 
-- [ ] Implement logo loading strategy: External URL → Internal file → Placeholder fallback
-- [ ] Add logo URL testing and validation with preview
-- [ ] Create individual logo upload interface for broken external URLs
-- [ ] Implement bulk ZIP logo upload as last resort option
-- [ ] Add school statistics and logo availability tracking
+- [x] Implement logo loading strategy: External URL → Internal file → Placeholder fallback
+- [x] Add logo URL testing and validation with preview
+- [x] Create individual logo upload interface for broken external URLs
+- [x] Implement bulk ZIP logo upload as last resort option
+- [x] Add school statistics and logo availability tracking
 
 **Deliverables:**
-- Enhanced school management with logo features
-- Bulk import capabilities
-- School usage analytics
+- [x] Enhanced school management with logo features - Complete LogoManagementFunction API
+- [x] Bulk import capabilities - ZIP file upload with automatic school matching
+- [x] School usage analytics - Comprehensive logo statistics endpoint
+
+**Implementation Details:**
+- LogoManagementFunction.cs: Complete logo management API with:
+  - TestLogoUrl: Test and validate logo URLs with accessibility checks
+    - HTTP HEAD request to verify URL responds successfully
+    - Content-Type validation to ensure it's an image
+    - Returns metadata (content type, file size, error messages)
+    - 10-second timeout to prevent hanging requests
+  - UploadLogo: Individual logo file upload for specific schools
+    - Multipart form data parsing for file upload
+    - Image format validation (PNG, JPG, GIF, SVG)
+    - Magic number validation to verify actual file type
+    - Safe filename generation based on school name and ID
+    - Local file storage to wwwroot/logos directory
+    - Database record update with LogoFileName
+  - BulkUploadLogos: ZIP file upload with automatic school matching
+    - ZIP archive extraction and validation
+    - Fuzzy matching of filenames to school names using SQL LIKE
+    - Batch processing of multiple logo files
+    - Comprehensive result tracking (success/failure per file)
+    - Atomic database updates after successful extraction
+  - GetLogoStatistics: Logo availability analytics
+    - Total schools count and coverage percentages
+    - Schools with logo URLs vs local files
+    - List of schools without any logo (top 50 by name)
+    - URL accessibility testing for first 20 schools with URLs
+    - Logo coverage percentage calculation
+- Logo Loading Strategy Implementation:
+  - Primary: External URL (LogoURL field) for CDN-hosted logos
+  - Fallback: Internal file (LogoFileName field) for uploaded logos
+  - Final fallback: Placeholder image (handled by UI layer)
+- Robust Error Handling:
+  - Network timeout handling (10-second limit)
+  - Invalid URL format detection
+  - Non-image content type rejection
+  - ZIP file validation before extraction
+  - Graceful handling of missing schools during bulk upload
+- Security Considerations:
+  - Management token authentication required for all endpoints
+  - File type validation using magic numbers (not just extensions)
+  - Safe filename generation to prevent path traversal
+  - Size limits through HTTP client timeout settings
 
 ### Task 6.3: Audit and Monitoring ✅
 **Priority:** Medium
