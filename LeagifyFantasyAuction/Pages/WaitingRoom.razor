@@ -49,10 +49,10 @@
         <FluentCard Style="margin-bottom: 24px;">
             <div class="test-bidding-section">
                 <FluentLabel Typo="Typography.Header">
-                    🎯 Test Bidding - Vermont A&M
+                    🎯 Test Bidding - @(testSchool?.Name ?? "Vermont A&M")
                 </FluentLabel>
                 <FluentLabel Style="color: #666; margin-top: 8px; margin-bottom: 16px;">
-                    Practice bidding to test your connection. These bids don't affect your budget.
+                    Practice bidding to test your connection. Multiple test schools available (Vermont A&M, Luther College, Oxford University, UNI, DeVry). These bids don't affect your budget.
                 </FluentLabel>
 
                 @if (testSchool != null)
@@ -210,7 +210,7 @@
                     🏫 Available Schools (Read Only)
                 </FluentLabel>
                 <FluentLabel Style="color: #666; margin-top: 8px; margin-bottom: 16px;">
-                    Review schools available for the draft. Only Vermont A&M is available for test bidding.
+                    Review schools available for the draft. Test bidding available on: Vermont A&M, Luther College, Oxford University, University of Northern Iowa, and DeVry University.
                 </FluentLabel>
 
                 @if (schools.Any())
