@@ -538,46 +538,93 @@ public class SchoolManagementFunction
     {
         try
         {
-            _logger.LogInformation("TEMPORARY: Checking SessionToken column existence");
+            _logger.LogInformation("TEMPORARY: Applying database schema migrations");
+            var results = new List<string>();
 
-            // Check if SessionToken column already exists
-            var columnExists = false;
-            try
+            // Check and add SessionToken column to Users table
+            var sessionTokenExists = await CheckColumnExists("Users", "SessionToken");
+            if (!sessionTokenExists)
             {
-                await _context.Database.ExecuteSqlRawAsync(
-                    "SELECT TOP 1 SessionToken FROM Users WHERE 1=0");
-                columnExists = true;
-                _logger.LogInformation("SessionToken column already exists");
-            }
-            catch
-            {
-                _logger.LogInformation("SessionToken column does not exist, adding it");
-            }
-
-            if (!columnExists)
-            {
-                // Add the SessionToken column directly
                 await _context.Database.ExecuteSqlRawAsync(
                     "ALTER TABLE [Users] ADD [SessionToken] nvarchar(200) NULL");
+                results.Add("✓ Added SessionToken column to Users table");
                 _logger.LogInformation("Successfully added SessionToken column to Users table");
+            }
+            else
+            {
+                results.Add("SessionToken column already exists in Users table");
+            }
+
+            // Check and add new AdminAction columns
+            var entityTypeExists = await CheckColumnExists("AdminActions", "EntityType");
+            if (!entityTypeExists)
+            {
+                await _context.Database.ExecuteSqlRawAsync(
+                    "ALTER TABLE [AdminActions] ADD [EntityType] nvarchar(50) NULL");
+                results.Add("✓ Added EntityType column to AdminActions table");
+                _logger.LogInformation("Successfully added EntityType column to AdminActions table");
+            }
+            else
+            {
+                results.Add("EntityType column already exists in AdminActions table");
+            }
+
+            var entityIdExists = await CheckColumnExists("AdminActions", "EntityId");
+            if (!entityIdExists)
+            {
+                await _context.Database.ExecuteSqlRawAsync(
+                    "ALTER TABLE [AdminActions] ADD [EntityId] int NULL");
+                results.Add("✓ Added EntityId column to AdminActions table");
+                _logger.LogInformation("Successfully added EntityId column to AdminActions table");
+            }
+            else
+            {
+                results.Add("EntityId column already exists in AdminActions table");
+            }
+
+            var metadataExists = await CheckColumnExists("AdminActions", "Metadata");
+            if (!metadataExists)
+            {
+                await _context.Database.ExecuteSqlRawAsync(
+                    "ALTER TABLE [AdminActions] ADD [Metadata] nvarchar(max) NULL");
+                results.Add("✓ Added Metadata column to AdminActions table");
+                _logger.LogInformation("Successfully added Metadata column to AdminActions table");
+            }
+            else
+            {
+                results.Add("Metadata column already exists in AdminActions table");
             }
 
             var response = req.CreateResponse(HttpStatusCode.OK);
             await response.WriteAsJsonAsync(new
             {
                 Success = true,
-                Message = columnExists ? "SessionToken column already exists" : "Successfully added SessionToken column",
-                ColumnExists = columnExists
+                Message = "Schema migration completed",
+                Results = results
             });
 
             return response;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error adding SessionToken column");
+            _logger.LogError(ex, "Error applying schema migrations");
             var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
-            await errorResponse.WriteAsJsonAsync(new { error = $"Column addition failed: {ex.Message}" });
+            await errorResponse.WriteAsJsonAsync(new { error = $"Migration failed: {ex.Message}" });
             return errorResponse;
+        }
+    }
+
+    private async Task<bool> CheckColumnExists(string tableName, string columnName)
+    {
+        try
+        {
+            await _context.Database.ExecuteSqlRawAsync(
+                $"SELECT TOP 1 [{columnName}] FROM [{tableName}] WHERE 1=0");
+            return true;
+        }
+        catch
+        {
+            return false;
         }
     }
 
