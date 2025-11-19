@@ -48,11 +48,11 @@
                 <!-- Bidding Controls -->
                 <FluentDivider Style="margin: 8px 0;" />
 
-                <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12" VerticalAlignment="VerticalAlignment.End">
+                <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12" VerticalAlignment="VerticalAlignment.Bottom">
                     <div style="flex: 1; max-width: 200px;">
                         <FluentNumberField @bind-Value="bidAmount"
                                            Label="Your Bid"
-                                           Min="@(currentHighBid + 1 ?? 1)"
+                                           Min="1"
                                            Step="1"
                                            Placeholder="Enter amount"
                                            Style="width: 100%;" />
