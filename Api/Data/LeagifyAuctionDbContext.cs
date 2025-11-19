@@ -251,6 +251,9 @@ public class LeagifyAuctionDbContext : DbContext
         modelBuilder.Entity<AdminAction>(entity =>
         {
             entity.HasKey(e => e.AdminActionId);
+            entity.HasIndex(e => e.ActionDate);
+            entity.HasIndex(e => e.ActionType);
+            entity.HasIndex(e => new { e.EntityType, e.EntityId });
             entity.Property(e => e.ActionDate).HasDefaultValueSql("GETUTCDATE()");
 
             entity.HasOne(e => e.Auction)
