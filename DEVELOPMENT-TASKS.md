@@ -420,18 +420,20 @@ Based on the requirement: **School Management → Auction Creation → Join Auct
 - [x] Fix auction creation with proper database persistence
 - [x] Resolve SaveChanges issues with nullable foreign keys
 - [x] Add auction status filtering and search
-- [ ] Create bulk cleanup operations
-- [ ] Add auction archiving functionality
+- [x] Create bulk cleanup operations
+- [x] Add auction archiving functionality
 - [ ] Build auction details view for management interface
 
 **Deliverables:**
 - [x] Complete management auction interface with FluentDataGrid
 - [x] Working auction creation and deletion operations
 - [x] Proper authentication token management across all operations
-- [x] Auction filtering by status (Draft, InProgress, Completed)
+- [x] Auction filtering by status (Draft, InProgress, Completed, Archived)
 - [x] Search functionality across auction name, description, and join code
-- [ ] Bulk operations for cleanup
+- [x] Bulk operations for cleanup (delete and archive multiple auctions)
 - [x] Safe deletion with confirmations
+- [x] Checkbox selection with bulk actions bar
+- [x] Progress indicators and error handling for bulk operations
 
 ### Task 6.2: School Logo Management
 **Priority:** Low  

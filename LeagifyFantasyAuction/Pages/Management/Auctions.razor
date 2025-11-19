@@ -58,6 +58,40 @@
         </div>
     }
 
+    <!-- Bulk Actions Bar -->
+    @if (selectedAuctions.Any())
+    {
+        <div class="bulk-actions-bar">
+            <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12" VerticalAlignment="VerticalAlignment.Center">
+                <FluentIcon Value="@(new Icons.Regular.Size20.CheckmarkCircle())" Style="color: #0078d4;" />
+                <FluentLabel Weight="FontWeight.Bold">
+                    @selectedAuctions.Count auction@(selectedAuctions.Count != 1 ? "s" : "") selected
+                </FluentLabel>
+
+                <div style="flex: 1;"></div>
+
+                <FluentButton Appearance="Appearance.Neutral"
+                              IconStart="@(new Icons.Regular.Size20.Archive())"
+                              OnClick="BulkArchiveAuctions"
+                              Loading="@isBulkProcessing">
+                    Archive Selected
+                </FluentButton>
+
+                <FluentButton Appearance="Appearance.Neutral"
+                              IconStart="@(new Icons.Regular.Size20.Delete())"
+                              OnClick="BulkDeleteAuctions"
+                              Loading="@isBulkProcessing">
+                    Delete Selected
+                </FluentButton>
+
+                <FluentButton Appearance="Appearance.Stealth"
+                              OnClick="ClearSelection">
+                    Clear Selection
+                </FluentButton>
+            </FluentStack>
+        </div>
+    }
+
     @if (isLoading)
     {
         <div class="loading-container">
@@ -76,7 +110,11 @@
         <div class="auctions-grid">
             @if (filteredAuctions.Any())
             {
-                <FluentDataGrid Items="@filteredAuctions.AsQueryable()" Pagination="@pagination" GridTemplateColumns="1fr 150px 120px 150px 200px 120px">
+                <FluentDataGrid Items="@filteredAuctions.AsQueryable()" Pagination="@pagination" GridTemplateColumns="50px 1fr 150px 120px 150px 200px 120px">
+                    <TemplateColumn Title="">
+                        <FluentCheckbox Value="@IsAuctionSelected(context)"
+                                        ValueChanged="@(value => ToggleAuctionSelection(context, value))" />
+                    </TemplateColumn>
                     <PropertyColumn Property="@(a => a.Name)" Title="Auction Name" Sortable="true" />
                     <TemplateColumn Title="Status" Sortable="true">
                         <ChildContent Context="auction">
@@ -568,8 +606,13 @@
         "All Status",
         "Draft",
         "InProgress",
-        "Completed"
+        "Completed",
+        "Archived"
     };
+
+    // Bulk operations state
+    private HashSet<int> selectedAuctions = new();
+    private bool isBulkProcessing = false;
 
     public enum MatchFilter
     {
@@ -650,6 +693,170 @@
         searchText = "";
         statusFilter = "All Status";
         ApplyFilters();
+    }
+
+    // Bulk operations methods
+    private bool IsAuctionSelected(AuctionDto auction)
+    {
+        return selectedAuctions.Contains(auction.AuctionId);
+    }
+
+    private void ToggleAuctionSelection(AuctionDto auction, bool isSelected)
+    {
+        if (isSelected)
+        {
+            selectedAuctions.Add(auction.AuctionId);
+        }
+        else
+        {
+            selectedAuctions.Remove(auction.AuctionId);
+        }
+        StateHasChanged();
+    }
+
+    private void ClearSelection()
+    {
+        selectedAuctions.Clear();
+        StateHasChanged();
+    }
+
+    private async Task BulkDeleteAuctions()
+    {
+        if (!selectedAuctions.Any()) return;
+
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm",
+            $"Are you sure you want to delete {selectedAuctions.Count} auction(s)? This cannot be undone.");
+
+        if (!confirmed) return;
+
+        try
+        {
+            isBulkProcessing = true;
+            StateHasChanged();
+
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Authentication token missing. Please log in again.");
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+
+            var deleteCount = 0;
+            var failCount = 0;
+
+            foreach (var auctionId in selectedAuctions.ToList())
+            {
+                try
+                {
+                    var response = await Http.DeleteAsync($"/api/management/auctions/{auctionId}");
+                    if (response.IsSuccessStatusCode)
+                    {
+                        deleteCount++;
+                    }
+                    else
+                    {
+                        failCount++;
+                    }
+                }
+                catch
+                {
+                    failCount++;
+                }
+            }
+
+            selectedAuctions.Clear();
+            await LoadAuctions();
+
+            var message = $"Successfully deleted {deleteCount} auction(s).";
+            if (failCount > 0)
+            {
+                message += $" Failed to delete {failCount} auction(s).";
+            }
+
+            await JSRuntime.InvokeVoidAsync("alert", message);
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error during bulk delete: {ex.Message}");
+        }
+        finally
+        {
+            isBulkProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task BulkArchiveAuctions()
+    {
+        if (!selectedAuctions.Any()) return;
+
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm",
+            $"Are you sure you want to archive {selectedAuctions.Count} auction(s)?");
+
+        if (!confirmed) return;
+
+        try
+        {
+            isBulkProcessing = true;
+            StateHasChanged();
+
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Authentication token missing. Please log in again.");
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+
+            var archiveCount = 0;
+            var failCount = 0;
+
+            foreach (var auctionId in selectedAuctions.ToList())
+            {
+                try
+                {
+                    var request = new { Status = "Archived" };
+                    var response = await Http.PatchAsJsonAsync($"/api/management/auctions/{auctionId}/status", request);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        archiveCount++;
+                    }
+                    else
+                    {
+                        failCount++;
+                    }
+                }
+                catch
+                {
+                    failCount++;
+                }
+            }
+
+            selectedAuctions.Clear();
+            await LoadAuctions();
+
+            var message = $"Successfully archived {archiveCount} auction(s).";
+            if (failCount > 0)
+            {
+                message += $" Failed to archive {failCount} auction(s).";
+            }
+
+            await JSRuntime.InvokeVoidAsync("alert", message);
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error during bulk archive: {ex.Message}");
+        }
+        finally
+        {
+            isBulkProcessing = false;
+            StateHasChanged();
+        }
     }
 
     private void OpenCreateAuctionDialog()
@@ -1574,5 +1781,26 @@
         background: white;
         border-radius: 8px;
         box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .bulk-actions-bar {
+        margin-bottom: 16px;
+        padding: 16px;
+        background: linear-gradient(135deg, #e3f2fd 0%, #f1f8ff 100%);
+        border: 2px solid #0078d4;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(0, 120, 212, 0.15);
+        animation: slideDown 0.3s ease-out;
+    }
+
+    @@keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 </style>
