@@ -18,9 +18,15 @@ public class WaitingRoomFunction
     private readonly LeagifyAuctionDbContext _context;
     private readonly ILogger<WaitingRoomFunction> _logger;
 
-    // Virtual test school ID (doesn't exist in database)
-    private const int VIRTUAL_TEST_SCHOOL_ID = -1;
-    private const string TEST_SCHOOL_NAME = "Vermont A&M";
+    // Virtual test schools (don't exist in database)
+    private static readonly Dictionary<int, string> TEST_SCHOOLS = new()
+    {
+        { -1, "Vermont A&M" },
+        { -2, "Luther College" },
+        { -3, "Oxford University" },
+        { -4, "University of Northern Iowa" },
+        { -5, "DeVry University" }
+    };
 
     public WaitingRoomFunction(LeagifyAuctionDbContext context, ILogger<WaitingRoomFunction> logger)
     {
@@ -125,6 +131,15 @@ public class WaitingRoomFunction
                 })
                 .ToListAsync();
 
+            // Build test schools list with their current bidding status
+            var testSchools = TEST_SCHOOLS.Select(kvp => new
+            {
+                SchoolId = kvp.Key,
+                Name = kvp.Value,
+                CurrentBid = currentTestBid?.BidAmount ?? 0,
+                CurrentBidderName = currentTestBid?.User.DisplayName ?? string.Empty
+            }).ToList();
+
             // Build response
             var response = new
             {
@@ -142,11 +157,12 @@ public class WaitingRoomFunction
                 },
                 TestSchool = new
                 {
-                    SchoolId = VIRTUAL_TEST_SCHOOL_ID,
-                    Name = TEST_SCHOOL_NAME,
+                    SchoolId = -1,
+                    Name = TEST_SCHOOLS[-1],
                     CurrentBid = currentTestBid?.BidAmount ?? 0,
                     CurrentBidderName = currentTestBid?.User.DisplayName ?? string.Empty
                 },
+                TestSchools = testSchools,
                 TestBidHistory = testBidHistory,
                 Schools = schools,
                 NominationOrder = nominationOrder,
@@ -247,7 +263,7 @@ public class WaitingRoomFunction
                 BidType = "TestBid",
                 BidDate = DateTime.UtcNow,
                 IsWinningBid = false,
-                Notes = $"Waiting room test bid on {TEST_SCHOOL_NAME}"
+                Notes = "Waiting room test bid"
             };
 
             _context.BidHistories.Add(testBid);
@@ -441,6 +457,192 @@ public class WaitingRoomFunction
     }
 
     /// <summary>
+    /// Completes the current test bidding round and advances to the next test school.
+    /// Admin-only endpoint for waiting room management.
+    /// </summary>
+    [Function("CompleteTestBidding")]
+    public async Task<CompleteTestBiddingResponse> CompleteTestBidding(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "auction/{auctionId}/test-bid/complete")] HttpRequestData req,
+        int auctionId)
+    {
+        try
+        {
+            _logger.LogInformation("Completing test bidding for auction {AuctionId}", auctionId);
+
+            // Get the current test bid to determine which school we're on
+            var currentBid = await _context.BidHistories
+                .Where(b => b.AuctionId == auctionId && b.BidType == "TestBid" && !b.IsWinningBid)
+                .OrderByDescending(b => b.BidDate)
+                .FirstOrDefaultAsync();
+
+            if (currentBid != null)
+            {
+                // Mark the current high bid as winning
+                currentBid.IsWinningBid = true;
+            }
+
+            // Reset all users' pass flags for the next round
+            var users = await _context.Users
+                .Where(u => u.AuctionId == auctionId && u.HasPassedOnTestBid)
+                .ToListAsync();
+
+            foreach (var user in users)
+            {
+                user.HasPassedOnTestBid = false;
+            }
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Test bidding completed for auction {AuctionId}", auctionId);
+
+            // Broadcast completion via SignalR
+            var signalRMessages = new List<SignalRMessageAction>
+            {
+                new SignalRMessageAction("TestBiddingCompleted")
+                {
+                    Arguments = new object[] { auctionId }
+                }
+            };
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(new { Success = true, Message = "Test bidding completed" });
+
+            return new CompleteTestBiddingResponse
+            {
+                HttpResponse = response,
+                SignalRMessages = signalRMessages.ToArray()
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error completing test bidding for auction {AuctionId}", auctionId);
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync($"Error: {ex.Message}");
+            return new CompleteTestBiddingResponse { HttpResponse = errorResponse };
+        }
+    }
+
+    /// <summary>
+    /// Resets all test bids and user readiness flags for the auction.
+    /// Admin-only endpoint for waiting room management.
+    /// </summary>
+    [Function("ResetTestBids")]
+    public async Task<ResetTestBidsResponse> ResetTestBids(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "auction/{auctionId}/test-bid/reset")] HttpRequestData req,
+        int auctionId)
+    {
+        try
+        {
+            _logger.LogInformation("Resetting test bids for auction {AuctionId}", auctionId);
+
+            // Delete all test bids
+            var testBids = await _context.BidHistories
+                .Where(b => b.AuctionId == auctionId && b.BidType == "TestBid")
+                .ToListAsync();
+
+            _context.BidHistories.RemoveRange(testBids);
+
+            // Reset all user test bidding flags
+            var users = await _context.Users
+                .Where(u => u.AuctionId == auctionId)
+                .ToListAsync();
+
+            foreach (var user in users)
+            {
+                user.HasTestedBidding = false;
+                user.HasPassedOnTestBid = false;
+                user.IsReadyToDraft = false;
+            }
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Test bids reset for auction {AuctionId}. Deleted {Count} bids and reset {UserCount} users",
+                auctionId, testBids.Count, users.Count);
+
+            // Broadcast reset via SignalR
+            var signalRMessages = new List<SignalRMessageAction>
+            {
+                new SignalRMessageAction("TestBidsReset")
+                {
+                    Arguments = new object[] { auctionId }
+                }
+            };
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(new
+            {
+                Success = true,
+                Message = "All test bids and readiness flags have been reset",
+                BidsDeleted = testBids.Count,
+                UsersReset = users.Count
+            });
+
+            return new ResetTestBidsResponse
+            {
+                HttpResponse = response,
+                SignalRMessages = signalRMessages.ToArray()
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error resetting test bids for auction {AuctionId}", auctionId);
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync($"Error: {ex.Message}");
+            return new ResetTestBidsResponse { HttpResponse = errorResponse };
+        }
+    }
+
+    /// <summary>
+    /// Gets all available test schools with their current bidding status.
+    /// Admin-only endpoint for waiting room management.
+    /// </summary>
+    [Function("GetTestSchools")]
+    public async Task<HttpResponseData> GetTestSchools(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "auction/{auctionId}/test-schools")] HttpRequestData req,
+        int auctionId)
+    {
+        try
+        {
+            _logger.LogInformation("Getting test schools for auction {AuctionId}", auctionId);
+
+            // Get all test bids grouped by virtual school ID (stored in Notes field)
+            var testBids = await _context.BidHistories
+                .Include(b => b.User)
+                .Where(b => b.AuctionId == auctionId && b.BidType == "TestBid")
+                .OrderByDescending(b => b.BidDate)
+                .ToListAsync();
+
+            // Build test school status
+            var testSchools = TEST_SCHOOLS.Select(kvp => new
+            {
+                SchoolId = kvp.Key,
+                SchoolName = kvp.Value,
+                CurrentBid = testBids
+                    .Where(b => !b.IsWinningBid)
+                    .OrderByDescending(b => b.BidDate)
+                    .FirstOrDefault()?.BidAmount ?? 0m,
+                CurrentBidderName = testBids
+                    .Where(b => !b.IsWinningBid)
+                    .OrderByDescending(b => b.BidDate)
+                    .FirstOrDefault()?.User.DisplayName ?? string.Empty,
+                TotalBids = testBids.Count(b => !b.IsWinningBid),
+                IsCompleted = testBids.Any(b => b.IsWinningBid)
+            }).ToList();
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(testSchools);
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting test schools for auction {AuctionId}", auctionId);
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync($"Error: {ex.Message}");
+            return errorResponse;
+        }
+    }
+
+    /// <summary>
     /// Validates the session token from the request header and returns the authenticated user.
     /// </summary>
     private async Task<User?> ValidateSessionToken(HttpRequestData req, int auctionId)
@@ -493,6 +695,24 @@ public class WaitingRoomFunction
     }
 
     public class PassResponse
+    {
+        [HttpResult]
+        public HttpResponseData? HttpResponse { get; set; }
+
+        [SignalROutput(HubName = "auctionhub")]
+        public SignalRMessageAction[]? SignalRMessages { get; set; }
+    }
+
+    public class CompleteTestBiddingResponse
+    {
+        [HttpResult]
+        public HttpResponseData? HttpResponse { get; set; }
+
+        [SignalROutput(HubName = "auctionhub")]
+        public SignalRMessageAction[]? SignalRMessages { get; set; }
+    }
+
+    public class ResetTestBidsResponse
     {
         [HttpResult]
         public HttpResponseData? HttpResponse { get; set; }

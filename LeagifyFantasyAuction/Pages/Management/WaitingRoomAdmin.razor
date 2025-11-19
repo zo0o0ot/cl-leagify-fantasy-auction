@@ -180,6 +180,38 @@
             }
         </FluentCard>
 
+        <!-- Test Bidding Management -->
+        <FluentCard Style="margin-top: 24px;">
+            <FluentLabel Typo="Typography.Header" Style="margin-bottom: 16px;">
+                🎓 Test Bidding Management
+            </FluentLabel>
+
+            <FluentLabel Style="color: #666; margin-bottom: 16px;">
+                Participants can practice bidding on test schools before the live auction starts.
+            </FluentLabel>
+
+            <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12" Style="margin-bottom: 16px;">
+                <FluentButton Appearance="Appearance.Accent"
+                              IconStart="@(new Icons.Regular.Size16.CheckmarkCircle())"
+                              OnClick="@CompleteTestBidding"
+                              Disabled="@isCompletingBidding">
+                    @(isCompletingBidding ? "Completing..." : "Complete Current Bidding")
+                </FluentButton>
+
+                <FluentButton Appearance="Appearance.Neutral"
+                              IconStart="@(new Icons.Regular.Size16.ArrowCounterclockwise())"
+                              OnClick="@ResetTestBids"
+                              Disabled="@isResettingBids">
+                    @(isResettingBids ? "Resetting..." : "Reset All Test Bids")
+                </FluentButton>
+            </FluentStack>
+
+            <FluentLabel Style="color: #666; font-size: 14px;">
+                💡 <strong>Complete Current Bidding:</strong> Ends the current round and allows participants to start bidding on a new test school.<br/>
+                💡 <strong>Reset All Test Bids:</strong> Clears all test bids and resets all participant readiness flags. Use this to start fresh.
+            </FluentLabel>
+        </FluentCard>
+
         <!-- Instructions for Auction Master -->
         <FluentCard Style="margin-top: 24px;">
             <FluentLabel Typo="Typography.Header" Style="margin-bottom: 16px;">
@@ -208,6 +240,8 @@
     private bool isLoading = true;
     private bool isRefreshing = false;
     private bool isStartingAuction = false;
+    private bool isCompletingBidding = false;
+    private bool isResettingBids = false;
     private string errorMessage = string.Empty;
 
     protected override async Task OnInitializedAsync()
@@ -312,6 +346,78 @@
         finally
         {
             isStartingAuction = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CompleteTestBidding()
+    {
+        try
+        {
+            isCompletingBidding = true;
+            errorMessage = string.Empty;
+            StateHasChanged();
+
+            var managementToken = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", managementToken);
+
+            var response = await Http.PostAsync($"/api/auction/{AuctionId}/test-bid/complete", null);
+
+            if (response.IsSuccessStatusCode)
+            {
+                // Refresh participant status
+                await LoadWaitingRoomStatus();
+            }
+            else
+            {
+                errorMessage = "Failed to complete test bidding. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error completing test bidding: {ex.Message}");
+            errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isCompletingBidding = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ResetTestBids()
+    {
+        try
+        {
+            isResettingBids = true;
+            errorMessage = string.Empty;
+            StateHasChanged();
+
+            var managementToken = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", managementToken);
+
+            var response = await Http.PostAsync($"/api/auction/{AuctionId}/test-bid/reset", null);
+
+            if (response.IsSuccessStatusCode)
+            {
+                // Refresh participant status
+                await LoadWaitingRoomStatus();
+            }
+            else
+            {
+                errorMessage = "Failed to reset test bids. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error resetting test bids: {ex.Message}");
+            errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isResettingBids = false;
             StateHasChanged();
         }
     }
