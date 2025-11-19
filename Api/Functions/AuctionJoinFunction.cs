@@ -311,6 +311,52 @@ public class AuctionJoinFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbC
     }
 
     /// <summary>
+    /// Gets basic auction information by ID.
+    /// Used by admin and participant pages to display auction details.
+    /// </summary>
+    /// <param name="req">HTTP request</param>
+    /// <param name="auctionId">Auction ID from route</param>
+    /// <returns>Basic auction information</returns>
+    [Function("GetAuction")]
+    public async Task<HttpResponseData> GetAuction(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "auction/{auctionId:int}")] HttpRequestData req,
+        int auctionId)
+    {
+        try
+        {
+            _logger.LogInformation("Getting auction {AuctionId}", auctionId);
+
+            var auction = await context.Auctions
+                .Where(a => a.AuctionId == auctionId)
+                .Select(a => new
+                {
+                    a.AuctionId,
+                    a.Name,
+                    a.Status,
+                    a.JoinCode,
+                    a.CreatedDate,
+                    a.StartedDate,
+                    a.CompletedDate
+                })
+                .FirstOrDefaultAsync();
+
+            if (auction == null)
+            {
+                return await CreateErrorResponse(req, HttpStatusCode.NotFound, "Auction not found");
+            }
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(auction);
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting auction {AuctionId}", auctionId);
+            return await CreateErrorResponse(req, HttpStatusCode.InternalServerError, "Failed to get auction");
+        }
+    }
+
+    /// <summary>
     /// Generates a session token for user authentication.
     /// In a production system, this would be more sophisticated with proper JWT or similar.
     /// </summary>
