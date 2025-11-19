@@ -1,0 +1,662 @@
+@page "/auction/{auctionId:int}/master-panel"
+@using System.Net.Http.Json
+@using System.Text.Json
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<PageTitle>Auction Master Panel - Leagify Fantasy Auction</PageTitle>
+
+<div class="master-panel-container">
+    @if (isLoading)
+    {
+        <div class="loading-container">
+            <FluentProgressRing />
+            <FluentLabel>Loading Auction Master Panel...</FluentLabel>
+        </div>
+    }
+    else if (session == null || !isAuctionMaster)
+    {
+        <div class="error-container">
+            <FluentMessageBar Intent="MessageIntent.Error">
+                Access Denied. This panel is only available to Auction Masters.
+            </FluentMessageBar>
+            <FluentButton Appearance="Appearance.Accent"
+                          OnClick="@(() => Navigation.NavigateTo($"/auction/{AuctionId}/dashboard"))">
+                Back to Dashboard
+            </FluentButton>
+        </div>
+    }
+    else
+    {
+        <!-- Panel Header -->
+        <div class="panel-header">
+            <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="16">
+                <div style="flex: 1;">
+                    <FluentLabel Typo="Typography.Header" Style="margin: 0;">
+                        Auction Master Control Panel
+                    </FluentLabel>
+                    <FluentLabel Style="color: #666; margin: 0;">
+                        @(auctionName ?? "Fantasy Draft Auction")
+                    </FluentLabel>
+                </div>
+
+                <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12">
+                    <FluentBadge Appearance="@(isConnected ? Appearance.Accent : Appearance.Neutral)"
+                                 BackgroundColor="@(isConnected ? "#28a745" : "#6c757d")"
+                                 Color="white">
+                        @(isConnected ? "Connected" : "Disconnected")
+                    </FluentBadge>
+
+                    <FluentButton Appearance="Appearance.Stealth"
+                                  IconStart="@(new Icons.Regular.Size16.ArrowClockwise())"
+                                  OnClick="@RefreshPanel"
+                                  Loading="@isRefreshing"
+                                  Title="Refresh panel data">
+                        Refresh
+                    </FluentButton>
+
+                    <FluentButton Appearance="Appearance.Neutral"
+                                  OnClick="@(() => Navigation.NavigateTo($"/auction/{AuctionId}/dashboard"))">
+                        Back to Dashboard
+                    </FluentButton>
+                </FluentStack>
+            </FluentStack>
+        </div>
+
+        <!-- Reconnection Requests Section -->
+        @if (reconnectionRequests.Any())
+        {
+            <div class="reconnection-section">
+                <FluentCard>
+                    <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+                        <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="12">
+                            <FluentIcon Value="@(new Icons.Regular.Size20.PersonSync())" Style="color: #ca5010;" />
+                            <FluentLabel Typo="Typography.Subject" Style="color: #ca5010;">
+                                Pending Reconnection Requests (@reconnectionRequests.Count)
+                            </FluentLabel>
+                        </FluentStack>
+
+                        @foreach (var request in reconnectionRequests)
+                        {
+                            <div class="reconnection-request" @key="request.UserId">
+                                <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="16">
+                                    <div style="flex: 1;">
+                                        <FluentLabel Weight="FontWeight.Bold">@request.DisplayName</FluentLabel>
+                                        <FluentLabel Style="font-size: 13px; color: #666;">
+                                            Last active: @request.LastActiveDate.ToString("MMM dd 'at' h:mm tt")
+                                        </FluentLabel>
+                                    </div>
+
+                                    <FluentButton Appearance="Appearance.Accent"
+                                                  OnClick="@(() => ApproveReconnection(request.UserId))"
+                                                  Loading="@processingReconnection">
+                                        Approve Reconnection
+                                    </FluentButton>
+
+                                    <FluentButton Appearance="Appearance.Neutral"
+                                                  OnClick="@(() => DenyReconnection(request.UserId))"
+                                                  Loading="@processingReconnection">
+                                        Deny
+                                    </FluentButton>
+                                </FluentStack>
+                            </div>
+                        }
+                    </FluentStack>
+                </FluentCard>
+            </div>
+        }
+
+        <!-- Participants & Connection Status -->
+        <div class="participants-section">
+            <FluentCard>
+                <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+                    <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="12">
+                        <FluentIcon Value="@(new Icons.Regular.Size20.People())" Style="color: #0078d4;" />
+                        <FluentLabel Typo="Typography.Subject">
+                            Participants & Connection Status
+                        </FluentLabel>
+                        <FluentBadge BackgroundColor="#0078d4" Color="white">
+                            @participants.Count participant@(participants.Count != 1 ? "s" : "")
+                        </FluentBadge>
+                    </FluentStack>
+
+                    @if (participants.Any())
+                    {
+                        <FluentDataGrid Items="@participants.AsQueryable()" ResizableColumns="true">
+                            <PropertyColumn Property="@(p => p.DisplayName)" Title="Display Name" Sortable="true" />
+
+                            <TemplateColumn Title="Connection Status" Sortable="true">
+                                <FluentBadge Appearance="@(context.IsConnected ? Appearance.Accent : Appearance.Neutral)"
+                                             BackgroundColor="@(context.IsConnected ? "#28a745" : "#6c757d")"
+                                             Color="white">
+                                    @(context.IsConnected ? "Connected" : "Disconnected")
+                                </FluentBadge>
+                            </TemplateColumn>
+
+                            <TemplateColumn Title="Roles">
+                                <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="4" Wrap="true">
+                                    @foreach (var role in context.Roles)
+                                    {
+                                        <FluentBadge BackgroundColor="@GetRoleColor(role.Role)" Color="white">
+                                            @GetRoleDisplayName(role.Role)
+                                            @if (!string.IsNullOrEmpty(role.TeamName))
+                                            {
+                                                <span> - @role.TeamName</span>
+                                            }
+                                        </FluentBadge>
+                                    }
+                                    @if (!context.Roles.Any())
+                                    {
+                                        <FluentLabel Style="color: #999; font-style: italic;">No role assigned</FluentLabel>
+                                    }
+                                </FluentStack>
+                            </TemplateColumn>
+
+                            <PropertyColumn Property="@(p => p.JoinedDate)" Title="Joined" Format="MMM dd, h:mm tt" Sortable="true" />
+
+                            <PropertyColumn Property="@(p => p.LastActiveDate)" Title="Last Active" Format="MMM dd, h:mm tt" Sortable="true" />
+                        </FluentDataGrid>
+                    }
+                    else
+                    {
+                        <FluentMessageBar Intent="MessageIntent.Info">
+                            No participants have joined yet.
+                        </FluentMessageBar>
+                    }
+                </FluentStack>
+            </FluentCard>
+        </div>
+
+        <!-- Proxy Coach Assignments -->
+        @if (proxyCoaches.Any())
+        {
+            <div class="proxy-coaches-section">
+                <FluentCard>
+                    <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+                        <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="12">
+                            <FluentIcon Value="@(new Icons.Regular.Size20.PeopleTeam())" Style="color: #107c10;" />
+                            <FluentLabel Typo="Typography.Subject">
+                                Proxy Coach Assignments
+                            </FluentLabel>
+                        </FluentStack>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px;">
+                            @foreach (var proxy in proxyCoaches)
+                            {
+                                <FluentCard Style="background-color: #f8f9fa; border: 1px solid #e1e1e1;">
+                                    <FluentStack Orientation="Orientation.Vertical" VerticalGap="12">
+                                        <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="8">
+                                            <FluentIcon Value="@(new Icons.Regular.Size16.Person())" />
+                                            <FluentLabel Weight="FontWeight.Bold">@proxy.DisplayName</FluentLabel>
+                                            <FluentBadge BackgroundColor="@(proxy.IsConnected ? "#28a745" : "#6c757d")" Color="white">
+                                                @(proxy.IsConnected ? "●" : "○")
+                                            </FluentBadge>
+                                        </FluentStack>
+
+                                        <div style="padding-left: 24px;">
+                                            <FluentLabel Style="font-size: 13px; color: #666; margin-bottom: 4px;">Managing Teams:</FluentLabel>
+                                            @foreach (var role in proxy.Roles.Where(r => r.Role == "ProxyCoach"))
+                                            {
+                                                <FluentBadge BackgroundColor="#ca5010" Color="white" Style="margin-right: 4px; margin-bottom: 4px;">
+                                                    @role.TeamName
+                                                </FluentBadge>
+                                            }
+                                        </div>
+                                    </FluentStack>
+                                </FluentCard>
+                            }
+                        </div>
+                    </FluentStack>
+                </FluentCard>
+            </div>
+        }
+
+        <!-- Auction Controls -->
+        <div class="auction-controls-section">
+            <FluentCard>
+                <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+                    <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="12">
+                        <FluentIcon Value="@(new Icons.Regular.Size20.Settings())" Style="color: #0078d4;" />
+                        <FluentLabel Typo="Typography.Subject">
+                            Auction Controls
+                        </FluentLabel>
+                    </FluentStack>
+
+                    <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12" Wrap="true">
+                        <FluentButton Appearance="Appearance.Accent"
+                                      IconStart="@(new Icons.Regular.Size16.Play())"
+                                      OnClick="@StartAuction"
+                                      Disabled="@(auctionStatus != "Draft")"
+                                      Loading="@isProcessing">
+                            Start Auction
+                        </FluentButton>
+
+                        <FluentButton Appearance="Appearance.Neutral"
+                                      IconStart="@(new Icons.Regular.Size16.Pause())"
+                                      OnClick="@PauseAuction"
+                                      Disabled="@(auctionStatus != "InProgress")"
+                                      Loading="@isProcessing">
+                            Pause Auction
+                        </FluentButton>
+
+                        <FluentButton Appearance="Appearance.Neutral"
+                                      IconStart="@(new Icons.Regular.Size16.Stop())"
+                                      OnClick="@EndBidding"
+                                      Disabled="@(auctionStatus != "InProgress")"
+                                      Loading="@isProcessing">
+                            End Current Bidding
+                        </FluentButton>
+
+                        <FluentButton Appearance="Appearance.Stealth"
+                                      IconStart="@(new Icons.Regular.Size16.Settings())"
+                                      OnClick="@(() => Navigation.NavigateTo($"/management/auctions/{AuctionId}/details"))">
+                            Auction Settings
+                        </FluentButton>
+                    </FluentStack>
+
+                    <FluentMessageBar Intent="MessageIntent.Info" Style="margin-top: 8px;">
+                        Current auction status: <strong>@auctionStatus</strong>
+                    </FluentMessageBar>
+                </FluentStack>
+            </FluentCard>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int AuctionId { get; set; }
+
+    private UserSession? session;
+    private bool isLoading = true;
+    private bool isConnected = false;
+    private bool isAuctionMaster = false;
+    private bool isRefreshing = false;
+    private bool isProcessing = false;
+    private bool processingReconnection = false;
+    private string? auctionName;
+    private string auctionStatus = "Draft";
+
+    private List<ParticipantDto> participants = new();
+    private List<ParticipantDto> reconnectionRequests = new();
+    private List<ParticipantDto> proxyCoaches = new();
+
+    private Timer? autoRefreshTimer;
+    private readonly TimeSpan AutoRefreshInterval = TimeSpan.FromSeconds(10); // Refresh every 10 seconds for admin panel
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSession();
+        if (session != null)
+        {
+            await LoadPanelData();
+            if (isAuctionMaster)
+            {
+                StartAutoRefresh();
+            }
+        }
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        StopAutoRefresh();
+    }
+
+    private void StartAutoRefresh()
+    {
+        autoRefreshTimer = new Timer(async _ =>
+        {
+            if (!isRefreshing && session != null && isAuctionMaster)
+            {
+                try
+                {
+                    await InvokeAsync(async () =>
+                    {
+                        await LoadPanelData();
+                        StateHasChanged();
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Auto-refresh error: {ex.Message}");
+                }
+            }
+        }, null, AutoRefreshInterval, AutoRefreshInterval);
+    }
+
+    private void StopAutoRefresh()
+    {
+        autoRefreshTimer?.Dispose();
+        autoRefreshTimer = null;
+    }
+
+    private async Task RefreshPanel()
+    {
+        if (isRefreshing) return;
+
+        try
+        {
+            isRefreshing = true;
+            StateHasChanged();
+            await LoadPanelData();
+        }
+        finally
+        {
+            isRefreshing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadSession()
+    {
+        try
+        {
+            var sessionJson = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "auctionSession");
+            if (!string.IsNullOrEmpty(sessionJson))
+            {
+                session = JsonSerializer.Deserialize<UserSession>(sessionJson);
+
+                if (session != null && session.AuctionId != AuctionId)
+                {
+                    await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "auctionSession");
+                    session = null;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading session: {ex.Message}");
+        }
+    }
+
+    private async Task LoadPanelData()
+    {
+        if (session == null) return;
+
+        try
+        {
+            Http.DefaultRequestHeaders.Remove("X-Auction-Token");
+            Http.DefaultRequestHeaders.Add("X-Auction-Token", session.SessionToken);
+
+            // Load auction details
+            var auctionResponse = await Http.GetAsync($"/api/auction/{AuctionId}");
+            if (auctionResponse.IsSuccessStatusCode)
+            {
+                var auctionData = await auctionResponse.Content.ReadFromJsonAsync<AuctionData>();
+                if (auctionData != null)
+                {
+                    auctionName = auctionData.Name;
+                    auctionStatus = auctionData.Status;
+                }
+            }
+
+            // Load participants and determine if user is auction master
+            var participantsResponse = await Http.GetAsync($"/api/auction/{AuctionId}/participants");
+            if (participantsResponse.IsSuccessStatusCode)
+            {
+                var allParticipants = await participantsResponse.Content.ReadFromJsonAsync<List<ParticipantDto>>();
+                if (allParticipants != null)
+                {
+                    participants = allParticipants;
+
+                    // Check if current user is auction master
+                    var currentUser = participants.FirstOrDefault(p => p.UserId == session.UserId);
+                    if (currentUser != null)
+                    {
+                        isAuctionMaster = currentUser.Roles.Any(r => r.Role == "AuctionMaster");
+                        isConnected = currentUser.IsConnected;
+                    }
+
+                    // Filter reconnection requests
+                    reconnectionRequests = participants.Where(p => p.IsReconnectionPending).ToList();
+
+                    // Filter proxy coaches
+                    proxyCoaches = participants.Where(p => p.Roles.Any(r => r.Role == "ProxyCoach")).ToList();
+                }
+            }
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading panel data: {ex.Message}");
+        }
+    }
+
+    private async Task ApproveReconnection(int userId)
+    {
+        if (session == null || processingReconnection) return;
+
+        try
+        {
+            processingReconnection = true;
+            StateHasChanged();
+
+            Http.DefaultRequestHeaders.Remove("X-Auction-Token");
+            Http.DefaultRequestHeaders.Add("X-Auction-Token", session.SessionToken);
+
+            var response = await Http.PostAsync($"/api/admin-hub/{AuctionId}/approve-reconnection/{userId}", null);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"✓ Approved reconnection for user {userId}");
+                await LoadPanelData(); // Refresh the panel
+            }
+            else
+            {
+                var errorMessage = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"❌ Failed to approve reconnection: {errorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error approving reconnection: {ex.Message}");
+        }
+        finally
+        {
+            processingReconnection = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task DenyReconnection(int userId)
+    {
+        if (session == null || processingReconnection) return;
+
+        try
+        {
+            processingReconnection = true;
+            StateHasChanged();
+
+            // For now, just clear the reconnection pending flag
+            // In a real implementation, this would call an API endpoint
+            Console.WriteLine($"Denied reconnection for user {userId}");
+            await LoadPanelData(); // Refresh the panel
+        }
+        finally
+        {
+            processingReconnection = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task StartAuction()
+    {
+        if (session == null || isProcessing) return;
+
+        try
+        {
+            isProcessing = true;
+            StateHasChanged();
+
+            // Implementation will vary based on auction start logic
+            Console.WriteLine("Starting auction...");
+            await Task.Delay(500); // Placeholder for actual API call
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task PauseAuction()
+    {
+        if (session == null || isProcessing) return;
+
+        try
+        {
+            isProcessing = true;
+            StateHasChanged();
+
+            Console.WriteLine("Pausing auction...");
+            await Task.Delay(500); // Placeholder for actual API call
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task EndBidding()
+    {
+        if (session == null || isProcessing) return;
+
+        try
+        {
+            isProcessing = true;
+            StateHasChanged();
+
+            Http.DefaultRequestHeaders.Remove("X-Auction-Token");
+            Http.DefaultRequestHeaders.Add("X-Auction-Token", session.SessionToken);
+
+            var response = await Http.PostAsync($"/api/admin-hub/{AuctionId}/end-bidding", null);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("✓ Ended current bidding");
+            }
+            else
+            {
+                var errorMessage = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"❌ Failed to end bidding: {errorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error ending bidding: {ex.Message}");
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private static string GetRoleColor(string role) => role switch
+    {
+        "AuctionMaster" => "#0078d4",
+        "TeamCoach" => "#107c10",
+        "ProxyCoach" => "#ca5010",
+        _ => "#605e5c"
+    };
+
+    private static string GetRoleDisplayName(string role) => role switch
+    {
+        "AuctionMaster" => "Auction Master",
+        "TeamCoach" => "Team Coach",
+        "ProxyCoach" => "Proxy Coach",
+        "Viewer" => "Viewer",
+        _ => role
+    };
+
+    // DTOs
+    private class UserSession
+    {
+        public int UserId { get; set; }
+        public int AuctionId { get; set; }
+        public string DisplayName { get; set; } = string.Empty;
+        public string SessionToken { get; set; } = string.Empty;
+        public DateTime JoinedDate { get; set; }
+    }
+
+    private class AuctionData
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+    }
+
+    private class ParticipantDto
+    {
+        public int UserId { get; set; }
+        public string DisplayName { get; set; } = string.Empty;
+        public bool IsConnected { get; set; }
+        public DateTime JoinedDate { get; set; }
+        public DateTime LastActiveDate { get; set; }
+        public bool IsReconnectionPending { get; set; }
+        public List<RoleDto> Roles { get; set; } = new();
+    }
+
+    private class RoleDto
+    {
+        public int UserRoleId { get; set; }
+        public string Role { get; set; } = string.Empty;
+        public int? TeamId { get; set; }
+        public string? TeamName { get; set; }
+        public DateTime AssignedDate { get; set; }
+    }
+}
+
+<style>
+    .master-panel-container {
+        padding: 24px;
+        max-width: 1400px;
+        margin: 0 auto;
+        min-height: calc(100vh - 100px);
+    }
+
+    .loading-container, .error-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 60px;
+        gap: 16px;
+    }
+
+    .panel-header {
+        background: white;
+        padding: 24px;
+        border-radius: 8px;
+        border: 1px solid #e1e1e1;
+        margin-bottom: 24px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .reconnection-section,
+    .participants-section,
+    .proxy-coaches-section,
+    .auction-controls-section {
+        margin-bottom: 24px;
+    }
+
+    .reconnection-section fluent-card,
+    .participants-section fluent-card,
+    .proxy-coaches-section fluent-card,
+    .auction-controls-section fluent-card {
+        padding: 24px;
+        border: 1px solid #e1e1e1;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .reconnection-request {
+        padding: 16px;
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 6px;
+    }
+</style>
