@@ -555,6 +555,48 @@ public class SchoolManagementFunction
                 results.Add("SessionToken column already exists in Users table");
             }
 
+            // Check and add HasTestedBidding column to Users table
+            var hasTestedBiddingExists = await CheckColumnExists("Users", "HasTestedBidding");
+            if (!hasTestedBiddingExists)
+            {
+                await _context.Database.ExecuteSqlRawAsync(
+                    "ALTER TABLE [Users] ADD [HasTestedBidding] bit NOT NULL DEFAULT 0");
+                results.Add("✓ Added HasTestedBidding column to Users table");
+                _logger.LogInformation("Successfully added HasTestedBidding column to Users table");
+            }
+            else
+            {
+                results.Add("HasTestedBidding column already exists in Users table");
+            }
+
+            // Check and add IsReadyToDraft column to Users table
+            var isReadyToDraftExists = await CheckColumnExists("Users", "IsReadyToDraft");
+            if (!isReadyToDraftExists)
+            {
+                await _context.Database.ExecuteSqlRawAsync(
+                    "ALTER TABLE [Users] ADD [IsReadyToDraft] bit NOT NULL DEFAULT 0");
+                results.Add("✓ Added IsReadyToDraft column to Users table");
+                _logger.LogInformation("Successfully added IsReadyToDraft column to Users table");
+            }
+            else
+            {
+                results.Add("IsReadyToDraft column already exists in Users table");
+            }
+
+            // Check and add HasPassedOnTestBid column to Users table
+            var hasPassedOnTestBidExists = await CheckColumnExists("Users", "HasPassedOnTestBid");
+            if (!hasPassedOnTestBidExists)
+            {
+                await _context.Database.ExecuteSqlRawAsync(
+                    "ALTER TABLE [Users] ADD [HasPassedOnTestBid] bit NOT NULL DEFAULT 0");
+                results.Add("✓ Added HasPassedOnTestBid column to Users table");
+                _logger.LogInformation("Successfully added HasPassedOnTestBid column to Users table");
+            }
+            else
+            {
+                results.Add("HasPassedOnTestBid column already exists in Users table");
+            }
+
             // Check and add new AdminAction columns
             var entityTypeExists = await CheckColumnExists("AdminActions", "EntityType");
             if (!entityTypeExists)
