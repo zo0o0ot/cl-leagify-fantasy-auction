@@ -496,22 +496,44 @@ Based on the requirement: **School Management → Auction Creation → Join Auct
 - Bulk import capabilities
 - School usage analytics
 
-### Task 6.3: Audit and Monitoring
-**Priority:** Medium  
-**Estimated Effort:** 4-6 hours  
+### Task 6.3: Audit and Monitoring ✅
+**Priority:** Medium
+**Estimated Effort:** 4-6 hours
 **Dependencies:** All previous tasks
+**Completion:** 100%
 
-- [ ] Create AdminAction logging system
-- [ ] Implement comprehensive audit trails
-- [ ] Add performance monitoring for SignalR
-- [ ] Create error logging and alerting
-- [ ] Build system health dashboard
-- [ ] Add usage analytics and reporting
+- [x] Create AdminAction logging system
+- [x] Implement comprehensive audit trails
+- [x] Add performance monitoring for SignalR
+- [x] Create error logging and alerting
+- [x] Build system health dashboard
+- [x] Add usage analytics and reporting
 
 **Deliverables:**
-- Complete audit logging system
-- Performance monitoring
-- System health and usage analytics
+- [x] Complete audit logging system - Enhanced AdminAction entity with EntityType, EntityId, and Metadata
+- [x] Performance monitoring - AuditFunction with GetPerformanceMetrics endpoint
+- [x] System health and usage analytics - SystemHealth.razor dashboard with real-time metrics
+
+**Implementation Details:**
+- AdminAction.cs: Enhanced with comprehensive XML documentation, EntityType, EntityId, and Metadata fields
+- LeagifyAuctionDbContext.cs: Updated configuration with proper indexes for audit queries
+- AuditFunction.cs: Complete API for audit operations:
+  - GetAdminActions: Query admin actions with filtering (auction, type, date range, entity)
+  - LogAdminAction: Record new admin actions in audit log
+  - GetAuditSummary: Audit statistics with action counts, most active auctions, recent activity
+  - GetSystemHealth: System health metrics (database stats, auction status, performance indicators)
+  - GetPerformanceMetrics: Performance data (SignalR connections, bidding activity, completion times)
+- SystemHealth.razor: Comprehensive monitoring dashboard with:
+  - System health overview (total/active auctions, users, schools, picks, bids)
+  - Activity metrics (24-hour auction creation and bidding activity)
+  - Performance indicators (average bids/picks per auction, SignalR connections, auction duration)
+  - Auction status breakdown with visual badges
+  - Administrative actions summary (total, 24h, 7d, 30d)
+  - Recent admin actions table
+  - Most active auctions table
+  - Real-time refresh capability
+  - Professional FluentUI-style responsive design
+- Dashboard.razor: Added navigation link to System Health dashboard
 
 ---
 

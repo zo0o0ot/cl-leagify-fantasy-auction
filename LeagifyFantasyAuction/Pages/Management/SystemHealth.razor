@@ -1,0 +1,630 @@
+@page "/management/system-health"
+@layout ManagementLayout
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>System Health & Monitoring</PageTitle>
+
+<div class="health-container">
+    <div class="page-header">
+        <h2>📊 System Health & Monitoring</h2>
+        <button class="btn btn-primary" @onclick="RefreshData">🔄 Refresh</button>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="loading-container">
+            <p>Loading system metrics...</p>
+        </div>
+    }
+    else if (errorMessage != null)
+    {
+        <div class="error-message">
+            <strong>Error:</strong> @errorMessage
+        </div>
+    }
+    else
+    {
+        <!-- System Health Overview -->
+        <div class="metrics-section">
+            <h3>System Health Overview</h3>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">Total Auctions</div>
+                    <div class="metric-value">@systemHealth?.Database?.TotalAuctions</div>
+                </div>
+                <div class="metric-card active">
+                    <div class="metric-label">Active Auctions</div>
+                    <div class="metric-value">@systemHealth?.Database?.ActiveAuctions</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Completed Auctions</div>
+                    <div class="metric-value">@systemHealth?.Database?.CompletedAuctions</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Total Users</div>
+                    <div class="metric-value">@systemHealth?.Database?.TotalUsers</div>
+                </div>
+                <div class="metric-card active">
+                    <div class="metric-label">Active Users (24h)</div>
+                    <div class="metric-value">@systemHealth?.Database?.ActiveUsersLast24Hours</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Total Schools</div>
+                    <div class="metric-value">@systemHealth?.Database?.TotalSchools</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Total Draft Picks</div>
+                    <div class="metric-value">@systemHealth?.Database?.TotalDraftPicks</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Total Bids</div>
+                    <div class="metric-value">@systemHealth?.Database?.TotalBids</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity Metrics -->
+        <div class="metrics-section">
+            <h3>Recent Activity (Last 24 Hours)</h3>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">Auctions Created</div>
+                    <div class="metric-value">@systemHealth?.Activity?.AuctionsCreatedLast24Hours</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Bids Placed</div>
+                    <div class="metric-value">@systemHealth?.Activity?.BidsPlacedLast24Hours</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Metrics -->
+        <div class="metrics-section">
+            <h3>Performance Indicators</h3>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">Avg Bids per Auction</div>
+                    <div class="metric-value">@systemHealth?.Performance?.AvgBidsPerAuction</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Avg Picks per Auction</div>
+                    <div class="metric-value">@systemHealth?.Performance?.AvgPicksPerAuction</div>
+                </div>
+                <div class="metric-card active">
+                    <div class="metric-label">Current SignalR Connections</div>
+                    <div class="metric-value">@performanceMetrics?.SignalR?.CurrentConnections</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Avg Auction Duration (min)</div>
+                    <div class="metric-value">@performanceMetrics?.Completion?.AvgAuctionDurationMinutes</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Auction Status Breakdown -->
+        @if (systemHealth?.AuctionsByStatus != null && systemHealth.AuctionsByStatus.Any())
+        {
+            <div class="metrics-section">
+                <h3>Auction Status Breakdown</h3>
+                <div class="status-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                <th>Count</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var status in systemHealth.AuctionsByStatus)
+                            {
+                                <tr>
+                                    <td>
+                                        <span class="status-badge status-@status.Status.ToLowerInvariant()">
+                                            @status.Status
+                                        </span>
+                                    </td>
+                                    <td>@status.Count</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+
+        <!-- Audit Summary -->
+        <div class="metrics-section">
+            <h3>Administrative Actions</h3>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">Total Actions</div>
+                    <div class="metric-value">@auditSummary?.TotalActions</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Actions (24h)</div>
+                    <div class="metric-value">@auditSummary?.ActionsLast24Hours</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Actions (7d)</div>
+                    <div class="metric-value">@auditSummary?.ActionsLast7Days</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Actions (30d)</div>
+                    <div class="metric-value">@auditSummary?.ActionsLast30Days</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Admin Actions -->
+        @if (auditSummary?.RecentActions != null && auditSummary.RecentActions.Any())
+        {
+            <div class="metrics-section">
+                <h3>Recent Admin Actions</h3>
+                <div class="actions-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date/Time</th>
+                                <th>Action Type</th>
+                                <th>Description</th>
+                                <th>Auction</th>
+                                <th>Admin</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var action in auditSummary.RecentActions.Take(10))
+                            {
+                                <tr>
+                                    <td>@action.ActionDate.ToString("yyyy-MM-dd HH:mm")</td>
+                                    <td><span class="action-type">@action.ActionType</span></td>
+                                    <td>@action.Description</td>
+                                    <td>@(action.AuctionName ?? "-")</td>
+                                    <td>@(action.AdminDisplayName ?? "System")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="view-all">
+                    <button class="btn btn-secondary" @onclick="@(() => Navigation.NavigateTo("/management/audit-logs"))">
+                        View All Audit Logs
+                    </button>
+                </div>
+            </div>
+        }
+
+        <!-- Most Active Auctions -->
+        @if (auditSummary?.MostActiveAuctions != null && auditSummary.MostActiveAuctions.Any())
+        {
+            <div class="metrics-section">
+                <h3>Most Active Auctions (Last 30 Days)</h3>
+                <div class="actions-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Auction ID</th>
+                                <th>Auction Name</th>
+                                <th>Action Count</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var auction in auditSummary.MostActiveAuctions.Take(5))
+                            {
+                                <tr>
+                                    <td>@auction.AuctionId</td>
+                                    <td>@auction.AuctionName</td>
+                                    <td><strong>@auction.ActionCount</strong></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+
+        <div class="last-updated">
+            Last updated: @lastUpdated.ToString("yyyy-MM-dd HH:mm:ss UTC")
+        </div>
+    }
+</div>
+
+<style>
+    .health-container {
+        padding: 20px;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+
+    .page-header h2 {
+        margin: 0;
+        font-size: 28px;
+    }
+
+    .metrics-section {
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .metrics-section h3 {
+        margin: 0 0 16px 0;
+        font-size: 20px;
+        color: #333;
+        border-bottom: 2px solid #0078d4;
+        padding-bottom: 8px;
+    }
+
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+    }
+
+    .metric-card {
+        background: #f9f9f9;
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+        padding: 16px;
+        text-align: center;
+    }
+
+    .metric-card.active {
+        background: #e6f4ff;
+        border-color: #0078d4;
+    }
+
+    .metric-label {
+        font-size: 12px;
+        color: #666;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+
+    .metric-value {
+        font-size: 32px;
+        font-weight: bold;
+        color: #333;
+    }
+
+    .metric-card.active .metric-value {
+        color: #0078d4;
+    }
+
+    .status-table, .actions-table {
+        overflow-x: auto;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 8px;
+    }
+
+    th, td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    th {
+        background: #f5f5f5;
+        font-weight: 600;
+        color: #333;
+        font-size: 14px;
+    }
+
+    tbody tr:hover {
+        background: #f9f9f9;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: capitalize;
+    }
+
+    .status-draft {
+        background: #fff4e6;
+        color: #d46b08;
+    }
+
+    .status-inprogress {
+        background: #e6f7ff;
+        color: #0078d4;
+    }
+
+    .status-complete {
+        background: #e8f5e9;
+        color: #2e7d32;
+    }
+
+    .status-archived {
+        background: #f5f5f5;
+        color: #666;
+    }
+
+    .action-type {
+        font-family: monospace;
+        background: #f0f0f0;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 12px;
+    }
+
+    .view-all {
+        margin-top: 16px;
+        text-align: center;
+    }
+
+    .last-updated {
+        text-align: center;
+        color: #666;
+        font-size: 12px;
+        margin-top: 20px;
+        padding: 12px;
+        background: #f5f5f5;
+        border-radius: 4px;
+    }
+
+    .loading-container {
+        text-align: center;
+        padding: 40px;
+        font-size: 18px;
+        color: #666;
+    }
+
+    .error-message {
+        background: #ffebee;
+        color: #c62828;
+        padding: 16px;
+        border-radius: 4px;
+        border-left: 4px solid #c62828;
+        margin-bottom: 20px;
+    }
+
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        transition: opacity 0.2s;
+    }
+
+    .btn-primary {
+        background: #0078d4;
+        color: white;
+    }
+
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+    }
+
+    .btn:hover:not(:disabled) {
+        opacity: 0.85;
+    }
+
+    .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    @@media (max-width: 768px) {
+        .page-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .metrics-grid {
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        }
+
+        table {
+            font-size: 12px;
+        }
+
+        th, td {
+            padding: 8px;
+        }
+    }
+</style>
+
+@code {
+    private SystemHealthResponse? systemHealth;
+    private PerformanceMetricsResponse? performanceMetrics;
+    private AuditSummaryResponse? auditSummary;
+    private DateTime lastUpdated = DateTime.UtcNow;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task RefreshData()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var managementToken = await GetManagementToken();
+
+            // Load system health
+            var healthRequest = new HttpRequestMessage(HttpMethod.Get, "/api/management/health");
+            healthRequest.Headers.Add("X-Management-Token", managementToken);
+            var healthResponse = await Http.SendAsync(healthRequest);
+            
+            if (healthResponse.IsSuccessStatusCode)
+            {
+                systemHealth = await healthResponse.Content.ReadFromJsonAsync<SystemHealthResponse>();
+            }
+
+            // Load performance metrics
+            var metricsRequest = new HttpRequestMessage(HttpMethod.Get, "/api/management/metrics");
+            metricsRequest.Headers.Add("X-Management-Token", managementToken);
+            var metricsResponse = await Http.SendAsync(metricsRequest);
+            
+            if (metricsResponse.IsSuccessStatusCode)
+            {
+                performanceMetrics = await metricsResponse.Content.ReadFromJsonAsync<PerformanceMetricsResponse>();
+            }
+
+            // Load audit summary
+            var auditRequest = new HttpRequestMessage(HttpMethod.Get, "/api/management/audit/summary");
+            auditRequest.Headers.Add("X-Management-Token", managementToken);
+            var auditResponse = await Http.SendAsync(auditRequest);
+            
+            if (auditResponse.IsSuccessStatusCode)
+            {
+                auditSummary = await auditResponse.Content.ReadFromJsonAsync<AuditSummaryResponse>();
+            }
+
+            lastUpdated = DateTime.UtcNow;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load system metrics: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task<string> GetManagementToken()
+    {
+        // Retrieve management token from localStorage
+        var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "managementToken");
+        return token ?? string.Empty;
+    }
+
+    // Response DTOs
+
+    private class SystemHealthResponse
+    {
+        public DateTime Timestamp { get; set; }
+        public DatabaseMetrics? Database { get; set; }
+        public ActivityMetrics? Activity { get; set; }
+        public PerformanceIndicators? Performance { get; set; }
+        public List<AuctionStatusCount>? AuctionsByStatus { get; set; }
+    }
+
+    private class DatabaseMetrics
+    {
+        public int TotalAuctions { get; set; }
+        public int ActiveAuctions { get; set; }
+        public int CompletedAuctions { get; set; }
+        public int DraftAuctions { get; set; }
+        public int TotalUsers { get; set; }
+        public int ActiveUsersLast24Hours { get; set; }
+        public int TotalSchools { get; set; }
+        public int TotalDraftPicks { get; set; }
+        public int TotalBids { get; set; }
+    }
+
+    private class ActivityMetrics
+    {
+        public int AuctionsCreatedLast24Hours { get; set; }
+        public int BidsPlacedLast24Hours { get; set; }
+    }
+
+    private class PerformanceIndicators
+    {
+        public decimal AvgBidsPerAuction { get; set; }
+        public decimal AvgPicksPerAuction { get; set; }
+    }
+
+    private class AuctionStatusCount
+    {
+        public string Status { get; set; } = string.Empty;
+        public int Count { get; set; }
+    }
+
+    private class PerformanceMetricsResponse
+    {
+        public DateTime Timestamp { get; set; }
+        public SignalRMetrics? SignalR { get; set; }
+        public BiddingMetrics? Bidding { get; set; }
+        public CompletionMetrics? Completion { get; set; }
+    }
+
+    private class SignalRMetrics
+    {
+        public int CurrentConnections { get; set; }
+    }
+
+    private class BiddingMetrics
+    {
+        public int BidsLast24Hours { get; set; }
+        public int ActiveAuctionsWithBids { get; set; }
+        public double AvgBidsPerActiveAuction { get; set; }
+    }
+
+    private class CompletionMetrics
+    {
+        public int AuctionsCompletedLast7Days { get; set; }
+        public double AvgAuctionDurationMinutes { get; set; }
+    }
+
+    private class AuditSummaryResponse
+    {
+        public int TotalActions { get; set; }
+        public int ActionsLast24Hours { get; set; }
+        public int ActionsLast7Days { get; set; }
+        public int ActionsLast30Days { get; set; }
+        public List<ActionTypeCount>? ActionsByType { get; set; }
+        public List<ActiveAuction>? MostActiveAuctions { get; set; }
+        public List<RecentAction>? RecentActions { get; set; }
+    }
+
+    private class ActionTypeCount
+    {
+        public string ActionType { get; set; } = string.Empty;
+        public int Count { get; set; }
+    }
+
+    private class ActiveAuction
+    {
+        public int AuctionId { get; set; }
+        public string AuctionName { get; set; } = string.Empty;
+        public int ActionCount { get; set; }
+    }
+
+    private class RecentAction
+    {
+        public int AdminActionId { get; set; }
+        public string ActionType { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string? AuctionName { get; set; }
+        public string? AdminDisplayName { get; set; }
+        public DateTime ActionDate { get; set; }
+    }
+}
