@@ -52,7 +52,7 @@ public class DraftPickFunction(LeagifyAuctionDbContext context, ILogger<DraftPic
                 LeagifyPosition = dp.AuctionSchool.LeagifyPosition,
                 ProjectedPoints = dp.AuctionSchool.ProjectedPoints,
                 TeamId = dp.TeamId,
-                TeamName = dp.Team.Name,
+                TeamName = dp.Team.TeamName,
                 RosterPositionId = dp.RosterPositionId,
                 RosterPositionName = dp.RosterPositionId > 0 ? dp.RosterPosition?.PositionName : "Unassigned",
                 WinningBid = dp.WinningBid,
@@ -98,7 +98,8 @@ public class DraftPickFunction(LeagifyAuctionDbContext context, ILogger<DraftPic
             }
 
             var user = await _context.Users
-                .Include(u => u.Team)
+                .Include(u => u.UserRoles)
+                    .ThenInclude(ur => ur.Team)
                 .FirstOrDefaultAsync(u => u.SessionToken == sessionToken && u.AuctionId == auctionId);
 
             if (user == null)
@@ -136,12 +137,18 @@ public class DraftPickFunction(LeagifyAuctionDbContext context, ILogger<DraftPic
                 };
             }
 
+            // Get user's team
+            var userTeam = user.UserRoles
+                .Where(ur => ur.TeamId != null && ur.Team != null)
+                .OrderBy(ur => ur.Role == "TeamCoach" ? 0 : 1)
+                .FirstOrDefault()?.Team;
+
             // Verify user owns this draft pick (either directly or as team member)
-            if (user.Team == null || user.Team.TeamId != draftPick.TeamId)
+            if (userTeam == null || userTeam.TeamId != draftPick.TeamId)
             {
                 // Check if user is auction master
-                var isAuctionMaster = await _context.UserRoles
-                    .AnyAsync(ur => ur.UserId == user.UserId && ur.AuctionId == auctionId && ur.Role == "AuctionMaster");
+                var isAuctionMaster = user.UserRoles
+                    .Any(ur => ur.Role == "AuctionMaster");
 
                 if (!isAuctionMaster)
                 {
@@ -212,7 +219,7 @@ public class DraftPickFunction(LeagifyAuctionDbContext context, ILogger<DraftPic
                 DraftPickId = draftPick.DraftPickId,
                 SchoolName = draftPick.AuctionSchool.School.Name,
                 RosterPositionName = rosterPosition.PositionName,
-                TeamName = draftPick.Team.Name
+                TeamName = draftPick.Team.TeamName
             });
 
             // Broadcast assignment
@@ -228,7 +235,7 @@ public class DraftPickFunction(LeagifyAuctionDbContext context, ILogger<DraftPic
                         {
                             DraftPickId = draftPick.DraftPickId,
                             TeamId = draftPick.TeamId,
-                            TeamName = draftPick.Team.Name,
+                            TeamName = draftPick.Team.TeamName,
                             SchoolName = draftPick.AuctionSchool.School.Name,
                             RosterPositionName = rosterPosition.PositionName
                         }
@@ -366,7 +373,7 @@ public class DraftPickFunction(LeagifyAuctionDbContext context, ILogger<DraftPic
                 DraftPickId = draftPick.DraftPickId,
                 SchoolName = draftPick.AuctionSchool.School.Name,
                 RosterPositionName = bestPosition.PositionName,
-                TeamName = draftPick.Team.Name,
+                TeamName = draftPick.Team.TeamName,
                 IsFlexPosition = bestPosition.IsFlexPosition
             });
 
@@ -383,7 +390,7 @@ public class DraftPickFunction(LeagifyAuctionDbContext context, ILogger<DraftPic
                         {
                             DraftPickId = draftPick.DraftPickId,
                             TeamId = draftPick.TeamId,
-                            TeamName = draftPick.Team.Name,
+                            TeamName = draftPick.Team.TeamName,
                             SchoolName = draftPick.AuctionSchool.School.Name,
                             RosterPositionName = bestPosition.PositionName,
                             IsAutoAssigned = true
@@ -468,8 +475,8 @@ public class DraftPickFunction(LeagifyAuctionDbContext context, ILogger<DraftPic
             var result = new
             {
                 TeamId = team.TeamId,
-                TeamName = team.Name,
-                CurrentBudget = team.CurrentBudget,
+                TeamName = team.TeamName,
+                CurrentBudget = team.RemainingBudget,
                 TotalSlots = rosterPositions.Sum(rp => rp.SlotsPerTeam),
                 FilledSlots = draftPicks.Count(dp => dp.IsAssignmentConfirmed),
                 UnassignedPicks = draftPicks.Count(dp => !dp.IsAssignmentConfirmed || dp.RosterPositionId == 0),

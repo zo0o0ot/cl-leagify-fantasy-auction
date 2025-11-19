@@ -258,7 +258,8 @@ public class NominationOrderFunction(LeagifyAuctionDbContext context, ILogger<No
                 .Include(a => a.CurrentSchool)
                     .ThenInclude(s => s != null ? s.School : null)
                 .Include(a => a.CurrentHighBidderUser)
-                    .ThenInclude(u => u != null ? u.Team : null)
+                    .ThenInclude(u => u != null ? u.UserRoles : null)
+                        .ThenInclude(ur => ur.Team)
                 .FirstOrDefaultAsync(a => a.AuctionId == auctionId);
 
             if (auction == null)
@@ -278,7 +279,14 @@ public class NominationOrderFunction(LeagifyAuctionDbContext context, ILogger<No
             }
 
             var winningUser = auction.CurrentHighBidderUser!;
-            if (winningUser.Team == null)
+
+            // Get winning user's team
+            var winningTeam = winningUser.UserRoles
+                .Where(ur => ur.TeamId != null && ur.Team != null)
+                .OrderBy(ur => ur.Role == "TeamCoach" ? 0 : 1)
+                .FirstOrDefault()?.Team;
+
+            if (winningTeam == null)
             {
                 return new MultiResponse
                 {
@@ -290,7 +298,7 @@ public class NominationOrderFunction(LeagifyAuctionDbContext context, ILogger<No
             var draftPick = new DraftPick
             {
                 AuctionId = auctionId,
-                TeamId = winningUser.Team.TeamId,
+                TeamId = winningTeam.TeamId,
                 AuctionSchoolId = auction.CurrentSchoolId.Value,
                 RosterPositionId = 0, // Will be assigned later by user
                 WinningBid = auction.CurrentHighBid!.Value,
@@ -304,7 +312,7 @@ public class NominationOrderFunction(LeagifyAuctionDbContext context, ILogger<No
             _context.DraftPicks.Add(draftPick);
 
             // Update team budget
-            winningUser.Team.CurrentBudget -= auction.CurrentHighBid.Value;
+            winningTeam.RemainingBudget -= auction.CurrentHighBid.Value;
 
             // Mark the winning bid in history
             var winningBidHistory = await _context.BidHistories
@@ -340,7 +348,7 @@ public class NominationOrderFunction(LeagifyAuctionDbContext context, ILogger<No
                 SchoolName = completedSchoolName,
                 WinningBid = draftPick.WinningBid,
                 WinnerDisplayName = winningUser.DisplayName,
-                TeamName = winningUser.Team.Name
+                TeamName = winningTeam.TeamName
             });
 
             // Broadcast bidding completion
@@ -359,8 +367,8 @@ public class NominationOrderFunction(LeagifyAuctionDbContext context, ILogger<No
                             WinningBid = draftPick.WinningBid,
                             WinnerUserId = winningUser.UserId,
                             WinnerDisplayName = winningUser.DisplayName,
-                            TeamId = winningUser.Team.TeamId,
-                            TeamName = winningUser.Team.Name
+                            TeamId = winningTeam.TeamId,
+                            TeamName = winningTeam.TeamName
                         }
                     }
                 }

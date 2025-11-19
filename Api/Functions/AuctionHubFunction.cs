@@ -108,7 +108,8 @@ public class AuctionHubFunction(LeagifyAuctionDbContext context, ILogger<Auction
             }
 
             var user = await _context.Users
-                .Include(u => u.Team)
+                .Include(u => u.UserRoles)
+                    .ThenInclude(ur => ur.Team)
                 .FirstOrDefaultAsync(u => u.SessionToken == sessionToken && u.AuctionId == auctionId);
 
             if (user == null)
@@ -118,6 +119,12 @@ public class AuctionHubFunction(LeagifyAuctionDbContext context, ILogger<Auction
                     HttpResponse = await CreateUnauthorizedResponse(req)
                 };
             }
+
+            // Get user's primary team (TeamCoach or first ProxyCoach assignment)
+            var userTeam = user.UserRoles
+                .Where(ur => ur.TeamId != null && ur.Team != null)
+                .OrderBy(ur => ur.Role == "TeamCoach" ? 0 : 1)
+                .FirstOrDefault()?.Team;
 
             // Parse request body
             var requestBody = await req.ReadAsStringAsync();
@@ -195,7 +202,7 @@ public class AuctionHubFunction(LeagifyAuctionDbContext context, ILogger<Auction
             }
 
             // Verify user has roster space
-            if (user.Team == null)
+            if (userTeam == null)
             {
                 return new MultiResponse
                 {
@@ -210,7 +217,7 @@ public class AuctionHubFunction(LeagifyAuctionDbContext context, ILogger<Auction
             var totalRosterSlots = rosterPositions.Sum(rp => rp.SlotsPerTeam);
 
             var currentPicks = await _context.DraftPicks
-                .CountAsync(dp => dp.TeamId == user.Team.TeamId);
+                .CountAsync(dp => dp.TeamId == userTeam.TeamId);
 
             if (currentPicks >= totalRosterSlots)
             {
@@ -224,7 +231,7 @@ public class AuctionHubFunction(LeagifyAuctionDbContext context, ILogger<Auction
             var remainingSlots = totalRosterSlots - currentPicks;
             var minimumBudget = 1 + (remainingSlots - 1); // $1 for this nomination + $1 per remaining slot
 
-            if (user.Team.CurrentBudget < minimumBudget)
+            if (userTeam.RemainingBudget < minimumBudget)
             {
                 return new MultiResponse
                 {
@@ -333,7 +340,8 @@ public class AuctionHubFunction(LeagifyAuctionDbContext context, ILogger<Auction
             }
 
             var user = await _context.Users
-                .Include(u => u.Team)
+                .Include(u => u.UserRoles)
+                    .ThenInclude(ur => ur.Team)
                 .FirstOrDefaultAsync(u => u.SessionToken == sessionToken && u.AuctionId == auctionId);
 
             if (user == null)
@@ -343,6 +351,12 @@ public class AuctionHubFunction(LeagifyAuctionDbContext context, ILogger<Auction
                     HttpResponse = await CreateUnauthorizedResponse(req)
                 };
             }
+
+            // Get user's primary team
+            var userTeam = user.UserRoles
+                .Where(ur => ur.TeamId != null && ur.Team != null)
+                .OrderBy(ur => ur.Role == "TeamCoach" ? 0 : 1)
+                .FirstOrDefault()?.Team;
 
             // Parse request body
             var requestBody = await req.ReadAsStringAsync();
@@ -389,7 +403,7 @@ public class AuctionHubFunction(LeagifyAuctionDbContext context, ILogger<Auction
             }
 
             // Verify user has a team
-            if (user.Team == null)
+            if (userTeam == null)
             {
                 return new MultiResponse
                 {
@@ -414,14 +428,14 @@ public class AuctionHubFunction(LeagifyAuctionDbContext context, ILogger<Auction
             var totalRosterSlots = rosterPositions.Sum(rp => rp.SlotsPerTeam);
 
             var currentPicks = await _context.DraftPicks
-                .CountAsync(dp => dp.TeamId == user.Team.TeamId);
+                .CountAsync(dp => dp.TeamId == userTeam.TeamId);
 
             var remainingSlots = totalRosterSlots - currentPicks;
             var minimumBudget = bidRequest.BidAmount + (remainingSlots - 1); // Bid amount + $1 per remaining slot
 
-            if (user.Team.CurrentBudget < minimumBudget)
+            if (userTeam.RemainingBudget < minimumBudget)
             {
-                var maxBid = user.Team.CurrentBudget - (remainingSlots - 1);
+                var maxBid = userTeam.RemainingBudget - (remainingSlots - 1);
                 return new MultiResponse
                 {
                     HttpResponse = await CreateBadRequestResponse(req, $"Insufficient budget. Your maximum bid is ${maxBid}")

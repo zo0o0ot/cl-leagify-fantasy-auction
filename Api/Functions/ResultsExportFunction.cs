@@ -64,7 +64,7 @@ public class ResultsExportFunction(LeagifyAuctionDbContext context, ILogger<Resu
             // Data rows
             foreach (var pick in draftPicks)
             {
-                var owner = EscapeCsvField(pick.Team.Name);
+                var owner = EscapeCsvField(pick.Team.TeamName);
                 var player = EscapeCsvField(pick.AuctionSchool.School.Name);
                 var position = pick.RosterPositionId > 0 && pick.RosterPosition != null
                     ? EscapeCsvField(pick.RosterPosition.PositionName)
@@ -143,7 +143,7 @@ public class ResultsExportFunction(LeagifyAuctionDbContext context, ILogger<Resu
             // Data rows
             foreach (var pick in draftPicks)
             {
-                var owner = EscapeCsvField(pick.Team.Name);
+                var owner = EscapeCsvField(pick.Team.TeamName);
                 var player = EscapeCsvField(pick.AuctionSchool.School.Name);
                 var position = pick.RosterPositionId > 0 && pick.RosterPosition != null
                     ? EscapeCsvField(pick.RosterPosition.PositionName)
@@ -158,7 +158,7 @@ public class ResultsExportFunction(LeagifyAuctionDbContext context, ILogger<Resu
             csvBuilder.AppendLine();
             csvBuilder.AppendLine($"Total Spent,{draftPicks.Sum(dp => dp.WinningBid):0}");
             csvBuilder.AppendLine($"Total Projected Points,{draftPicks.Sum(dp => dp.AuctionSchool.ProjectedPoints):0}");
-            csvBuilder.AppendLine($"Remaining Budget,{team.CurrentBudget:0}");
+            csvBuilder.AppendLine($"Remaining Budget,{team.RemainingBudget:0}");
 
             var csvContent = csvBuilder.ToString();
 
@@ -206,9 +206,9 @@ public class ResultsExportFunction(LeagifyAuctionDbContext context, ILogger<Resu
                 .Select(t => new
                 {
                     t.TeamId,
-                    t.Name,
-                    t.CurrentBudget,
-                    t.InitialBudget,
+                    t.TeamName,
+                    t.RemainingBudget,
+                    t.Budget,
                     DraftPicks = _context.DraftPicks
                         .Include(dp => dp.AuctionSchool)
                         .Where(dp => dp.TeamId == t.TeamId)
@@ -219,9 +219,9 @@ public class ResultsExportFunction(LeagifyAuctionDbContext context, ILogger<Resu
             var teamStandings = teams.Select(t => new
             {
                 t.TeamId,
-                t.Name,
-                CurrentBudget = t.CurrentBudget,
-                TotalSpent = t.InitialBudget - t.CurrentBudget,
+                Name = t.TeamName,
+                CurrentBudget = t.RemainingBudget,
+                TotalSpent = t.Budget - t.RemainingBudget,
                 TotalProjectedPoints = t.DraftPicks.Sum(dp => dp.AuctionSchool.ProjectedPoints),
                 SchoolsDrafted = t.DraftPicks.Count,
                 AssignedSchools = t.DraftPicks.Count(dp => dp.IsAssignmentConfirmed && dp.RosterPositionId > 0)
@@ -240,7 +240,7 @@ public class ResultsExportFunction(LeagifyAuctionDbContext context, ILogger<Resu
                 .Select(dp => new
                 {
                     SchoolName = dp.AuctionSchool.School.Name,
-                    TeamName = dp.Team.Name,
+                    TeamName = dp.Team.TeamName,
                     WinningBid = dp.WinningBid,
                     ProjectedPoints = dp.AuctionSchool.ProjectedPoints
                 })
