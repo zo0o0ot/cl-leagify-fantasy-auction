@@ -316,7 +316,7 @@ public class ResultsExportFunction(LeagifyAuctionDbContext context, ILogger<Resu
 
     private static string GenerateTeamFilename(LeagifyFantasyAuction.Api.Models.Team team)
     {
-        var safeName = string.Concat(team.Name.Where(c => char.IsLetterOrDigit(c) || c == ' ' || c == '-'))
+        var safeName = string.Concat(team.TeamName?.Where(c => char.IsLetterOrDigit(c) || c == ' ' || c == '-') ?? "Team")
             .Replace(" ", "_");
         var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
         return $"{safeName}_Roster_{timestamp}.csv";
