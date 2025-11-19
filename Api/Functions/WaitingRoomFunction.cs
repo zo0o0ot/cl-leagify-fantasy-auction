@@ -263,7 +263,7 @@ public class WaitingRoomFunction
                 BidType = "TestBid",
                 BidDate = DateTime.UtcNow,
                 IsWinningBid = false,
-                Notes = $"Waiting room test bid on {TEST_SCHOOL_NAME}"
+                Notes = "Waiting room test bid"
             };
 
             _context.BidHistories.Add(testBid);
