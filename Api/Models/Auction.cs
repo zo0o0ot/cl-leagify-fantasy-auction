@@ -112,7 +112,18 @@ public class Auction
     /// </summary>
     /// <value>The user ID of the current high bidder, or null if no bids have been placed.</value>
     public int? CurrentHighBidderUserId { get; set; }
-    
+
+    /// <summary>
+    /// Gets or sets the ID of the current test school being used in the waiting room.
+    /// </summary>
+    /// <value>The virtual test school ID (negative number) currently active for test bidding, or -1 (Vermont A&M) by default.</value>
+    /// <remarks>
+    /// Test schools use negative IDs: -1 = Vermont A&M, -2 = Luther College, -3 = Oxford University,
+    /// -4 = University of Northern Iowa, -5 = DeVry University. This allows auction masters to cycle
+    /// through different test schools during the waiting room phase.
+    /// </remarks>
+    public int CurrentTestSchoolId { get; set; } = -1; // Default to Vermont A&M
+
     /// <summary>
     /// Gets or sets the date and time when the auction was last modified.
     /// </summary>

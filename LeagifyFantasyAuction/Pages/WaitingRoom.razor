@@ -107,6 +107,21 @@
                             }
                         </div>
                     }
+
+                    @if (wonTestSchools.Any())
+                    {
+                        <div class="won-schools" style="margin-top: 16px; padding: 12px; background: #e8f5e9; border-radius: 6px; border-left: 3px solid #28a745;">
+                            <FluentLabel Typo="Typography.Body" Style="font-weight: 600; margin-bottom: 8px; color: #28a745;">
+                                🏆 Your Test School Wins:
+                            </FluentLabel>
+                            @foreach (var win in wonTestSchools)
+                            {
+                                <div style="margin: 4px 0; color: #2e7d32; font-size: 14px;">
+                                    • <strong>@win.SchoolName</strong> - $@win.Amount.ToString("N0")
+                                </div>
+                            }
+                        </div>
+                    }
                 }
             </div>
         </FluentCard>
@@ -289,6 +304,7 @@
     private List<SchoolData> schools = new();
     private List<string> nominationOrder = new();
     private List<ParticipantData> participants = new();
+    private List<WonTestSchoolData> wonTestSchools = new();
 
     private HubConnection? hubConnection;
     private bool isConnectedToSignalR = false;
@@ -431,6 +447,35 @@
                 InvokeAsync(StateHasChanged);
             });
 
+            hubConnection.On<int, string, string, decimal, string>("TestBiddingCompleted",
+                async (messageAuctionId, schoolName, winner, winningBid, nextSchool) =>
+            {
+                // Filter messages for this auction only
+                if (messageAuctionId != AuctionId) return;
+
+                Console.WriteLine($"📢 SignalR: Test bidding completed on {schoolName}! Winner: {winner} (${winningBid}). Next: {nextSchool}");
+
+                // Refresh all waiting room data to get the new school and reset states
+                await LoadWaitingRoomData();
+
+                // Note: We're not showing a toast here as the UI will auto-update
+                // If desired, could add JSRuntime notification here
+            });
+
+            hubConnection.On<int>("TestBidsReset", async (messageAuctionId) =>
+            {
+                // Filter messages for this auction only
+                if (messageAuctionId != AuctionId) return;
+
+                Console.WriteLine($"📢 SignalR: Test bids have been reset by auction master");
+
+                // Refresh all waiting room data to clear bids and reset states
+                await LoadWaitingRoomData();
+
+                // Note: We're not showing a toast here as the UI will auto-update
+                // If desired, could add JSRuntime notification here
+            });
+
             // Start connection
             await hubConnection.StartAsync();
             isConnectedToSignalR = true;
@@ -489,6 +534,7 @@
                     schools = data.Schools ?? new List<SchoolData>();
                     nominationOrder = data.NominationOrder ?? new List<string>();
                     participants = data.Participants ?? new List<ParticipantData>();
+                    wonTestSchools = data.UserWonTestSchools ?? new List<WonTestSchoolData>();
                 }
             }
             else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
@@ -624,6 +670,7 @@
         public List<SchoolData> Schools { get; set; } = new();
         public List<string> NominationOrder { get; set; } = new();
         public List<ParticipantData> Participants { get; set; } = new();
+        public List<WonTestSchoolData> UserWonTestSchools { get; set; } = new();
     }
 
     private class AuctionData
@@ -668,6 +715,14 @@
         public bool IsReadyToDraft { get; set; }
         public bool HasPassedOnTestBid { get; set; }
         public bool IsConnected { get; set; }
+    }
+
+    private class WonTestSchoolData
+    {
+        public int SchoolId { get; set; }
+        public string SchoolName { get; set; } = string.Empty;
+        public decimal Amount { get; set; }
+        public DateTime WonDate { get; set; }
     }
 }
 

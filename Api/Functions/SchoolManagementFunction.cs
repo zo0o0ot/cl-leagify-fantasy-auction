@@ -637,6 +637,20 @@ public class SchoolManagementFunction
                 results.Add("Metadata column already exists in AdminActions table");
             }
 
+            // Check and add CurrentTestSchoolId column to Auctions table
+            var currentTestSchoolIdExists = await CheckColumnExists("Auctions", "CurrentTestSchoolId");
+            if (!currentTestSchoolIdExists)
+            {
+                await _context.Database.ExecuteSqlRawAsync(
+                    "ALTER TABLE [Auctions] ADD [CurrentTestSchoolId] int NOT NULL DEFAULT -1");
+                results.Add("✓ Added CurrentTestSchoolId column to Auctions table");
+                _logger.LogInformation("Successfully added CurrentTestSchoolId column to Auctions table");
+            }
+            else
+            {
+                results.Add("CurrentTestSchoolId column already exists in Auctions table");
+            }
+
             var response = req.CreateResponse(HttpStatusCode.OK);
             await response.WriteAsJsonAsync(new
             {
