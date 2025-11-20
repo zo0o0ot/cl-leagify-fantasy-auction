@@ -400,22 +400,32 @@ public class WaitingRoomFunction
 
             // Parse request body
             var requestBody = await req.ReadAsStringAsync();
+            _logger.LogInformation("📥 Request body: {RequestBody}", requestBody);
+
             var readyRequest = JsonSerializer.Deserialize<ReadyStatusRequest>(requestBody ?? "{}");
 
             if (readyRequest == null)
             {
+                _logger.LogWarning("❌ Failed to deserialize ReadyStatusRequest");
                 var badRequest = req.CreateResponse(HttpStatusCode.BadRequest);
                 await badRequest.WriteStringAsync("Invalid request");
                 return new ReadyStatusResponse { HttpResponse = badRequest };
             }
+
+            _logger.LogInformation("🔄 Parsed IsReady value: {IsReady}", readyRequest.IsReady);
+            _logger.LogInformation("📊 User {DisplayName} current status: {CurrentStatus}, new status: {NewStatus}",
+                user.DisplayName,
+                user.IsReadyToDraft ? "ready" : "not ready",
+                readyRequest.IsReady ? "ready" : "not ready");
 
             // Update readiness status
             user.IsReadyToDraft = readyRequest.IsReady;
             _context.Users.Update(user);
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Ready status updated: User {UserId} is {Status}",
+            _logger.LogInformation("✅ Ready status updated: User {UserId} ({DisplayName}) is now {Status}",
                 user.UserId,
+                user.DisplayName,
                 readyRequest.IsReady ? "ready" : "not ready");
 
             // Create SignalR message - broadcast to all (clients filter by auction ID)
