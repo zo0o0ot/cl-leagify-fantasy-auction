@@ -402,7 +402,10 @@ public class WaitingRoomFunction
             var requestBody = await req.ReadAsStringAsync();
             _logger.LogInformation("📥 Request body: {RequestBody}", requestBody);
 
-            var readyRequest = JsonSerializer.Deserialize<ReadyStatusRequest>(requestBody ?? "{}");
+            var readyRequest = JsonSerializer.Deserialize<ReadyStatusRequest>(requestBody ?? "{}", new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
 
             if (readyRequest == null)
             {
