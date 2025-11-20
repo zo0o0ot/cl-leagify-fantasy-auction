@@ -899,13 +899,26 @@
             Http.DefaultRequestHeaders.Add("X-Management-Token", token);
 
             var response = await Http.PostAsJsonAsync("/api/management/auctions", newAuction);
-            
+
             if (response.IsSuccessStatusCode)
             {
-                await LoadAuctions(); // Refresh the list
-                hideCreateDialog = true;
-                newAuction = new CreateAuctionRequest();
-                await JSRuntime.InvokeVoidAsync("alert", "Auction created successfully!");
+                // Parse the response to get the auction ID
+                var createdAuction = await response.Content.ReadFromJsonAsync<AuctionResponseDto>();
+
+                if (createdAuction != null)
+                {
+                    // Navigate directly to the configure page for the new auction
+                    hideCreateDialog = true;
+                    newAuction = new CreateAuctionRequest();
+                    await OpenConfigureDialog(createdAuction.AuctionId);
+                }
+                else
+                {
+                    // Fallback: refresh list and show success
+                    await LoadAuctions();
+                    hideCreateDialog = true;
+                    newAuction = new CreateAuctionRequest();
+                }
             }
             else
             {
@@ -1596,6 +1609,20 @@
         [Required]
         public string Name { get; set; } = "";
         public string? Description { get; set; }
+    }
+
+    public class AuctionResponseDto
+    {
+        public int AuctionId { get; set; }
+        public string Name { get; set; } = "";
+        public string JoinCode { get; set; } = "";
+        public string MasterRecoveryCode { get; set; } = "";
+        public string Status { get; set; } = "";
+        public int? CreatedByUserId { get; set; }
+        public DateTime CreatedDate { get; set; }
+        public DateTime? StartedDate { get; set; }
+        public DateTime? CompletedDate { get; set; }
+        public DateTime ModifiedDate { get; set; }
     }
 
     // CSV Import DTOs (matching the service DTOs)
