@@ -637,6 +637,18 @@
             isUpdatingReadiness = true;
             StateHasChanged();
 
+            // Get session token and set auth header
+            var sessionJson = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "auctionSession");
+            if (!string.IsNullOrEmpty(sessionJson))
+            {
+                var session = System.Text.Json.JsonSerializer.Deserialize<UserSession>(sessionJson);
+                if (session != null)
+                {
+                    Http.DefaultRequestHeaders.Remove("X-Auction-Token");
+                    Http.DefaultRequestHeaders.Add("X-Auction-Token", session.SessionToken);
+                }
+            }
+
             var newReadiness = !userData!.IsReadyToDraft;
             var response = await Http.PostAsJsonAsync($"/api/auction/{AuctionId}/ready-status", new { IsReady = newReadiness });
 
@@ -647,11 +659,13 @@
             else
             {
                 errorMessage = "Failed to update readiness status";
+                Console.WriteLine($"❌ Ready status update failed: {response.StatusCode}");
             }
         }
         catch (Exception ex)
         {
             errorMessage = $"Error updating readiness: {ex.Message}";
+            Console.WriteLine($"❌ Ready status error: {ex}");
         }
         finally
         {
