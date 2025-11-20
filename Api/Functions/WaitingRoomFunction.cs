@@ -192,8 +192,8 @@ public class WaitingRoomFunction
                 },
                 TestSchool = new
                 {
-                    SchoolId = -1,
-                    Name = TEST_SCHOOLS[-1],
+                    SchoolId = currentTestSchoolId,
+                    Name = TEST_SCHOOLS[currentTestSchoolId],
                     CurrentBid = currentTestBid?.BidAmount ?? 0,
                     CurrentBidderName = currentTestBid?.User.DisplayName ?? string.Empty
                 },
