@@ -907,14 +907,14 @@
 
                 if (createdAuction != null)
                 {
-                    // Navigate directly to the configure page for the new auction
+                    // Navigate directly to the setup wizard for the new auction
                     hideCreateDialog = true;
                     newAuction = new CreateAuctionRequest();
-                    await OpenConfigureDialog(createdAuction.AuctionId);
+                    Navigation.NavigateTo($"/management/auctions/{createdAuction.AuctionId}/setup");
                 }
                 else
                 {
-                    // Fallback: refresh list and show success
+                    // Fallback: refresh list
                     await LoadAuctions();
                     hideCreateDialog = true;
                     newAuction = new CreateAuctionRequest();
