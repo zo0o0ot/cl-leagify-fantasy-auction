@@ -1,9 +1,11 @@
 @page "/management/auction/{auctionId:int}/waiting-room-admin"
 @using System.Net.Http.Json
+@using Microsoft.AspNetCore.SignalR.Client
 @layout ManagementLayout
 @inject HttpClient Http
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Navigation
+@implements IAsyncDisposable
 
 <PageTitle>Waiting Room Admin - Leagify Fantasy Auction</PageTitle>
 
@@ -244,9 +246,21 @@
     private bool isResettingBids = false;
     private string errorMessage = string.Empty;
 
+    private HubConnection? hubConnection;
+    private bool isConnectedToSignalR = false;
+
     protected override async Task OnInitializedAsync()
     {
         await LoadWaitingRoomStatus();
+        await InitializeSignalR();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
     }
 
     private async Task LoadWaitingRoomStatus()
@@ -304,6 +318,88 @@
             isLoading = false;
             isRefreshing = false;
             StateHasChanged();
+        }
+    }
+
+    private async Task InitializeSignalR()
+    {
+        try
+        {
+            Console.WriteLine($"🔌 Initializing SignalR connection for auction {AuctionId}");
+
+            // Build SignalR connection
+            hubConnection = new HubConnectionBuilder()
+                .WithUrl(Navigation.ToAbsoluteUri("/api/signalr"))
+                .WithAutomaticReconnect()
+                .Build();
+
+            // Register event handlers BEFORE starting connection
+            hubConnection.On<int, string, bool>("ReadinessUpdated", (messageAuctionId, displayName, isReady) =>
+            {
+                // Filter messages for this auction only
+                if (messageAuctionId != AuctionId) return;
+
+                Console.WriteLine($"📢 SignalR: {displayName} readiness changed to {isReady}");
+
+                // Update participant status in the list
+                var participant = participants.FirstOrDefault(p => p.DisplayName == displayName);
+                if (participant != null)
+                {
+                    participant.IsReadyToDraft = isReady;
+                    InvokeAsync(StateHasChanged);
+                }
+            });
+
+            hubConnection.On<int, string, decimal, DateTime>("TestBidPlaced", (messageAuctionId, bidderName, amount, bidDate) =>
+            {
+                // Filter messages for this auction only
+                if (messageAuctionId != AuctionId) return;
+
+                Console.WriteLine($"📢 SignalR: Test bid placed by {bidderName} - ${amount}");
+
+                // Update participant HasTestedBidding status
+                var participant = participants.FirstOrDefault(p => p.DisplayName == bidderName);
+                if (participant != null && !participant.HasTestedBidding)
+                {
+                    participant.HasTestedBidding = true;
+                    InvokeAsync(StateHasChanged);
+                }
+            });
+
+            hubConnection.On<int, string, string, decimal, string>("TestBiddingCompleted",
+                async (messageAuctionId, schoolName, winner, winningBid, nextSchool) =>
+            {
+                // Filter messages for this auction only
+                if (messageAuctionId != AuctionId) return;
+
+                Console.WriteLine($"📢 SignalR: Test bidding completed on {schoolName}! Winner: {winner}");
+                // Admin view doesn't need special handling for this, but we log it
+            });
+
+            hubConnection.On<int>("TestBidsReset", async (messageAuctionId) =>
+            {
+                // Filter messages for this auction only
+                if (messageAuctionId != AuctionId) return;
+
+                Console.WriteLine($"📢 SignalR: Test bids have been reset");
+
+                // Refresh all participant data
+                await LoadWaitingRoomStatus();
+            });
+
+            // Start connection
+            await hubConnection.StartAsync();
+            isConnectedToSignalR = true;
+            Console.WriteLine("✅ SignalR connected successfully");
+            Console.WriteLine($"✅ Listening for auction {AuctionId} messages");
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ SignalR connection error: {ex.Message}");
+            isConnectedToSignalR = false;
+            // Don't block the UI if SignalR fails - admin can still use refresh button
         }
     }
 
