@@ -649,17 +649,25 @@
                 }
             }
 
-            var newReadiness = !userData!.IsReadyToDraft;
+            var currentReadiness = userData!.IsReadyToDraft;
+            var newReadiness = !currentReadiness;
+
+            Console.WriteLine($"🔄 ToggleReadiness: Current={currentReadiness}, New={newReadiness}, Sending IsReady={newReadiness}");
+
             var response = await Http.PostAsJsonAsync($"/api/auction/{AuctionId}/ready-status", new { IsReady = newReadiness });
+
+            Console.WriteLine($"📡 Response status: {response.StatusCode}");
 
             if (response.IsSuccessStatusCode)
             {
                 userData.IsReadyToDraft = newReadiness;
+                Console.WriteLine($"✅ Local state updated to: {userData.IsReadyToDraft}");
             }
             else
             {
+                var errorContent = await response.Content.ReadAsStringAsync();
                 errorMessage = "Failed to update readiness status";
-                Console.WriteLine($"❌ Ready status update failed: {response.StatusCode}");
+                Console.WriteLine($"❌ Ready status update failed: {response.StatusCode}, Error: {errorContent}");
             }
         }
         catch (Exception ex)
