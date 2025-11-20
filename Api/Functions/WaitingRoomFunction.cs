@@ -63,17 +63,26 @@ public class WaitingRoomFunction
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
-            // Get current test bid info for virtual test school
+            // Get current test school ID from auction
+            var currentTestSchoolId = auction.CurrentTestSchoolId;
+            var currentTestSchoolNotes = $"TestSchool:{currentTestSchoolId}";
+
+            // Get current test bid info for the current test school only
             var currentTestBid = await _context.BidHistories
                 .Include(b => b.User)
-                .Where(b => b.AuctionId == auctionId && b.BidType == "TestBid")
+                .Where(b => b.AuctionId == auctionId &&
+                           b.BidType == "TestBid" &&
+                           b.Notes == currentTestSchoolNotes &&
+                           !b.IsWinningBid)
                 .OrderByDescending(b => b.BidDate)
                 .FirstOrDefaultAsync();
 
-            // Get test bid history
+            // Get test bid history for current school only
             var testBidHistory = await _context.BidHistories
                 .Include(b => b.User)
-                .Where(b => b.AuctionId == auctionId && b.BidType == "TestBid")
+                .Where(b => b.AuctionId == auctionId &&
+                           b.BidType == "TestBid" &&
+                           b.Notes == currentTestSchoolNotes)
                 .OrderByDescending(b => b.BidDate)
                 .Take(10)
                 .Select(b => new
@@ -131,6 +140,32 @@ public class WaitingRoomFunction
                 })
                 .ToListAsync();
 
+            // Get user's winning test bids
+            var userWinningTestBids = await _context.BidHistories
+                .Where(b => b.AuctionId == auctionId &&
+                           b.UserId == user.UserId &&
+                           b.BidType == "TestBid" &&
+                           b.IsWinningBid == true &&
+                           b.Notes != null && b.Notes.StartsWith("TestSchool:"))
+                .OrderByDescending(b => b.BidDate)
+                .Select(b => new
+                {
+                    // Extract school ID from Notes field (format: "TestSchool:-1")
+                    SchoolId = int.Parse(b.Notes!.Substring("TestSchool:".Length)),
+                    Amount = b.BidAmount,
+                    WonDate = b.BidDate
+                })
+                .ToListAsync();
+
+            // Map school IDs to names for winning bids
+            var userWins = userWinningTestBids.Select(w => new
+            {
+                SchoolId = w.SchoolId,
+                SchoolName = TEST_SCHOOLS.ContainsKey(w.SchoolId) ? TEST_SCHOOLS[w.SchoolId] : "Unknown School",
+                Amount = w.Amount,
+                WonDate = w.WonDate
+            }).ToList();
+
             // Build test schools list with their current bidding status
             var testSchools = TEST_SCHOOLS.Select(kvp => new
             {
@@ -166,7 +201,8 @@ public class WaitingRoomFunction
                 TestBidHistory = testBidHistory,
                 Schools = schools,
                 NominationOrder = nominationOrder,
-                Participants = participants
+                Participants = participants,
+                UserWonTestSchools = userWins
             };
 
             var httpResponse = req.CreateResponse(HttpStatusCode.OK);
@@ -230,9 +266,24 @@ public class WaitingRoomFunction
             _logger.LogInformation("Processing test bid: Auction={AuctionId}, User={UserId}, Amount={Amount}",
                 auctionId, user.UserId, bidRequest.Amount);
 
-            // Validate bid amount (must be higher than current bid)
+            // Get current auction to determine which test school is active
+            var auction = await _context.Auctions.FindAsync(auctionId);
+            if (auction == null)
+            {
+                var notFound = req.CreateResponse(HttpStatusCode.NotFound);
+                await notFound.WriteStringAsync("Auction not found");
+                return new TestBidResponse { HttpResponse = notFound };
+            }
+
+            var currentTestSchoolId = auction.CurrentTestSchoolId;
+            var currentTestSchoolNotes = $"TestSchool:{currentTestSchoolId}";
+
+            // Validate bid amount (must be higher than current bid for this specific test school)
             var currentHighBid = await _context.BidHistories
-                .Where(b => b.AuctionId == auctionId && b.BidType == "TestBid")
+                .Where(b => b.AuctionId == auctionId &&
+                           b.BidType == "TestBid" &&
+                           b.Notes == currentTestSchoolNotes &&
+                           !b.IsWinningBid)
                 .OrderByDescending(b => b.BidDate)
                 .Select(b => b.BidAmount)
                 .FirstOrDefaultAsync();
@@ -253,7 +304,7 @@ public class WaitingRoomFunction
             }
 
             // Create test bid record (using virtual school - no AuctionSchoolId)
-            // Test bids have null AuctionSchoolId since Vermont A&M is virtual
+            // Test bids have null AuctionSchoolId; test school ID is stored in Notes
             var testBid = new BidHistory
             {
                 AuctionId = auctionId,
@@ -263,7 +314,7 @@ public class WaitingRoomFunction
                 BidType = "TestBid",
                 BidDate = DateTime.UtcNow,
                 IsWinningBid = false,
-                Notes = "Waiting room test bid"
+                Notes = currentTestSchoolNotes // e.g., "TestSchool:-1" for Vermont A&M
             };
 
             _context.BidHistories.Add(testBid);
@@ -469,17 +520,49 @@ public class WaitingRoomFunction
         {
             _logger.LogInformation("Completing test bidding for auction {AuctionId}", auctionId);
 
-            // Get the current test bid to determine which school we're on
+            // Get auction to access current test school
+            var auction = await _context.Auctions.FindAsync(auctionId);
+            if (auction == null)
+            {
+                var notFound = req.CreateResponse(HttpStatusCode.NotFound);
+                await notFound.WriteStringAsync("Auction not found");
+                return new CompleteTestBiddingResponse { HttpResponse = notFound };
+            }
+
+            var currentTestSchoolId = auction.CurrentTestSchoolId;
+            var currentTestSchoolName = TEST_SCHOOLS[currentTestSchoolId];
+            var currentTestSchoolNotes = $"TestSchool:{currentTestSchoolId}";
+
+            // Get the current high bid for this specific test school
             var currentBid = await _context.BidHistories
-                .Where(b => b.AuctionId == auctionId && b.BidType == "TestBid" && !b.IsWinningBid)
+                .Include(b => b.User)
+                .Where(b => b.AuctionId == auctionId &&
+                           b.BidType == "TestBid" &&
+                           b.Notes == currentTestSchoolNotes &&
+                           !b.IsWinningBid)
                 .OrderByDescending(b => b.BidDate)
                 .FirstOrDefaultAsync();
+
+            string? winnerName = null;
+            decimal? winningBid = null;
 
             if (currentBid != null)
             {
                 // Mark the current high bid as winning
                 currentBid.IsWinningBid = true;
+                winnerName = currentBid.User.DisplayName;
+                winningBid = currentBid.BidAmount;
+                _logger.LogInformation("Marked test bid {BidId} as winning: {Winner} won {School} for ${Amount}",
+                    currentBid.BidHistoryId, winnerName, currentTestSchoolName, winningBid);
             }
+
+            // Advance to next test school (cycle through -1 to -5)
+            var nextSchoolId = currentTestSchoolId - 1;
+            if (nextSchoolId < -5) nextSchoolId = -1; // Wrap back to Vermont A&M
+            auction.CurrentTestSchoolId = nextSchoolId;
+
+            _logger.LogInformation("Advancing from {CurrentSchool} (ID:{CurrentId}) to {NextSchool} (ID:{NextId})",
+                currentTestSchoolName, currentTestSchoolId, TEST_SCHOOLS[nextSchoolId], nextSchoolId);
 
             // Reset all users' pass flags for the next round
             var users = await _context.Users
@@ -493,19 +576,32 @@ public class WaitingRoomFunction
 
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Test bidding completed for auction {AuctionId}", auctionId);
+            _logger.LogInformation("Test bidding completed for auction {AuctionId}. Reset {UserCount} user pass flags",
+                auctionId, users.Count);
 
-            // Broadcast completion via SignalR
+            // Broadcast completion via SignalR with details
             var signalRMessages = new List<SignalRMessageAction>
             {
                 new SignalRMessageAction("TestBiddingCompleted")
                 {
-                    Arguments = new object[] { auctionId }
+                    Arguments = new object[] {
+                        auctionId,
+                        currentTestSchoolName,
+                        winnerName ?? "No bids",
+                        winningBid ?? 0m,
+                        TEST_SCHOOLS[nextSchoolId] // Next school name
+                    }
                 }
             };
 
             var response = req.CreateResponse(HttpStatusCode.OK);
-            await response.WriteAsJsonAsync(new { Success = true, Message = "Test bidding completed" });
+            await response.WriteAsJsonAsync(new {
+                Success = true,
+                Message = $"Completed bidding on {currentTestSchoolName}",
+                Winner = winnerName,
+                WinningBid = winningBid,
+                NextSchool = TEST_SCHOOLS[nextSchoolId]
+            });
 
             return new CompleteTestBiddingResponse
             {
