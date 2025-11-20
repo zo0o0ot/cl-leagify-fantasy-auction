@@ -37,11 +37,19 @@
                         Practice bidding and prepare for the draft
                     </FluentLabel>
                 </div>
-                <FluentBadge Appearance="@(isConnectedToSignalR ? Appearance.Accent : Appearance.Neutral)"
-                             BackgroundColor="@(isConnectedToSignalR ? "#28a745" : "#6c757d")"
-                             Color="white">
-                    @(isConnectedToSignalR ? "🟢 Live" : "⚫ Offline")
-                </FluentBadge>
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <FluentBadge Appearance="Appearance.Accent"
+                                 BackgroundColor="#0078d4"
+                                 Color="white"
+                                 Style="font-size: 16px; padding: 8px 16px;">
+                        👤 @userData.DisplayName
+                    </FluentBadge>
+                    <FluentBadge Appearance="@(isConnectedToSignalR ? Appearance.Accent : Appearance.Neutral)"
+                                 BackgroundColor="@(isConnectedToSignalR ? "#28a745" : "#6c757d")"
+                                 Color="white">
+                        @(isConnectedToSignalR ? "🟢 Live" : "⚫ Offline")
+                    </FluentBadge>
+                </div>
             </div>
         </div>
 
