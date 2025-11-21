@@ -784,6 +784,33 @@ public class WaitingRoomFunction
             }
 
             // Check if auction is in correct state
+            if (auction.Status == "InProgress")
+            {
+                // Auction already started - just re-broadcast the event
+                _logger.LogInformation("Auction {AuctionId} already in progress - re-broadcasting start event", auctionId);
+
+                var signalRMessage = new SignalRMessageAction("AuctionStarted")
+                {
+                    Arguments = new object[] { auctionId, auction.Name }
+                };
+
+                var alreadyStartedResponse = req.CreateResponse(HttpStatusCode.OK);
+                await alreadyStartedResponse.WriteAsJsonAsync(new
+                {
+                    Success = true,
+                    AuctionId = auctionId,
+                    Status = auction.Status,
+                    StartedDate = auction.StartedDate,
+                    Message = "Auction already started - event re-broadcasted"
+                });
+
+                return new StartAuctionResponse
+                {
+                    HttpResponse = alreadyStartedResponse,
+                    SignalRMessages = new[] { signalRMessage }
+                };
+            }
+
             if (auction.Status != "Draft" && auction.Status != "WaitingRoom")
             {
                 _logger.LogWarning("Cannot start auction {AuctionId} - status is {Status}", auctionId, auction.Status);
