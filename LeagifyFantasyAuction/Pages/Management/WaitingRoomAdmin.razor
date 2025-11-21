@@ -426,12 +426,15 @@
 
             if (response.IsSuccessStatusCode)
             {
-                // Navigate to live auction admin page
-                Navigation.NavigateTo($"/management/auction/{AuctionId}/live-admin");
+                // Auction started successfully!
+                // Navigate to auctions list (live admin page coming soon)
+                await JSRuntime.InvokeVoidAsync("alert", "Auction started successfully! Participants have been notified.");
+                Navigation.NavigateTo("/management/auctions");
             }
             else
             {
-                errorMessage = "Failed to start auction. Please try again.";
+                var errorContent = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Failed to start auction: {errorContent}";
             }
         }
         catch (Exception ex)

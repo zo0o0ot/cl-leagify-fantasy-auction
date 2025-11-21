@@ -1,0 +1,160 @@
+@page "/auction/{auctionId:int}/live"
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+
+<PageTitle>Live Auction - Leagify Fantasy Auction</PageTitle>
+
+<div class="live-auction-container">
+    @if (isLoading)
+    {
+        <div class="loading-container">
+            <FluentProgressRing />
+            <FluentLabel Typo="Typography.Body" Style="margin-top: 16px;">
+                Loading auction...
+            </FluentLabel>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <FluentMessageBar Intent="MessageIntent.Error">
+            @errorMessage
+        </FluentMessageBar>
+    }
+    else
+    {
+        <FluentCard Style="max-width: 800px; margin: 48px auto; padding: 32px; text-align: center;">
+            <FluentLabel Typo="Typography.PageTitle" Style="margin-bottom: 24px;">
+                🏈 Auction In Progress
+            </FluentLabel>
+
+            <FluentLabel Typo="Typography.Header" Style="color: #0078d4; margin-bottom: 16px;">
+                @auctionName
+            </FluentLabel>
+
+            <div style="background: #e3f2fd; padding: 24px; border-radius: 8px; margin: 24px 0;">
+                <FluentLabel Typo="Typography.Body" Style="font-size: 18px;">
+                    👤 Welcome, <strong>@displayName</strong>!
+                </FluentLabel>
+            </div>
+
+            <FluentMessageBar Intent="MessageIntent.Info" Style="margin: 24px 0;">
+                <strong>The live auction feature is coming soon!</strong>
+                <div style="margin-top: 8px;">
+                    The full live bidding experience with real-time nominations, bidding,
+                    and roster management is under development. Check back soon!
+                </div>
+            </FluentMessageBar>
+
+            <div style="margin-top: 32px;">
+                <FluentLabel Style="color: #666;">
+                    For now, please coordinate with your Auction Master via video call.
+                </FluentLabel>
+            </div>
+
+            <FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.Center" Style="margin-top: 24px;">
+                <FluentButton Appearance="Appearance.Neutral"
+                              OnClick="@(() => Navigation.NavigateTo($"/auction/{AuctionId}/waiting-room"))">
+                    ← Back to Waiting Room
+                </FluentButton>
+            </FluentStack>
+        </FluentCard>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int AuctionId { get; set; }
+
+    private bool isLoading = true;
+    private string errorMessage = string.Empty;
+    private string auctionName = string.Empty;
+    private string displayName = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAuctionData();
+    }
+
+    private async Task LoadAuctionData()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = string.Empty;
+
+            // Get session from localStorage
+            var sessionJson = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "auctionSession");
+            if (string.IsNullOrEmpty(sessionJson))
+            {
+                Navigation.NavigateTo("/join");
+                return;
+            }
+
+            var session = System.Text.Json.JsonSerializer.Deserialize<UserSession>(sessionJson);
+            if (session == null || session.AuctionId != AuctionId)
+            {
+                Navigation.NavigateTo("/join");
+                return;
+            }
+
+            displayName = session.DisplayName;
+
+            // Load auction info
+            var response = await Http.GetAsync($"/api/auction/{AuctionId}");
+            if (response.IsSuccessStatusCode)
+            {
+                var auction = await response.Content.ReadFromJsonAsync<AuctionData>();
+                if (auction != null)
+                {
+                    auctionName = auction.Name;
+                }
+            }
+            else
+            {
+                errorMessage = "Unable to load auction data";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private class UserSession
+    {
+        public int UserId { get; set; }
+        public int AuctionId { get; set; }
+        public string DisplayName { get; set; } = string.Empty;
+        public string SessionToken { get; set; } = string.Empty;
+    }
+
+    private class AuctionData
+    {
+        public int AuctionId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+    }
+}
+
+<style>
+    .live-auction-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px;
+    }
+
+    .loading-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 400px;
+    }
+</style>

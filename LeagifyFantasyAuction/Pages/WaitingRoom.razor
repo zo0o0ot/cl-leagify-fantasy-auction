@@ -484,6 +484,20 @@
                 // If desired, could add JSRuntime notification here
             });
 
+            hubConnection.On<int, string>("AuctionStarted", (messageAuctionId, auctionName) =>
+            {
+                // Filter messages for this auction only
+                if (messageAuctionId != AuctionId) return;
+
+                Console.WriteLine($"🚀 SignalR: Auction '{auctionName}' has started!");
+
+                // Navigate to the live auction page
+                InvokeAsync(() =>
+                {
+                    Navigation.NavigateTo($"/auction/{AuctionId}/live");
+                });
+            });
+
             // Start connection
             await hubConnection.StartAsync();
             isConnectedToSignalR = true;
