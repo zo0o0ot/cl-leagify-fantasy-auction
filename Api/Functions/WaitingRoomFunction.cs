@@ -752,6 +752,86 @@ public class WaitingRoomFunction
     }
 
     /// <summary>
+    /// Starts the auction, changing its status from Draft to InProgress.
+    /// Broadcasts an AuctionStarted event via SignalR to notify all participants.
+    /// </summary>
+    [Function("StartAuction")]
+    public async Task<StartAuctionResponse> StartAuction(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "auction/{auctionId}/start")] HttpRequestData req,
+        int auctionId)
+    {
+        try
+        {
+            _logger.LogInformation("Starting auction {AuctionId}", auctionId);
+
+            // Validate management token (admin only)
+            if (!req.Headers.TryGetValues("X-Management-Token", out var tokenValues))
+            {
+                _logger.LogWarning("No management token provided for start auction request");
+                var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
+                await unauthorizedResponse.WriteStringAsync("Management token required");
+                return new StartAuctionResponse { HttpResponse = unauthorizedResponse };
+            }
+
+            // Get the auction
+            var auction = await _context.Auctions.FindAsync(auctionId);
+            if (auction == null)
+            {
+                _logger.LogWarning("Auction {AuctionId} not found", auctionId);
+                var notFoundResponse = req.CreateResponse(HttpStatusCode.NotFound);
+                await notFoundResponse.WriteStringAsync("Auction not found");
+                return new StartAuctionResponse { HttpResponse = notFoundResponse };
+            }
+
+            // Check if auction is in correct state
+            if (auction.Status != "Draft" && auction.Status != "WaitingRoom")
+            {
+                _logger.LogWarning("Cannot start auction {AuctionId} - status is {Status}", auctionId, auction.Status);
+                var badRequestResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await badRequestResponse.WriteStringAsync($"Cannot start auction in {auction.Status} status");
+                return new StartAuctionResponse { HttpResponse = badRequestResponse };
+            }
+
+            // Update auction status
+            auction.Status = "InProgress";
+            auction.StartedDate = DateTime.UtcNow;
+            auction.ModifiedDate = DateTime.UtcNow;
+            _context.Auctions.Update(auction);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("✅ Auction {AuctionId} started successfully", auctionId);
+
+            // Broadcast AuctionStarted event via SignalR
+            var signalRMessage = new SignalRMessageAction("AuctionStarted")
+            {
+                Arguments = new object[] { auctionId, auction.Name }
+            };
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(new
+            {
+                Success = true,
+                AuctionId = auctionId,
+                Status = auction.Status,
+                StartedDate = auction.StartedDate
+            });
+
+            return new StartAuctionResponse
+            {
+                HttpResponse = response,
+                SignalRMessages = new[] { signalRMessage }
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error starting auction {AuctionId}", auctionId);
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync($"Error: {ex.Message}");
+            return new StartAuctionResponse { HttpResponse = errorResponse };
+        }
+    }
+
+    /// <summary>
     /// Validates the session token from the request header and returns the authenticated user.
     /// </summary>
     private async Task<User?> ValidateSessionToken(HttpRequestData req, int auctionId)
@@ -804,6 +884,15 @@ public class WaitingRoomFunction
     }
 
     public class PassResponse
+    {
+        [HttpResult]
+        public HttpResponseData? HttpResponse { get; set; }
+
+        [SignalROutput(HubName = "auctionhub")]
+        public SignalRMessageAction[]? SignalRMessages { get; set; }
+    }
+
+    public class StartAuctionResponse
     {
         [HttpResult]
         public HttpResponseData? HttpResponse { get; set; }
