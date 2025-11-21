@@ -789,11 +789,6 @@ public class WaitingRoomFunction
                 // Auction already started - just re-broadcast the event
                 _logger.LogInformation("Auction {AuctionId} already in progress - re-broadcasting start event", auctionId);
 
-                var signalRMessage = new SignalRMessageAction("AuctionStarted")
-                {
-                    Arguments = new object[] { auctionId, auction.Name }
-                };
-
                 var alreadyStartedResponse = req.CreateResponse(HttpStatusCode.OK);
                 await alreadyStartedResponse.WriteAsJsonAsync(new
                 {
@@ -804,10 +799,16 @@ public class WaitingRoomFunction
                     Message = "Auction already started - event re-broadcasted"
                 });
 
+                // Broadcast the event again for any participants who missed it
+                var rebroadcastMessage = new SignalRMessageAction("AuctionStarted")
+                {
+                    Arguments = new object[] { auctionId, auction.Name }
+                };
+
                 return new StartAuctionResponse
                 {
                     HttpResponse = alreadyStartedResponse,
-                    SignalRMessages = new[] { signalRMessage }
+                    SignalRMessages = new[] { rebroadcastMessage }
                 };
             }
 
