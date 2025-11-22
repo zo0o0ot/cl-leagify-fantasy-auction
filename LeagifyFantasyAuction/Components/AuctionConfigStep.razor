@@ -295,12 +295,25 @@
                             </FluentStack>
                             
                             <FluentStack Orientation="Orientation.Vertical" VerticalGap="12">
+                                <FluentCheckbox @bind-Value="useManagementAsAdmin"
+                                                Label="Use management interface as auction admin (no Auction Master role needed)" />
+
+                                @if (useManagementAsAdmin)
+                                {
+                                    <div style="background: #e3f2fd; padding: 12px; border-left: 4px solid #0078d4; border-radius: 4px; margin-left: 24px;">
+                                        <FluentLabel Style="font-size: 13px; color: #004578;">
+                                            ℹ️ The auction will be controlled entirely from the management interface.
+                                            You won't need to assign an Auction Master role to any participant.
+                                        </FluentLabel>
+                                    </div>
+                                }
+
                                 <FluentCheckbox @bind-Value="allowProxyBidding"
                                                 Label="Allow proxy bidding (one person can bid for multiple teams)" />
-                                
+
                                 <FluentCheckbox @bind-Value="enableBudgetWarnings"
                                                 Label="Show budget warnings when teams approach their limit" />
-                                
+
                                 <FluentCheckbox @bind-Value="shuffleNominationOrder"
                                                 Label="Shuffle nomination order for each round" />
                             </FluentStack>
@@ -341,6 +354,7 @@
     private List<string> teamNames = new();
     private string nominationOrderType = "random";
     private List<string> nominationOrder = new();
+    private bool useManagementAsAdmin = false;
     private bool allowProxyBidding = true;
     private bool enableBudgetWarnings = true;
     private bool shuffleNominationOrder = false;
@@ -618,7 +632,8 @@
             // Save configuration to localStorage until API endpoint is implemented
             await JSRuntime.InvokeVoidAsync("localStorage.setItem", $"expectedTeamCount_{AuctionId}", expectedTeamCount.ToString());
             await JSRuntime.InvokeVoidAsync("localStorage.setItem", $"budgetPerTeam_{AuctionId}", budgetPerTeam.ToString());
-            
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", $"useManagementAsAdmin_{AuctionId}", useManagementAsAdmin.ToString().ToLower());
+
             // For now, just simulate saving and complete the step
             // TODO: Implement actual API endpoint for saving configuration
             await Task.Delay(500); // Simulate API call
