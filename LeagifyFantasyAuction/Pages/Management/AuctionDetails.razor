@@ -36,12 +36,12 @@
                         Setup Auction
                     </FluentButton>
 
-                    @if (auction.Status == "Draft" && participantCount > 0)
+                    @if ((auction.Status == "Draft" || auction.Status == "WaitingRoom" || auction.Status == "InProgress") && participantCount > 0)
                     {
                         <FluentButton Appearance="Appearance.Accent"
                                       IconStart="@(new Icons.Regular.Size16.Clock())"
                                       OnClick="@(() => Navigation.NavigateTo($"/management/auction/{auctionId}/waiting-room-admin"))">
-                            Waiting Room
+                            Waiting Room Admin
                         </FluentButton>
                     }
                 </FluentStack>
