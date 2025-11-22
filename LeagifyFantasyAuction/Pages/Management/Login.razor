@@ -104,7 +104,7 @@
                 if (response.IsSuccessStatusCode)
                 {
                     // Valid token, redirect to dashboard
-                    Navigation.NavigateTo("/management/schools");
+                    Navigation.NavigateTo("/management/auctions");
                     return;
                 }
                 else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
@@ -153,9 +153,9 @@
                     // Set custom header for future requests (Azure Static Web Apps overrides Authorization)
                     Http.DefaultRequestHeaders.Remove("X-Management-Token");
                     Http.DefaultRequestHeaders.Add("X-Management-Token", result.Token);
-                    
+
                     // Navigate to management dashboard
-                    Navigation.NavigateTo("/management/schools");
+                    Navigation.NavigateTo("/management/auctions");
                     return;
                 }
             }
