@@ -9,4 +9,5 @@ public class AuctionDto
     public string JoinCode { get; set; } = "";
     public string MasterCode { get; set; } = "";
     public DateTime CreatedDate { get; set; }
+    public bool UseManagementAsAdmin { get; set; } = false;
 }

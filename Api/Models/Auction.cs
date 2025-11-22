@@ -125,6 +125,17 @@ public class Auction
     public int CurrentTestSchoolId { get; set; } = -1; // Default to Vermont A&M
 
     /// <summary>
+    /// Gets or sets whether the management interface will be used as the auction admin instead of assigning an Auction Master role to a participant.
+    /// </summary>
+    /// <value>True if the management interface handles all auction admin functions; false if a participant must be assigned the Auction Master role.</value>
+    /// <remarks>
+    /// When set to true, the auction can be started and controlled entirely from the management interface,
+    /// and no user needs to be assigned the Auction Master role. This is useful when the organizer
+    /// wants to run the auction from the admin panel rather than participating as a user.
+    /// </remarks>
+    public bool UseManagementAsAdmin { get; set; } = false;
+
+    /// <summary>
     /// Gets or sets the date and time when the auction was last modified.
     /// </summary>
     /// <value>The UTC timestamp when any auction property was last updated.</value>

@@ -93,7 +93,14 @@
                 </div>
             </div>
 
-            @if (IsAuctionInProgress())
+            @if (auction != null && auction.UseManagementAsAdmin)
+            {
+                <FluentMessageBar Intent="MessageIntent.Info" Style="margin-top: 16px; background: #e3f2fd; border-left: 4px solid #0078d4;">
+                    <strong>🎛️ Management Admin Mode:</strong> This auction is configured to be controlled entirely from the management interface.
+                    Participant readiness is optional - you can start the auction at any time.
+                </FluentMessageBar>
+            }
+            else if (IsAuctionInProgress())
             {
                 <FluentMessageBar Intent="MessageIntent.Info" Style="margin-top: 16px;">
                     ℹ️ Auction is in progress. Click "Re-broadcast Start" to notify any participants who missed the initial start event.
@@ -534,6 +541,13 @@
 
     private bool CanStartAuction()
     {
+        // If using management as admin, skip participant readiness checks
+        if (auction != null && auction.UseManagementAsAdmin)
+        {
+            return true;
+        }
+
+        // Otherwise, require all participants to be ready
         return participants.Any() &&
                participants.All(p => p.HasTestedBidding) &&
                participants.All(p => p.IsReadyToDraft) &&
@@ -572,6 +586,7 @@
     {
         public string Name { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
+        public bool UseManagementAsAdmin { get; set; } = false;
     }
 
     private class StartAuctionResult
