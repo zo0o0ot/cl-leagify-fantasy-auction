@@ -651,6 +651,20 @@ public class SchoolManagementFunction
                 results.Add("CurrentTestSchoolId column already exists in Auctions table");
             }
 
+            // Check and add UseManagementAsAdmin column to Auctions table
+            var useManagementAsAdminExists = await CheckColumnExists("Auctions", "UseManagementAsAdmin");
+            if (!useManagementAsAdminExists)
+            {
+                await _context.Database.ExecuteSqlRawAsync(
+                    "ALTER TABLE [Auctions] ADD [UseManagementAsAdmin] bit NOT NULL DEFAULT 0");
+                results.Add("✓ Added UseManagementAsAdmin column to Auctions table");
+                _logger.LogInformation("Successfully added UseManagementAsAdmin column to Auctions table");
+            }
+            else
+            {
+                results.Add("UseManagementAsAdmin column already exists in Auctions table");
+            }
+
             var response = req.CreateResponse(HttpStatusCode.OK);
             await response.WriteAsJsonAsync(new
             {
