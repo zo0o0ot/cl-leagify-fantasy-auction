@@ -50,8 +50,8 @@
                     <FluentButton Appearance="Appearance.Accent"
                                   IconStart="@(new Icons.Regular.Size16.Play())"
                                   OnClick="@StartAuction"
-                                  Disabled="@(!CanStartAuction() || isStartingAuction)">
-                        Start Auction
+                                  Disabled="@(!(CanStartAuction() || IsAuctionInProgress()) || isStartingAuction)">
+                        @(IsAuctionInProgress() ? "Re-broadcast Start" : "Start Auction")
                     </FluentButton>
                 </FluentStack>
             </div>
@@ -93,7 +93,13 @@
                 </div>
             </div>
 
-            @if (CanStartAuction())
+            @if (IsAuctionInProgress())
+            {
+                <FluentMessageBar Intent="MessageIntent.Info" Style="margin-top: 16px;">
+                    ℹ️ Auction is in progress. Click "Re-broadcast Start" to notify any participants who missed the initial start event.
+                </FluentMessageBar>
+            }
+            else if (CanStartAuction())
             {
                 <FluentMessageBar Intent="MessageIntent.Success" Style="margin-top: 16px;">
                     ✅ All participants are ready! You can start the auction.
@@ -405,7 +411,8 @@
 
     private async Task StartAuction()
     {
-        if (!CanStartAuction())
+        // Allow re-broadcasting if auction is already in progress, otherwise check readiness
+        if (!IsAuctionInProgress() && !CanStartAuction())
         {
             errorMessage = "Not all participants are ready to start the auction.";
             return;
@@ -416,19 +423,23 @@
             isStartingAuction = true;
             StateHasChanged();
 
-            // TODO: Implement auction start endpoint
-            // This will:
-            // 1. Change auction status from "Draft" to "InProgress"
-            // 2. Navigate all waiting room participants to live auction page
-            // 3. Broadcast "AuctionStarted" event via SignalR
-
             var response = await Http.PostAsync($"/api/auction/{AuctionId}/start", null);
 
             if (response.IsSuccessStatusCode)
             {
-                // Auction started successfully!
-                // Navigate to auctions list (live admin page coming soon)
-                await JSRuntime.InvokeVoidAsync("alert", "Auction started successfully! Participants have been notified.");
+                var responseData = await response.Content.ReadFromJsonAsync<StartAuctionResult>();
+
+                if (IsAuctionInProgress())
+                {
+                    // Re-broadcast case
+                    await JSRuntime.InvokeVoidAsync("alert", "Start event re-broadcasted! Any participants still in the waiting room will be notified.");
+                }
+                else
+                {
+                    // First time start
+                    await JSRuntime.InvokeVoidAsync("alert", "Auction started successfully! Participants have been notified.");
+                }
+
                 Navigation.NavigateTo("/management/auctions");
             }
             else
@@ -533,6 +544,11 @@
     private bool AllReady() => participants.Any() && participants.All(p => p.IsReadyToDraft);
     private bool AllConnected() => participants.Any() && participants.All(p => p.IsConnected);
 
+    private bool IsAuctionInProgress()
+    {
+        return auction != null && auction.Status == "InProgress";
+    }
+
     private string GetTestBiddingColor() => $"color: {(AllTestedBidding() ? "#28a745" : "#ffc107")}";
     private string GetReadyColor() => $"color: {(AllReady() ? "#28a745" : "#ffc107")}";
     private string GetConnectionColor() => $"color: {(AllConnected() ? "#28a745" : "#dc3545")}";
@@ -556,6 +572,12 @@
     {
         public string Name { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
+    }
+
+    private class StartAuctionResult
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; } = string.Empty;
     }
 
     private class ParticipantStatus
