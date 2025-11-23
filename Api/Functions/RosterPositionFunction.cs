@@ -579,7 +579,7 @@ public class RosterPositionFunction(ILogger<RosterPositionFunction> logger,
 
             // Get school count and position breakdown
             var schools = await _context.AuctionSchools
-                .Where(aas => aas.AuctionId == auctionId)
+                .Where(aas => aas.AuctionId == auctionId && !string.IsNullOrEmpty(aas.LeagifyPosition))
                 .GroupBy(aas => aas.LeagifyPosition)
                 .Select(g => new { Position = g.Key, Count = g.Count() })
                 .ToListAsync();
@@ -587,7 +587,7 @@ public class RosterPositionFunction(ILogger<RosterPositionFunction> logger,
             var summary = new
             {
                 TotalCount = schools.Sum(s => s.Count),
-                PositionBreakdown = schools.ToDictionary(s => s.Position, s => s.Count)
+                PositionBreakdown = schools.Any() ? schools.ToDictionary(s => s.Position ?? "Unknown", s => s.Count) : new Dictionary<string, int>()
             };
 
             var response = req.CreateResponse(HttpStatusCode.OK);
