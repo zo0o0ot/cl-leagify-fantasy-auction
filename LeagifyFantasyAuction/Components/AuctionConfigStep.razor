@@ -352,7 +352,7 @@
     private Dictionary<string, int> availableSchoolsByPosition = new();
     private List<RosterPositionDto> rosterPositions = new();
     private List<string> teamNames = new();
-    private string nominationOrderType = "random";
+    private string nominationOrderType = "alphabetical";
     private List<string> nominationOrder = new();
     private bool useManagementAsAdmin = false;
     private bool allowProxyBidding = true;
@@ -365,6 +365,14 @@
         await LoadCurrentConfiguration();
         await LoadRosterSlotCount();
         await LoadAvailableSchoolCount();
+
+        // Auto-initialize team names and nomination order with defaults
+        if (expectedTeamCount > 0)
+        {
+            InitializeTeamNames();
+            await GenerateNominationOrder();
+        }
+
         isLoading = false;
         StateHasChanged();
     }
@@ -462,18 +470,19 @@
         return ((baseRecommendation + 25) / 50) * 50;
     }
 
-    private void OnTeamCountChanged(ChangeEventArgs e)
+    private async Task OnTeamCountChanged(ChangeEventArgs e)
     {
         if (int.TryParse(e.Value?.ToString(), out int newCount))
         {
             if (newCount != expectedTeamCount)
             {
                 expectedTeamCount = newCount;
-                
-                // Clear team names and nomination order when team count changes
-                teamNames.Clear();
-                nominationOrder.Clear();
-                StateHasChanged();
+
+                // Auto-initialize team names with defaults
+                InitializeTeamNames();
+
+                // Auto-generate alphabetical nomination order
+                await GenerateNominationOrder();
             }
         }
     }
