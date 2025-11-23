@@ -27,7 +27,7 @@
             <div class="roster-config-container">
                 
                 <!-- Available Positions Context -->
-                @if (availablePositions.Any())
+                @if (availablePositionCounts.Any())
                 {
                     <FluentCard Style="padding: 20px; background-color: #e8f5e8; border: 1px solid #28a745; margin-bottom: 24px;">
                         <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
@@ -35,15 +35,15 @@
                                 Available Positions from Imported Schools
                             </FluentLabel>
                             <FluentStack Orientation="Orientation.Horizontal" Wrap="true" HorizontalGap="8">
-                                @foreach (var position in availablePositions)
+                                @foreach (var posEntry in availablePositionCounts)
                                 {
                                     <FluentBadge Fill="someValue" BackgroundColor="#28a745" Color="white" Style="margin: 2px;">
-                                        @position
+                                        @posEntry.Key (@posEntry.Value)
                                     </FluentBadge>
                                 }
                             </FluentStack>
                             <FluentLabel Style="color: #666; font-size: 0.9em;">
-                                These positions are available from your CSV import and can be used to create roster slots.
+                                These positions are available from your CSV import. Numbers show how many schools of each position type.
                             </FluentLabel>
                         </FluentStack>
                     </FluentCard>
@@ -57,7 +57,7 @@
                             
                             <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="16" Wrap="true">
                                 <div style="flex: 1; min-width: 250px; position: relative; z-index: 100;">
-                                    @if (availablePositions.Any())
+                                    @if (availablePositionCounts.Any())
                                     {
                                         <FluentSelect @bind-Value="newPosition.PositionName"
                                                       Label="Position Name"
@@ -65,11 +65,11 @@
                                                       OptionText="@(item => item)"
                                                       OptionValue="@(item => item)"
                                                       Required="true" />
-                                        
+
                                         @if (newPosition.PositionName == "Custom")
                                         {
-                                            <FluentTextField @bind-Value="newPosition.CustomPositionName" 
-                                                             Label="Custom Position Name" 
+                                            <FluentTextField @bind-Value="newPosition.CustomPositionName"
+                                                             Label="Custom Position Name"
                                                              Placeholder="Enter custom position name"
                                                              Style="margin-top: 8px;"
                                                              Required="true" />
@@ -77,8 +77,8 @@
                                     }
                                     else
                                     {
-                                        <FluentTextField @bind-Value="newPosition.PositionName" 
-                                                         Label="Position Name" 
+                                        <FluentTextField @bind-Value="newPosition.PositionName"
+                                                         Label="Position Name"
                                                          Placeholder="e.g., Power Conference, SEC, Flex"
                                                          Required="true" />
                                     }
@@ -280,7 +280,7 @@
     private bool isAddingPosition = false;
     private int? deletingPositionId = null;
     private List<RosterPositionDto> rosterPositions = new();
-    private List<string> availablePositions = new();
+    private Dictionary<string, int> availablePositionCounts = new();
     private NewRosterPosition newPosition = new();
     
     // Inline editing state
@@ -294,7 +294,7 @@
         await LoadAvailablePositions();
         
         // Auto-create roster positions if none exist and we have available positions
-        if (!rosterPositions.Any() && availablePositions.Any())
+        if (!rosterPositions.Any() && availablePositionCounts.Any())
         {
             await AutoCreateRosterPositions();
         }
@@ -340,8 +340,8 @@
             var response = await Http.GetAsync($"/api/management/auctions/{AuctionId}/available-positions");
             if (response.IsSuccessStatusCode)
             {
-                var positions = await response.Content.ReadFromJsonAsync<List<string>>();
-                availablePositions = positions ?? new List<string>();
+                var positionData = await response.Content.ReadFromJsonAsync<List<PositionCount>>();
+                availablePositionCounts = positionData?.ToDictionary(p => p.Position, p => p.Count) ?? new Dictionary<string, int>();
             }
         }
         catch (Exception ex)
@@ -486,22 +486,22 @@
     {
         // Always ensure we have a valid default position name
         var defaultPositionName = "Flex"; // Start with safe default
-        
-        if (availablePositions.Any())
+
+        if (availablePositionCounts.Any())
         {
-            defaultPositionName = availablePositions.First();
+            defaultPositionName = availablePositionCounts.Keys.First();
         }
-        
+
         // Use next color in palette based on current roster positions count
         var colorIndex = rosterPositions.Count;
-        
+
         newPosition = new NewRosterPosition
         {
             PositionName = defaultPositionName,
             ColorCode = GetDefaultColor(colorIndex),
             SlotsPerTeam = 1
         };
-        
+
         // Force UI update
         StateHasChanged();
     }
@@ -509,13 +509,13 @@
     private List<string> GetPositionOptions()
     {
         var options = new List<string>();
-        options.AddRange(availablePositions);
-        
+        options.AddRange(availablePositionCounts.Keys);
+
         if (!options.Contains("Flex"))
             options.Add("Flex");
-            
+
         options.Add("Custom");
-        
+
         return options;
     }
 
@@ -549,8 +549,8 @@
 
     private async Task AutoCreateRosterPositions()
     {
-        if (!availablePositions.Any()) return;
-        
+        if (!availablePositionCounts.Any()) return;
+
         try
         {
             var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
@@ -559,23 +559,26 @@
             Http.DefaultRequestHeaders.Remove("X-Management-Token");
             Http.DefaultRequestHeaders.Add("X-Management-Token", token);
 
-            // Create one position for each available position type
-            for (int i = 0; i < availablePositions.Count; i++)
+            // Create a position for each position type with actual count from CSV
+            int colorIndex = 0;
+            foreach (var posEntry in availablePositionCounts)
             {
-                var position = availablePositions[i];
+                var position = posEntry.Key;
+                var count = posEntry.Value;
+
                 var createRequest = new
                 {
                     AuctionId = AuctionId,
                     PositionName = position,
-                    SlotsPerTeam = 1, // Default to 1 slot per team
-                    ColorCode = GetDefaultColor(i),
+                    SlotsPerTeam = count, // Use actual count from imported schools!
+                    ColorCode = GetDefaultColor(colorIndex++),
                     IsFlexPosition = position.Equals("Flex", StringComparison.OrdinalIgnoreCase)
                 };
 
                 var response = await Http.PostAsJsonAsync("/api/management/roster-positions", createRequest);
                 if (!response.IsSuccessStatusCode)
                 {
-                    Console.WriteLine($"Failed to auto-create position '{position}': {await response.Content.ReadAsStringAsync()}");
+                    Console.WriteLine($"Failed to auto-create position '{position}' with {count} slots: {await response.Content.ReadAsStringAsync()}");
                 }
             }
 
@@ -708,6 +711,12 @@
     {
         public int RosterPositionId { get; set; }
         public int Direction { get; set; }
+    }
+
+    public class PositionCount
+    {
+        public string Position { get; set; } = string.Empty;
+        public int Count { get; set; }
     }
 
 }

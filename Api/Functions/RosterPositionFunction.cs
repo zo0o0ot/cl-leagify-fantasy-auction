@@ -55,20 +55,19 @@ public class RosterPositionFunction(ILogger<RosterPositionFunction> logger,
                 return notFoundResponse;
             }
 
-            // Get distinct LeagifyPosition values from auction schools
-            var availablePositions = await _context.AuctionSchools
-                .Where(aas => aas.AuctionId == auctionId)
-                .Select(aas => aas.LeagifyPosition)
-                .Distinct()
-                .Where(pos => !string.IsNullOrEmpty(pos))
-                .OrderBy(pos => pos)
+            // Get LeagifyPosition values with their counts from auction schools
+            var positionCounts = await _context.AuctionSchools
+                .Where(aas => aas.AuctionId == auctionId && !string.IsNullOrEmpty(aas.LeagifyPosition))
+                .GroupBy(aas => aas.LeagifyPosition)
+                .Select(g => new { Position = g.Key, Count = g.Count() })
+                .OrderBy(x => x.Position)
                 .ToListAsync();
 
             var response = req.CreateResponse(HttpStatusCode.OK);
             response.Headers.Add("Content-Type", "application/json; charset=utf-8");
-            await response.WriteStringAsync(JsonSerializer.Serialize(availablePositions));
+            await response.WriteStringAsync(JsonSerializer.Serialize(positionCounts));
 
-            _logger.LogInformation("Successfully retrieved {Count} available LeagifyPositions for auction {AuctionId}", availablePositions.Count, auctionId);
+            _logger.LogInformation("Successfully retrieved {Count} available LeagifyPositions with counts for auction {AuctionId}", positionCounts.Count, auctionId);
             return response;
         }
         catch (Exception ex)
