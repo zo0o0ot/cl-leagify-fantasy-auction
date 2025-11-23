@@ -616,7 +616,180 @@ Based on the requirement: **School Management → Auction Creation → Join Auct
 - Admin action tracking with entity-level details
 - Professional FluentUI admin interfaces throughout
 
-**Project Status:** All 6 phases complete - system is production-ready for live fantasy auctions
+**Project Status:** All 6 phases complete - core functionality implemented. Phase 7 focuses on production readiness and cost optimization.
+
+---
+
+## Phase 7: Production Readiness & Optimization (Dec 2025 - Feb 2026)
+
+**Goal:** Prepare system for production use with cost optimization, missing control features, and comprehensive testing.
+**Timeline:** 12 weeks (Dec 1, 2025 - Feb 28, 2026)
+**Target:** Production-ready by end of February with 1 month buffer
+
+### 🔴 CRITICAL: Week 1-2 (Dec 1-14, 2025)
+
+#### Task 7.1: SignalR Connection Management (COST RISK)
+**Priority:** CRITICAL - Prevents unexpected costs
+**Estimated Effort:** 8-12 hours
+**Risk:** Without this, database stays active 24/7 costing $50-175/month
+
+- [ ] Implement connection idle timeout (disconnect after 10 min inactive)
+- [ ] Add cleanup for zombie SignalR connections
+- [ ] Test that connections properly close when users leave
+- [ ] Verify database auto-pauses when no active connections
+- [ ] Add connection monitoring and logging
+- [ ] Test auto-pause behavior in deployed environment
+
+**Success Criteria:**
+- Database pauses within 5 minutes of last user disconnect
+- No lingering connections after browser close
+- SignalR hub properly cleans up on disconnect
+
+#### Task 7.2: Auction Control Features (BLOCKER FOR TESTING)
+**Priority:** CRITICAL - Required for safe testing
+**Estimated Effort:** 10-14 hours
+**Current Issue:** Can't stop in-progress auctions, blocking testing
+
+- [ ] Build Pause Auction (freeze all bidding)
+- [ ] Build Resume Auction (continue from paused state)
+- [ ] Build End Auction Early (close before completion)
+- [ ] Build Reset Test Bids (clear waiting room test data)
+- [ ] Add admin controls to waiting room admin panel
+- [ ] Prevent state corruption during pause/resume
+- [ ] Add audit logging for all control actions
+
+**Success Criteria:**
+- Can start, pause, resume, and end auction without stuck states
+- All participants see correct status during transitions
+- Auction Master has clear controls with confirmations
+
+#### Task 7.3: Roster Position Auto-Creation Enhancement ✅
+**Priority:** HIGH - User Experience
+**Status:** COMPLETED (Nov 23, 2025)
+**Completed By:** Claude Code
+
+- [x] Modified `/api/management/auctions/{id}/available-positions` to return counts
+- [x] Updated RosterConfigStep to use actual position counts from CSV
+- [x] Auto-create positions with correct SlotsPerTeam (e.g., 2 Big Ten, 2 SEC, 3 Flex)
+- [x] UI shows position counts: "Big Ten (2)", "SEC (2)", "Flex (3)"
+- [x] Eliminates manual slot adjustment after import
+
+**Deliverables:** ✅
+- CSV with 2 Big Ten, 2 SEC, 3 Flex → Creates matching roster automatically
+- No manual editing required after import
+
+### 🟡 MEDIUM: Week 3-6 (Dec 15 - Jan 15, 2026)
+
+#### Task 7.4: First Full Test Auction
+**Priority:** HIGH - Critical for finding bugs
+**Estimated Effort:** 4 hours + coordination
+**Dependencies:** Task 7.1, 7.2 complete
+
+- [ ] Recruit 6-8 test participants
+- [ ] Prepare test CSV and auction configuration
+- [ ] Run complete auction start-to-finish
+- [ ] Test all roles (Auction Master, Team Coach, Proxy Coach, Viewer)
+- [ ] Document all bugs and UX issues found
+- [ ] Record session for review
+
+**Success Criteria:**
+- Complete auction with no crashes or stuck states
+- All participants can join, bid, and see results
+- Budget calculations accurate
+- Results export matches expected format
+
+#### Task 7.5: Critical Bug Fixes from Testing
+**Priority:** HIGH - Based on test results
+**Estimated Effort:** 12-20 hours
+**Dependencies:** Task 7.4
+
+- [ ] Fix P0/P1 bugs that block core functionality
+- [ ] Address budget calculation errors
+- [ ] Fix roster assignment issues
+- [ ] Improve error messages based on user feedback
+- [ ] Fix any SignalR disconnection issues
+
+**Success Criteria:**
+- All critical (P0) bugs resolved
+- Major (P1) bugs fixed or have workarounds
+
+#### Task 7.6: Network Resilience & Reconnection
+**Priority:** MEDIUM - Production requirement
+**Estimated Effort:** 8-12 hours
+
+- [ ] Test disconnection/reconnection scenarios
+- [ ] Ensure state sync works correctly on reconnect
+- [ ] Handle network interruptions gracefully
+- [ ] Add reconnection status UI for users
+- [ ] Test with various network conditions
+
+**Success Criteria:**
+- Users can disconnect/reconnect without losing state
+- Auction Master sees connection status in real-time
+- No duplicate bids or state corruption on reconnect
+
+### 🟢 POLISH: Week 7-12 (Jan 16 - Feb 28, 2026)
+
+#### Task 7.7: UX Improvements from Testing
+**Priority:** MEDIUM - User experience
+**Estimated Effort:** 12-16 hours
+**Dependencies:** Task 7.4, 7.5
+
+- [ ] Fix confusing workflows discovered in testing
+- [ ] Improve loading states and feedback
+- [ ] Better error messages for common issues
+- [ ] Responsive design improvements
+- [ ] Performance optimizations
+
+**Success Criteria:**
+- Test users report smooth, intuitive experience
+- No confusion about auction status or controls
+- Clear feedback for all user actions
+
+#### Task 7.8: Second Full Test Auction
+**Priority:** MEDIUM - Verification
+**Estimated Effort:** 4 hours + coordination
+**Dependencies:** Task 7.7
+
+- [ ] Run another complete test with same or different users
+- [ ] Verify all previous bugs are fixed
+- [ ] Test new improvements from Phase 7.7
+- [ ] Validate performance under load
+
+**Success Criteria:**
+- Zero critical bugs found
+- Minimal or no new issues discovered
+- Users report confidence in system
+
+#### Task 7.9: Production Readiness Checklist
+**Priority:** MEDIUM - Final prep
+**Estimated Effort:** 8-12 hours
+
+- [ ] Security audit (SQL injection, XSS, authentication)
+- [ ] Performance optimization (query efficiency, bundle size)
+- [ ] User documentation for Auction Masters
+- [ ] Admin documentation for system management
+- [ ] Backup and recovery procedures
+- [ ] Monitoring and alerting setup
+
+**Success Criteria:**
+- All security concerns addressed
+- Performance meets targets (<2s page load)
+- Documentation complete and tested
+- Confident to run real auction
+
+---
+
+## Phase 7 Timeline Summary
+
+| Timeframe | Focus | Key Deliverables |
+|-----------|-------|------------------|
+| **Dec 1-14** | Critical Fixes | SignalR cleanup, Pause/Resume/End auction |
+| **Dec 15-Jan 15** | Testing & Bugs | First test auction, bug fixes, reconnection |
+| **Jan 16-Feb 28** | Polish & Verify | UX improvements, second test, production prep |
+| **Mar 1-31** | **BUFFER** | Final polish, first real auction |
+
+**Target Completion:** End of February 2026 (1 month buffer before March deadline)
 
 ---
 

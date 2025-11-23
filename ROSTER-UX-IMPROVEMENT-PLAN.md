@@ -15,7 +15,7 @@
 - When `RosterConfigStep` loads (`OnInitializedAsync`), check if roster positions exist
 - If none exist, automatically create one roster position for each `availablePositions` entry
 - Each gets a unique default color from a predefined palette
-- Default to 1 slot per team for each position
+- **Uses actual count from CSV** - e.g., 2 Big Ten schools in CSV → 2 Big Ten slots per team
 - Display them immediately in the "Current Roster Configuration" section
 
 **Benefits**:
@@ -139,13 +139,18 @@
 
 The roster configuration UX has been successfully transformed from a manual, cumbersome process into an intuitive, efficient user experience. All major objectives have been achieved:
 
-- **Auto-creation** automatically generates roster positions from CSV import
-- **Color variety** provides 10 distinct colors cycling through positions  
+- **Auto-creation** automatically generates roster positions from CSV import with **correct slot counts**
+- **Smart counting** - API returns position counts (e.g., "Big Ten (2)", "SEC (2)", "Flex (3)")
+- **Accurate roster sizing** - Each position gets slots matching CSV data (no manual adjustment needed)
+- **Color variety** provides 10 distinct colors cycling through positions
 - **Inline editing** allows click-to-edit functionality with proper validation
 - **Responsive layout** prevents text bunching and button overlap
 - **API support** includes full CRUD operations with proper error handling
 
 The implementation successfully addresses all user feedback and provides a professional, polished experience.
+
+### Recent Enhancement (Nov 23, 2025)
+Modified auto-creation to use **actual position counts from imported CSV data** instead of defaulting to 1 slot per position. The `/api/management/auctions/{id}/available-positions` endpoint now returns position names with counts, enabling accurate roster structure without manual adjustment.
 
 ## Technical Notes
 
