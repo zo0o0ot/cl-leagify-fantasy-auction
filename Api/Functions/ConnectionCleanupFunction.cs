@@ -31,82 +31,43 @@ public class ConnectionCleanupFunction
     }
 
     /// <summary>
-    /// HTTP-triggered function to clean up idle connections.
-    /// Can be called manually or by an external scheduler (Azure Logic Apps, cron job, etc.)
+    /// Timer-triggered function to automatically clean up idle connections every 5 minutes.
     /// Prevents database from staying active when no users are connected.
-    /// NOTE: For production, set up Azure Logic Apps or similar to call this every 5 minutes
+    /// Runs automatically without external scheduling.
+    /// </summary>
+    [Function("AutoCleanupConnections")]
+    public async Task AutoCleanupConnections(
+        [TimerTrigger("0 */5 * * * *")] TimerInfo timerInfo)
+    {
+        _logger.LogInformation("⏰ Automatic idle connection cleanup triggered at {Time}", DateTime.UtcNow);
+
+        try
+        {
+            await PerformCleanup();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ Error during automatic connection cleanup");
+        }
+    }
+
+    /// <summary>
+    /// HTTP-triggered function to manually clean up idle connections.
+    /// Can be called for testing or manual cleanup.
+    /// The automatic timer trigger runs this same logic every 5 minutes.
     /// </summary>
     [Function("CleanupIdleConnections")]
     public async Task<HttpResponseData> CleanupIdleConnections(
         [HttpTrigger(AuthorizationLevel.Function, "post", "get", Route = "system/cleanup-connections")] HttpRequestData req)
     {
-        _logger.LogInformation("🧹 Starting idle connection cleanup at {Time}", DateTime.UtcNow);
+        _logger.LogInformation("🧹 Manual idle connection cleanup triggered at {Time}", DateTime.UtcNow);
 
         try
         {
-            var cutoffTime = DateTime.UtcNow.Subtract(IdleTimeout);
-            var zombieCutoffTime = DateTime.UtcNow.Subtract(ZombieConnectionTimeout);
-
-            // Find connections that are marked as connected but haven't been active recently
-            var idleConnections = await _context.Users
-                .Where(u => u.IsConnected && u.LastActiveDate < cutoffTime)
-                .ToListAsync();
-
-            // Find zombie connections (very old, likely leaked)
-            var zombieConnections = await _context.Users
-                .Where(u => u.IsConnected && u.LastActiveDate < zombieCutoffTime)
-                .ToListAsync();
-
-            if (idleConnections.Any())
-            {
-                _logger.LogInformation(
-                    "Found {IdleCount} idle connections (inactive > {Minutes} min) and {ZombieCount} zombie connections (inactive > {ZombieMinutes} min)",
-                    idleConnections.Count,
-                    IdleTimeout.TotalMinutes,
-                    zombieConnections.Count,
-                    ZombieConnectionTimeout.TotalMinutes);
-
-                foreach (var user in idleConnections)
-                {
-                    var idleMinutes = (DateTime.UtcNow - user.LastActiveDate).TotalMinutes;
-                    var isZombie = zombieConnections.Contains(user);
-
-                    _logger.LogInformation(
-                        "{ConnectionType} User {UserId} ({DisplayName}) in auction {AuctionId} - idle for {IdleMinutes:F1} minutes",
-                        isZombie ? "🧟 ZOMBIE" : "💤 IDLE",
-                        user.UserId,
-                        user.DisplayName,
-                        user.AuctionId,
-                        idleMinutes);
-
-                    // Mark as disconnected
-                    user.IsConnected = false;
-                    user.ConnectionId = null;
-                }
-
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation(
-                    "✅ Cleaned up {Count} idle connections ({ZombieCount} zombies)",
-                    idleConnections.Count,
-                    zombieConnections.Count);
-            }
-            else
-            {
-                _logger.LogInformation("✅ No idle connections found - all connections are active");
-            }
-
-            // Log connection statistics
-            await LogConnectionStatistics();
+            var result = await PerformCleanup();
 
             var response = req.CreateResponse(HttpStatusCode.OK);
-            await response.WriteAsJsonAsync(new
-            {
-                Success = true,
-                CleanedConnections = idleConnections.Count,
-                ZombieConnections = zombieConnections.Count,
-                Timestamp = DateTime.UtcNow
-            });
+            await response.WriteAsJsonAsync(result);
             return response;
         }
         catch (Exception ex)
@@ -121,6 +82,76 @@ public class ConnectionCleanupFunction
             });
             return errorResponse;
         }
+    }
+
+    /// <summary>
+    /// Core cleanup logic used by both timer and HTTP triggers.
+    /// Finds and disconnects idle connections.
+    /// </summary>
+    private async Task<CleanupResult> PerformCleanup()
+    {
+        var cutoffTime = DateTime.UtcNow.Subtract(IdleTimeout);
+        var zombieCutoffTime = DateTime.UtcNow.Subtract(ZombieConnectionTimeout);
+
+        // Find connections that are marked as connected but haven't been active recently
+        var idleConnections = await _context.Users
+            .Where(u => u.IsConnected && u.LastActiveDate < cutoffTime)
+            .ToListAsync();
+
+        // Find zombie connections (very old, likely leaked)
+        var zombieConnections = await _context.Users
+            .Where(u => u.IsConnected && u.LastActiveDate < zombieCutoffTime)
+            .ToListAsync();
+
+        if (idleConnections.Any())
+        {
+            _logger.LogInformation(
+                "Found {IdleCount} idle connections (inactive > {Minutes} min) and {ZombieCount} zombie connections (inactive > {ZombieMinutes} min)",
+                idleConnections.Count,
+                IdleTimeout.TotalMinutes,
+                zombieConnections.Count,
+                ZombieConnectionTimeout.TotalMinutes);
+
+            foreach (var user in idleConnections)
+            {
+                var idleMinutes = (DateTime.UtcNow - user.LastActiveDate).TotalMinutes;
+                var isZombie = zombieConnections.Contains(user);
+
+                _logger.LogInformation(
+                    "{ConnectionType} User {UserId} ({DisplayName}) in auction {AuctionId} - idle for {IdleMinutes:F1} minutes",
+                    isZombie ? "🧟 ZOMBIE" : "💤 IDLE",
+                    user.UserId,
+                    user.DisplayName,
+                    user.AuctionId,
+                    idleMinutes);
+
+                // Mark as disconnected
+                user.IsConnected = false;
+                user.ConnectionId = null;
+            }
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "✅ Cleaned up {Count} idle connections ({ZombieCount} zombies)",
+                idleConnections.Count,
+                zombieConnections.Count);
+        }
+        else
+        {
+            _logger.LogInformation("✅ No idle connections found - all connections are active");
+        }
+
+        // Log connection statistics
+        await LogConnectionStatistics();
+
+        return new CleanupResult
+        {
+            Success = true,
+            CleanedConnections = idleConnections.Count,
+            ZombieConnections = zombieConnections.Count,
+            Timestamp = DateTime.UtcNow
+        };
     }
 
     /// <summary>
@@ -284,5 +315,16 @@ public class ConnectionCleanupFunction
         {
             return false;
         }
+    }
+
+    /// <summary>
+    /// Result of connection cleanup operation.
+    /// </summary>
+    private class CleanupResult
+    {
+        public bool Success { get; set; }
+        public int CleanedConnections { get; set; }
+        public int ZombieConnections { get; set; }
+        public DateTime Timestamp { get; set; }
     }
 }
