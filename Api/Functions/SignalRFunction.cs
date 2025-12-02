@@ -277,6 +277,45 @@ public class SignalRFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbConte
         }
     }
 
+    /// <summary>
+    /// Update user's last active timestamp to prevent idle timeout.
+    /// Called by clients to indicate they're still actively using the application.
+    /// </summary>
+    [Function("UpdateActivity")]
+    public async Task<HttpResponseData> UpdateActivity(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "signalr/update-activity")] HttpRequestData req)
+    {
+        try
+        {
+            var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+            var activityUpdate = JsonSerializer.Deserialize<ActivityUpdate>(requestBody);
+
+            if (activityUpdate?.SessionToken == null)
+            {
+                return await CreateErrorResponse(req, HttpStatusCode.BadRequest, "Invalid activity update");
+            }
+
+            // Find user by session token
+            var user = await context.Users.FirstOrDefaultAsync(u => u.SessionToken == activityUpdate.SessionToken);
+            if (user != null)
+            {
+                user.LastActiveDate = DateTime.UtcNow;
+                await context.SaveChangesAsync();
+
+                _logger.LogDebug("Updated activity for user {UserId} ({DisplayName})",
+                    user.UserId, user.DisplayName);
+            }
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating user activity");
+            return await CreateErrorResponse(req, HttpStatusCode.InternalServerError, "Activity update failed");
+        }
+    }
+
     // Helper methods
 
     private async Task<bool> ValidateManagementAuth(HttpRequestData req)
@@ -418,5 +457,11 @@ public class SignalRFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbConte
         public bool IsConnected { get; set; }
         public DateTime LastActiveDate { get; set; }
         public string? ConnectionId { get; set; }
+    }
+
+    private class ActivityUpdate
+    {
+        public string SessionToken { get; set; } = string.Empty;
+        public DateTime Timestamp { get; set; }
     }
 }
