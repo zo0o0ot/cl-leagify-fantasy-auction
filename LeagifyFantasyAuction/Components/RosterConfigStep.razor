@@ -49,6 +49,32 @@
                     </FluentCard>
                 }
 
+                <!-- Quick Setup: Standard Roster -->
+                @if (!rosterPositions.Any())
+                {
+                    <FluentCard Style="background-color: #e8f5e9; border: 2px solid #4caf50; margin-bottom: 24px;">
+                        <div style="padding: 20px;">
+                            <FluentStack Orientation="Orientation.Vertical" VerticalGap="12">
+                                <FluentLabel Weight="FontWeight.Bold" Style="color: #2e7d32;">
+                                    <FluentIcon Value="@(new Icons.Regular.Size20.Sparkle())" Style="margin-right: 8px;" />
+                                    Quick Setup: Standard 10-Slot Roster
+                                </FluentLabel>
+                                <FluentLabel Style="color: #1b5e20;">
+                                    Create the most common roster structure: 2 Big Ten + 2 SEC + 1 Big 12 + 1 ACC + 1 Small School + 3 Flex = 10 slots
+                                </FluentLabel>
+                                <div>
+                                    <FluentButton Appearance="Appearance.Accent"
+                                                  IconStart="@(new Icons.Regular.Size20.CheckboxChecked())"
+                                                  OnClick="@CreateStandardRoster"
+                                                  Loading="@isCreatingStandardRoster">
+                                        Use Standard 10-Slot Roster
+                                    </FluentButton>
+                                </div>
+                            </FluentStack>
+                        </div>
+                    </FluentCard>
+                }
+
                 <!-- Add New Position Section -->
                 <FluentCard Style="background-color: #f8f9fa; border: 1px solid #dee2e6; margin-bottom: 24px; overflow: visible;">
                     <div style="padding: 20px; overflow: visible;">
@@ -278,6 +304,7 @@
 
     private bool isLoading = true;
     private bool isAddingPosition = false;
+    private bool isCreatingStandardRoster = false;
     private int? deletingPositionId = null;
     private List<RosterPositionDto> rosterPositions = new();
     private Dictionary<string, int> availablePositionCounts = new();
@@ -589,6 +616,69 @@
         catch (Exception ex)
         {
             Console.WriteLine($"Error auto-creating roster positions: {ex.Message}");
+        }
+    }
+
+    private async Task CreateStandardRoster()
+    {
+        try
+        {
+            isCreatingStandardRoster = true;
+            StateHasChanged();
+
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(token)) return;
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+
+            // Define standard 10-slot roster structure
+            var standardPositions = new[]
+            {
+                new { Name = "Big Ten", Slots = 2, IsFlex = false, Color = GetDefaultColor(0) },
+                new { Name = "SEC", Slots = 2, IsFlex = false, Color = GetDefaultColor(1) },
+                new { Name = "Big 12", Slots = 1, IsFlex = false, Color = GetDefaultColor(2) },
+                new { Name = "ACC", Slots = 1, IsFlex = false, Color = GetDefaultColor(3) },
+                new { Name = "Small School", Slots = 1, IsFlex = false, Color = GetDefaultColor(4) },
+                new { Name = "Flex", Slots = 3, IsFlex = true, Color = GetDefaultColor(5) }
+            };
+
+            // Create each position
+            foreach (var position in standardPositions)
+            {
+                var createRequest = new
+                {
+                    AuctionId = AuctionId,
+                    PositionName = position.Name,
+                    SlotsPerTeam = position.Slots,
+                    ColorCode = position.Color,
+                    IsFlexPosition = position.IsFlex
+                };
+
+                var response = await Http.PostAsJsonAsync("/api/management/roster-positions", createRequest);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine($"Failed to create standard position '{position.Name}': {error}");
+                    await JSRuntime.InvokeVoidAsync("alert", $"Error creating position '{position.Name}': {error}");
+                    return; // Stop if any position fails
+                }
+            }
+
+            // Reload positions after creation
+            await LoadRosterPositions();
+            StateHasChanged();
+
+            await JSRuntime.InvokeVoidAsync("alert", "Standard 10-slot roster created successfully!");
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error creating standard roster: {ex.Message}");
+        }
+        finally
+        {
+            isCreatingStandardRoster = false;
+            StateHasChanged();
         }
     }
 
