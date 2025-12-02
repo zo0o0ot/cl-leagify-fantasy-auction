@@ -26,9 +26,9 @@ public class AuctionService : IAuctionService
     // Valid characters for master recovery codes (more complex for security)
     private const string MasterCodeChars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
     
-    private static readonly HashSet<string> ValidStatuses = new() 
-    { 
-        "Draft", "InProgress", "Complete", "Archived" 
+    private static readonly HashSet<string> ValidStatuses = new()
+    {
+        "Draft", "InProgress", "Paused", "Complete", "Archived"
     };
 
     /// <summary>
@@ -302,7 +302,8 @@ public class AuctionService : IAuctionService
         return fromStatus switch
         {
             "Draft" => toStatus == "InProgress" || toStatus == "Archived",
-            "InProgress" => toStatus == "Complete" || toStatus == "Archived",
+            "InProgress" => toStatus == "Paused" || toStatus == "Complete" || toStatus == "Archived",
+            "Paused" => toStatus == "InProgress" || toStatus == "Complete" || toStatus == "Archived",
             "Complete" => toStatus == "Archived",
             "Archived" => false, // No transitions out of archived
             _ => false

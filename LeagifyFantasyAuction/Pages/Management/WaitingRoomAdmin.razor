@@ -53,6 +53,42 @@
                                   Disabled="@(!(CanStartAuction() || IsAuctionInProgress()) || isStartingAuction)">
                         @(IsAuctionInProgress() ? "Re-broadcast Start" : "Start Auction")
                     </FluentButton>
+                    @if (IsAuctionInProgress())
+                    {
+                        <FluentButton Appearance="Appearance.Neutral"
+                                      IconStart="@(new Icons.Regular.Size16.Pause())"
+                                      OnClick="@PauseAuction"
+                                      Disabled="@isPausingAuction">
+                            Pause
+                        </FluentButton>
+                    }
+                    @if (IsAuctionPaused())
+                    {
+                        <FluentButton Appearance="Appearance.Accent"
+                                      IconStart="@(new Icons.Regular.Size16.Play())"
+                                      OnClick="@ResumeAuction"
+                                      Disabled="@isResumingAuction">
+                            Resume
+                        </FluentButton>
+                    }
+                    @if (IsAuctionInProgress() || IsAuctionPaused())
+                    {
+                        <FluentButton Appearance="Appearance.Lightweight"
+                                      IconStart="@(new Icons.Regular.Size16.Stop())"
+                                      OnClick="@EndAuctionEarly"
+                                      Disabled="@isEndingAuction">
+                            End Early
+                        </FluentButton>
+                    }
+                    @if (auction.Status == "Draft")
+                    {
+                        <FluentButton Appearance="Appearance.Lightweight"
+                                      IconStart="@(new Icons.Regular.Size16.ArrowCounterclockwise())"
+                                      OnClick="@ResetTestBids"
+                                      Disabled="@isResettingTestBids">
+                            Reset Test Bids
+                        </FluentButton>
+                    }
                 </FluentStack>
             </div>
         </div>
@@ -257,6 +293,10 @@
     private bool isStartingAuction = false;
     private bool isCompletingBidding = false;
     private bool isResettingBids = false;
+    private bool isPausingAuction = false;
+    private bool isResumingAuction = false;
+    private bool isEndingAuction = false;
+    private bool isResettingTestBids = false;
     private string errorMessage = string.Empty;
 
     private HubConnection? hubConnection;
@@ -561,6 +601,140 @@
     private bool IsAuctionInProgress()
     {
         return auction != null && auction.Status == "InProgress";
+    }
+
+    private bool IsAuctionPaused()
+    {
+        return auction != null && auction.Status == "Paused";
+    }
+
+    private async Task PauseAuction()
+    {
+        try
+        {
+            isPausingAuction = true;
+            StateHasChanged();
+
+            var managementToken = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(managementToken))
+            {
+                errorMessage = "Management token not found";
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", managementToken);
+
+            var response = await Http.PostAsync($"/api/management/auctions/{AuctionId}/pause", null);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"✅ Auction {AuctionId} paused successfully");
+                await LoadWaitingRoomStatus();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Failed to pause auction: {error}";
+                Console.WriteLine($"❌ Failed to pause auction: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error pausing auction: {ex.Message}";
+            Console.WriteLine($"❌ Error pausing auction: {ex.Message}");
+        }
+        finally
+        {
+            isPausingAuction = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ResumeAuction()
+    {
+        try
+        {
+            isResumingAuction = true;
+            StateHasChanged();
+
+            var managementToken = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(managementToken))
+            {
+                errorMessage = "Management token not found";
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", managementToken);
+
+            var response = await Http.PostAsync($"/api/management/auctions/{AuctionId}/resume", null);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"✅ Auction {AuctionId} resumed successfully");
+                await LoadWaitingRoomStatus();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Failed to resume auction: {error}";
+                Console.WriteLine($"❌ Failed to resume auction: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error resuming auction: {ex.Message}";
+            Console.WriteLine($"❌ Error resuming auction: {ex.Message}");
+        }
+        finally
+        {
+            isResumingAuction = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task EndAuctionEarly()
+    {
+        try
+        {
+            isEndingAuction = true;
+            StateHasChanged();
+
+            var managementToken = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(managementToken))
+            {
+                errorMessage = "Management token not found";
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", managementToken);
+
+            var response = await Http.PostAsync($"/api/management/auctions/{AuctionId}/end", null);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"✅ Auction {AuctionId} ended successfully");
+                await LoadWaitingRoomStatus();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Failed to end auction: {error}";
+                Console.WriteLine($"❌ Failed to end auction: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error ending auction: {ex.Message}";
+            Console.WriteLine($"❌ Error ending auction: {ex.Message}");
+        }
+        finally
+        {
+            isEndingAuction = false;
+            StateHasChanged();
+        }
     }
 
     private string GetTestBiddingColor() => $"color: {(AllTestedBidding() ? "#28a745" : "#ffc107")}";

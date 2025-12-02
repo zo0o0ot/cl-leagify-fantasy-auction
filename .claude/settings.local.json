@@ -35,7 +35,10 @@
       "Bash(do echo \"Test $i:\")",
       "Bash(done)",
       "Bash(gh:*)",
-      "Bash(gemini:*)"
+      "Bash(gemini:*)",
+      "Bash(if [ -n \"$MANAGEMENT_PASSWORD\" ])",
+      "Bash(then echo \"Password is set in environment\")",
+      "Bash(else echo \"No password in environment\")"
     ],
     "deny": [],
     "ask": []

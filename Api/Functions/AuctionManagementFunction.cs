@@ -416,6 +416,183 @@ public class AuctionManagementFunction
     }
 
     /// <summary>
+    /// Pauses an in-progress auction, freezing all bidding activity.
+    /// Preserves current bidding state for when auction is resumed.
+    /// </summary>
+    [Function("PauseAuction")]
+    public async Task<HttpResponseData> PauseAuction(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "management/auctions/{auctionId:int}/pause")] HttpRequestData req,
+        int auctionId)
+    {
+        try
+        {
+            if (!IsValidAdminRequest(req))
+            {
+                _logger.LogWarning("Unauthorized request to pause auction {AuctionId}", auctionId);
+                var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
+                await unauthorizedResponse.WriteStringAsync("Unauthorized");
+                return unauthorizedResponse;
+            }
+
+            _logger.LogInformation("Pausing auction {AuctionId}", auctionId);
+
+            var success = await _auctionService.UpdateAuctionStatusAsync(auctionId, "Paused");
+
+            if (!success)
+            {
+                var notFoundResponse = req.CreateResponse(HttpStatusCode.NotFound);
+                await notFoundResponse.WriteStringAsync("Auction not found");
+                return notFoundResponse;
+            }
+
+            _logger.LogInformation("Successfully paused auction {AuctionId}", auctionId);
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(new
+            {
+                Success = true,
+                Message = "Auction paused successfully",
+                AuctionId = auctionId,
+                Status = "Paused",
+                Timestamp = DateTime.UtcNow
+            });
+            return response;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Invalid status transition when pausing auction {AuctionId}", auctionId);
+            var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+            await badResponse.WriteStringAsync(ex.Message);
+            return badResponse;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error pausing auction {AuctionId}", auctionId);
+            var response = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await response.WriteStringAsync($"Error pausing auction: {ex.Message}");
+            return response;
+        }
+    }
+
+    /// <summary>
+    /// Resumes a paused auction, continuing from where it was paused.
+    /// Restores bidding activity with preserved state.
+    /// </summary>
+    [Function("ResumeAuction")]
+    public async Task<HttpResponseData> ResumeAuction(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "management/auctions/{auctionId:int}/resume")] HttpRequestData req,
+        int auctionId)
+    {
+        try
+        {
+            if (!IsValidAdminRequest(req))
+            {
+                _logger.LogWarning("Unauthorized request to resume auction {AuctionId}", auctionId);
+                var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
+                await unauthorizedResponse.WriteStringAsync("Unauthorized");
+                return unauthorizedResponse;
+            }
+
+            _logger.LogInformation("Resuming auction {AuctionId}", auctionId);
+
+            var success = await _auctionService.UpdateAuctionStatusAsync(auctionId, "InProgress");
+
+            if (!success)
+            {
+                var notFoundResponse = req.CreateResponse(HttpStatusCode.NotFound);
+                await notFoundResponse.WriteStringAsync("Auction not found");
+                return notFoundResponse;
+            }
+
+            _logger.LogInformation("Successfully resumed auction {AuctionId}", auctionId);
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(new
+            {
+                Success = true,
+                Message = "Auction resumed successfully",
+                AuctionId = auctionId,
+                Status = "InProgress",
+                Timestamp = DateTime.UtcNow
+            });
+            return response;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Invalid status transition when resuming auction {AuctionId}", auctionId);
+            var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+            await badResponse.WriteStringAsync(ex.Message);
+            return badResponse;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error resuming auction {AuctionId}", auctionId);
+            var response = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await response.WriteStringAsync($"Error resuming auction: {ex.Message}");
+            return response;
+        }
+    }
+
+    /// <summary>
+    /// Ends an auction early, marking it as complete regardless of current state.
+    /// Useful for testing or emergency situations.
+    /// </summary>
+    [Function("EndAuctionEarly")]
+    public async Task<HttpResponseData> EndAuctionEarly(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "management/auctions/{auctionId:int}/end")] HttpRequestData req,
+        int auctionId)
+    {
+        try
+        {
+            if (!IsValidAdminRequest(req))
+            {
+                _logger.LogWarning("Unauthorized request to end auction {AuctionId}", auctionId);
+                var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
+                await unauthorizedResponse.WriteStringAsync("Unauthorized");
+                return unauthorizedResponse;
+            }
+
+            _logger.LogInformation("Ending auction {AuctionId} early", auctionId);
+
+            var success = await _auctionService.UpdateAuctionStatusAsync(auctionId, "Complete");
+
+            if (!success)
+            {
+                var notFoundResponse = req.CreateResponse(HttpStatusCode.NotFound);
+                await notFoundResponse.WriteStringAsync("Auction not found");
+                return notFoundResponse;
+            }
+
+            _logger.LogInformation("Successfully ended auction {AuctionId} early", auctionId);
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(new
+            {
+                Success = true,
+                Message = "Auction ended successfully",
+                AuctionId = auctionId,
+                Status = "Complete",
+                Timestamp = DateTime.UtcNow
+            });
+            return response;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Invalid status transition when ending auction {AuctionId}", auctionId);
+            var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+            await badResponse.WriteStringAsync(ex.Message);
+            return badResponse;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error ending auction {AuctionId}", auctionId);
+            var response = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await response.WriteStringAsync($"Error ending auction: {ex.Message}");
+            return response;
+        }
+    }
+
+    /// <summary>
     /// Advanced database diagnostic test to understand schema and constraints.
     /// </summary>
     [Function("TestDatabaseDiagnostic")]
