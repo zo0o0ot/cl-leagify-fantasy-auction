@@ -17,9 +17,8 @@
 
 ### Step 1: Access System Admin
 1. Navigate to `/management/system-admin`
-2. Enter your management token
-   - Format: `admin:YYYY-MM-DDTHH:MM:SSZ` (base64-encoded)
-   - Token will be stored in localStorage for future sessions
+2. Enter your management password
+   - Password will be stored in your browser for future sessions
 3. Verify you see the admin dashboard
 
 ### Step 2: Create New Auction
@@ -65,9 +64,10 @@
 4. Click **"Save Roster Configuration"**
 
 **Common Configurations:**
+- **6 teams, 10 slots each**: 60 total slots, need 60+ schools (most common)
+- **8 teams, 10 slots each**: 80 total slots, need 80+ schools
+- **10 teams, 10 slots each**: 100 total slots, need 100+ schools
 - **12 teams, 10 slots each**: 120 total slots, need 120+ schools
-- **10 teams, 12 slots each**: 120 total slots, need 120+ schools
-- **8 teams, 15 slots each**: 120 total slots, need 120+ schools
 
 ### Step 5: Set Nomination Order
 1. Go to **"Turn Order"** tab
@@ -441,7 +441,7 @@ After exporting results:
 3. Review any issues that occurred for next auction improvement
 4. Document any manual overrides or disputes in your records
 
-**Pro Tip**: Keep master recovery code safe - it allows re-access if you lose management token.
+**Pro Tip**: Keep master recovery code safe - it allows re-access if you lose management password.
 
 ---
 
@@ -496,7 +496,7 @@ Formula: `MaxBid = Budget - (EmptySlots - 1)`
 
 ### Pre-Auction Checklist (Print This!)
 ```
-□ Management token working
+□ Management password working
 □ Auction created, join code saved
 □ CSV imported successfully
 □ Roster structure configured
