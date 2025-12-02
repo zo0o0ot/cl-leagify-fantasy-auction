@@ -19,6 +19,28 @@
             </FluentLabel>
         </div>
 
+        @if (existingSession != null && !ForceNewSession)
+        {
+            <FluentMessageBar Intent="MessageIntent.Info" Style="margin-bottom: 24px;">
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <div>
+                        <strong>Existing Session Found</strong><br />
+                        You're currently in: <strong>@existingSession.DisplayName</strong> (Auction #@existingSession.AuctionId)
+                    </div>
+                    <div style="display: flex; gap: 12px;">
+                        <FluentButton Appearance="Appearance.Accent"
+                                      OnClick="@ContinueExistingSession">
+                            Continue to Auction
+                        </FluentButton>
+                        <FluentButton Appearance="Appearance.Neutral"
+                                      OnClick="@StartNewSession">
+                            Join Different Auction
+                        </FluentButton>
+                    </div>
+                </div>
+            </FluentMessageBar>
+        }
+
         @if (!string.IsNullOrEmpty(errorMessage))
         {
             <FluentMessageBar Intent="MessageIntent.Error" Style="margin-bottom: 24px;">
@@ -91,11 +113,23 @@
     private JoinAuctionRequest joinRequest = new();
     private bool isJoining = false;
     private string errorMessage = string.Empty;
+    private UserSession? existingSession = null;
+
+    [SupplyParameterFromQuery(Name = "new")]
+    private bool ForceNewSession { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
-        // Check if user already has a session
-        await CheckExistingSession();
+        // Check if user already has a session (unless explicitly requesting new session)
+        if (!ForceNewSession)
+        {
+            await CheckExistingSession();
+        }
+        else
+        {
+            // Clear existing session when ?new=true
+            await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "auctionSession");
+        }
     }
 
     private async Task CheckExistingSession()
@@ -112,9 +146,9 @@
                     var isValid = await ValidateExistingSession(session);
                     if (isValid)
                     {
-                        // Redirect to dashboard
-                        Navigation.NavigateTo($"/auction/{session.AuctionId}/dashboard");
-                        return;
+                        // Store for UI display instead of auto-redirecting
+                        existingSession = session;
+                        StateHasChanged();
                     }
                     else
                     {
@@ -129,6 +163,22 @@
             Console.WriteLine($"Error checking existing session: {ex.Message}");
             // Continue with join flow
         }
+    }
+
+    private void ContinueExistingSession()
+    {
+        if (existingSession != null)
+        {
+            Navigation.NavigateTo($"/auction/{existingSession.AuctionId}/dashboard");
+        }
+    }
+
+    private async Task StartNewSession()
+    {
+        // Clear existing session
+        await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "auctionSession");
+        existingSession = null;
+        StateHasChanged();
     }
 
     private async Task<bool> ValidateExistingSession(UserSession session)
