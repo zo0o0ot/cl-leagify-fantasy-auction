@@ -200,6 +200,72 @@ curl https://jolly-meadow-0b4450210.2.azurestaticapps.net/api/auction/{auctionId
 
 ---
 
+### Test 6: Use Standard 10-Slot Roster (Quick Setup)
+
+**Purpose:** Verify one-click standard roster creation
+
+**Prerequisites:**
+- Auction in Draft status
+- No roster positions configured yet
+- Access to auction setup page
+
+**Steps:**
+1. Create a new auction via System Admin
+2. Navigate to `/management/auctions/{auctionId}/setup`
+3. Skip CSV import or import schools (both scenarios work)
+4. Go to "Configure Roster" step (step 2)
+5. Verify green "Quick Setup" card is visible
+6. Click **"Use Standard 10-Slot Roster"** button
+7. Wait for confirmation alert
+
+**Expected Results:**
+✅ Green "Quick Setup" card appears when no roster positions exist
+✅ Button shows loading state while creating positions
+✅ Success alert: "Standard 10-slot roster created successfully!"
+✅ 6 roster positions created automatically:
+   - Big Ten (2 slots, not flex)
+   - SEC (2 slots, not flex)
+   - Big 12 (1 slot, not flex)
+   - ACC (1 slot, not flex)
+   - Small School (1 slot, not flex)
+   - Flex (3 slots, IS flex position)
+✅ Total: 10 slots per team
+✅ Each position has unique color from default palette
+✅ Positions appear in correct order
+✅ Quick setup card disappears after positions created
+
+**Verification:**
+```bash
+# Check roster positions via API
+curl https://jolly-meadow-0b4450210.2.azurestaticapps.net/api/management/auctions/{auctionId}/roster-positions \
+  -H "X-Management-Token: $MANAGEMENT_PASSWORD"
+
+# Should return 6 positions with correct names and slot counts
+```
+
+**Manual Verification:**
+- Roster summary shows "10 schools total"
+- 5 specific positions (Big Ten, SEC, Big 12, ACC, Small School)
+- 3 flex slots
+- Each position has color indicator
+- Can edit, reorder, or delete positions after creation
+
+**Edge Cases:**
+- Button only appears when rosterPositions.Count == 0
+- After creating positions, button disappears (card hidden)
+- Can delete all positions to see button again
+- Works whether CSV imported or not
+- Works with or without schools imported
+
+**UI/UX Checks:**
+- Green card with sparkle icon is visually prominent
+- Button text is clear: "Use Standard 10-Slot Roster"
+- Description explains structure: "2 Big Ten + 2 SEC + 1 Big 12 + 1 ACC + 1 Small School + 3 Flex = 10 slots"
+- Loading spinner appears while creating positions
+- No errors in browser console
+
+---
+
 ## Multi-User Testing
 
 ### Scenario: Pause During Active Bidding
@@ -380,6 +446,8 @@ Before considering testing complete, verify:
 - [ ] Can end InProgress auction early
 - [ ] Can end Paused auction early
 - [ ] Can reset test bids in Draft status
+- [ ] Can create standard 10-slot roster with one click
+- [ ] Standard roster creates correct 6 positions with proper slot counts
 - [ ] Invalid transitions properly rejected
 - [ ] Bidding state preserved across pause/resume
 - [ ] No console errors during any operation
@@ -408,21 +476,23 @@ Once testing is complete:
 
 ## Quick Test Script
 
-For a fast smoke test (5 minutes):
+For a fast smoke test (5-7 minutes):
 
 ```bash
 # 1. Create test auction (Draft status)
-# 2. Start auction → InProgress
-# 3. Pause → verify status "Paused"
-# 4. Resume → verify status "InProgress"
-# 5. Pause again
-# 6. End Early from Paused → verify status "Complete"
-# 7. Create new Draft auction
-# 8. Add test bids
-# 9. Reset Test Bids → verify bids cleared
+# 2. Go to roster configuration → Click "Use Standard 10-Slot Roster"
+# 3. Verify 6 positions created (Big Ten×2, SEC×2, Big 12, ACC, Small School, Flex×3)
+# 4. Complete setup and start auction → InProgress
+# 5. Pause → verify status "Paused"
+# 6. Resume → verify status "InProgress"
+# 7. Pause again
+# 8. End Early from Paused → verify status "Complete"
+# 9. Create new Draft auction
+# 10. Add test bids
+# 11. Reset Test Bids → verify bids cleared
 ```
 
-All operations should complete without errors in under 5 minutes.
+All operations should complete without errors in under 7 minutes.
 
 ---
 
@@ -454,6 +524,10 @@ Use this template to document your testing:
 - Notes:
 
 ### Test 5: Reset Test Bids
+- Status: ✅ Pass / ❌ Fail
+- Notes:
+
+### Test 6: Use Standard 10-Slot Roster
 - Status: ✅ Pass / ❌ Fail
 - Notes:
 
