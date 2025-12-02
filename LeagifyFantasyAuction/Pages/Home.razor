@@ -1,7 +1,60 @@
 ﻿@page "/"
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Leagify Fantasy Auction</PageTitle>
 
-<h1>Hello, world!</h1>
+<div style="max-width: 800px; margin: 0 auto; padding: 40px 20px;">
+    <h1 style="color: #0078d4; margin-bottom: 24px;">Welcome to Leagify Fantasy Auction</h1>
 
-Welcome to your new Fluent Blazor app.
+    <p style="font-size: 18px; color: #666; margin-bottom: 32px;">
+        A real-time auction draft platform for fantasy sports leagues, designed specifically for the NFL Draft League.
+    </p>
+
+    <h2 style="color: #333; margin-top: 32px; margin-bottom: 16px;">How It Works</h2>
+
+    <div style="background: #f8f9fa; border-left: 4px solid #0078d4; padding: 20px; margin-bottom: 24px;">
+        <h3 style="margin-top: 0; color: #0078d4;">For Participants</h3>
+        <ol style="line-height: 1.8;">
+            <li><strong>Get Your Join Code:</strong> Your Auction Master will provide a 6-character join code</li>
+            <li><strong>Join the Auction:</strong> Click "Join Auction" above and enter your code + display name</li>
+            <li><strong>Wait for Role Assignment:</strong> The Auction Master will assign you a role (Team Coach, Proxy Coach, or Viewer)</li>
+            <li><strong>Start Bidding:</strong> Once the auction starts, nominate schools and place bids in real-time</li>
+        </ol>
+    </div>
+
+    <div style="background: #e8f5e9; border-left: 4px solid #4caf50; padding: 20px; margin-bottom: 24px;">
+        <h3 style="margin-top: 0; color: #2e7d32;">For Auction Masters</h3>
+        <ol style="line-height: 1.8;">
+            <li><strong>Create Auction:</strong> Access System Admin to create your auction and get join codes</li>
+            <li><strong>Configure Roster:</strong> Import schools via CSV or use the standard 10-slot roster</li>
+            <li><strong>Manage Participants:</strong> Assign roles, set nomination order, and manage teams</li>
+            <li><strong>Run Live Auction:</strong> Control the auction with pause/resume/end controls</li>
+            <li><strong>Export Results:</strong> Download final results as CSV when complete</li>
+        </ol>
+    </div>
+
+    <h2 style="color: #333; margin-top: 32px; margin-bottom: 16px;">Key Features</h2>
+
+    <ul style="line-height: 1.8; color: #666;">
+        <li><strong>Real-Time Bidding:</strong> All participants see bids and updates instantly via SignalR</li>
+        <li><strong>Conference-Based Positions:</strong> Draft schools into Big Ten, SEC, ACC, Big 12, Small School, and Flex positions</li>
+        <li><strong>Budget Management:</strong> Automatic validation ensures teams can complete their rosters</li>
+        <li><strong>Auction Controls:</strong> Pause, resume, or end auctions early for maximum flexibility</li>
+        <li><strong>Multi-Role Support:</strong> Proxy coaches can bid for multiple teams</li>
+        <li><strong>No Login Required:</strong> Simple join code system for quick access</li>
+    </ul>
+
+    <h2 style="color: #333; margin-top: 32px; margin-bottom: 16px;">Getting Started</h2>
+
+    <div style="display: flex; gap: 16px; margin-top: 24px; flex-wrap: wrap;">
+        <a href="/join" style="display: inline-block; background: #0078d4; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: 600;">
+            Join Auction
+        </a>
+        <a href="/management/system-admin" style="display: inline-block; background: #666; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: 600;">
+            System Admin
+        </a>
+    </div>
+
+    <div style="margin-top: 48px; padding-top: 24px; border-top: 1px solid #ddd; color: #999; font-size: 14px;">
+        <p>Built for the NFL Draft League - Draft schools, compete for glory!</p>
+    </div>
+</div>
