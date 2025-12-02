@@ -34,8 +34,10 @@
 ### Step 3: Import School Data (CSV)
 1. Prepare your CSV file following the template format:
    ```csv
-   School,Conference,ProjectedPoints,LeagifyPosition,PlayerName,Overall
-   Alabama,SEC,950,QB,Bryce Young,1
+   School,Conference,ProjectedPoints,NumberOfProspects,SchoolURL,LeagifyPosition
+   Alabama,SEC,204,34,https://example.com/alabama-logo.svg,SEC
+   Clemson,ACC,202,22,https://example.com/clemson-logo.svg,ACC
+   Wisconsin,Big Ten,176,28,https://example.com/wisconsin-logo.svg,Big Ten
    ```
 2. Click **"Import Schools"** button
 3. Upload your CSV file
@@ -54,20 +56,24 @@
 
 ### Step 4: Configure Roster Structure
 1. Navigate to **"Roster Settings"**
-2. Define position slots for each team:
-   - **QB**: Quarterback slots (typically 1-2)
-   - **RB**: Running Back slots (typically 2-3)
-   - **WR**: Wide Receiver slots (typically 2-3)
-   - **TE**: Tight End slots (typically 1-2)
-   - **Flex**: Flexible position slots (typically 1-2)
-3. Verify total roster slots × number of teams ≤ available schools
-4. Click **"Save Roster Configuration"**
+2. Define position slots for each team based on conferences:
+   - **Big Ten**: Schools from Big Ten Conference (typically 2 slots)
+   - **SEC**: Schools from SEC Conference (typically 2 slots)
+   - **Big 12**: Schools from Big 12 Conference (typically 1 slot)
+   - **ACC**: Schools from ACC Conference (typically 1 slot)
+   - **Small School**: Schools from smaller conferences combined (typically 1 slot)
+   - **Flex**: Any school from any conference (typically 3 slots)
+3. Position types are populated from the `LeagifyPosition` column in your CSV
+4. Verify total roster slots × number of teams ≤ available schools
+5. Click **"Save Roster Configuration"**
 
-**Common Configurations:**
-- **6 teams, 10 slots each**: 60 total slots, need 60+ schools (most common)
+**Common Configuration (Most Common):**
+- **6 teams, 10 slots each**: 60 total slots, need 60+ schools
+  - Example roster per team: 2 Big Ten + 2 SEC + 1 Big 12 + 1 ACC + 1 Small School + 3 Flex = 10 slots
+
+**Other Examples:**
 - **8 teams, 10 slots each**: 80 total slots, need 80+ schools
 - **10 teams, 10 slots each**: 100 total slots, need 100+ schools
-- **12 teams, 10 slots each**: 120 total slots, need 120+ schools
 
 ### Step 5: Set Nomination Order
 1. Go to **"Turn Order"** tab
@@ -210,8 +216,10 @@ Before clicking "Start Auction", verify:
 - You can also click **"End Bidding"** to force completion
 
 **4. School Assignment**
-- System auto-assigns school to most restrictive valid position
-- Winner can override position assignment using dropdown
+- System auto-assigns school to most restrictive valid position based on LeagifyPosition
+  - Example: An SEC school goes to "SEC" slot before "Flex" slot
+  - A Big Ten school goes to "Big Ten" slot before "Flex" slot
+- Winner can override position assignment using dropdown (system only shows valid positions)
 - Click **"Confirm Assignment"** to finalize
 
 **5. Next Nomination**
@@ -352,14 +360,14 @@ Before clicking "Start Auction", verify:
 - This is intentional validation, not a bug
 
 ### Issue: School Assignment to Wrong Position
-**Symptoms:** School auto-assigned to Flex when user wanted it in QB slot
+**Symptoms:** School auto-assigned to Flex when user wanted it in a specific conference slot (e.g., SEC, Big Ten)
 
 **Resolution:**
 1. User should click **"Change Position"** dropdown
-2. Select desired position (system only shows valid positions)
+2. Select desired position (system only shows valid positions based on school's LeagifyPosition)
 3. Click **"Confirm Assignment"**
 
-**Note:** System auto-assigns to most restrictive position first (QB before Flex), but user can always override. This is strategy, not a bug - users can make suboptimal assignments if they choose.
+**Note:** System auto-assigns to most restrictive position first (e.g., "SEC" before "Flex" for an SEC school), but user can always override to any valid position. This is strategy, not a bug - users can make suboptimal assignments (like putting an SEC school in Flex) if they choose.
 
 ### Issue: User Disconnected Mid-Auction
 **Immediate Actions:**
@@ -425,12 +433,13 @@ If you need to end auction early:
 3. Downloads file matching SampleFantasyDraft.csv format:
    ```csv
    Team,School,Position,FinalBid,Conference,ProjectedPoints
-   Team Alpha,Alabama,QB,45,SEC,950
+   Team Alpha,Alabama,SEC,45,SEC,950
+   Team Bravo,Wisconsin,Big Ten,38,Big Ten,820
    ```
 4. Columns included:
    - Team name
    - School name
-   - Assigned position
+   - Assigned roster position (SEC, Big Ten, Flex, etc.)
    - Final winning bid
    - School metadata (conference, projected points, etc.)
 
