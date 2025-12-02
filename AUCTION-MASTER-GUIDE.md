@@ -21,6 +21,11 @@
    - Password will be stored in your browser for future sessions
 3. Verify you see the admin dashboard
 
+**Note:** This guide assumes you are a system administrator. If you are a regular user who wants to run an auction:
+- You become Auction Master automatically when you create an auction
+- OR you can be assigned Auction Master role by the auction creator
+- System admins can also enable "Use Management As Admin" setting to access any auction's admin panel (see ADMIN-GUIDE.md for details)
+
 ### Step 2: Create New Auction
 1. Click **"Create Auction"** button
 2. Enter auction details:

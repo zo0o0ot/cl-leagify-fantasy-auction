@@ -92,6 +92,42 @@ Each auction has a unique 16-character Master Recovery Code.
 
 **Important:** Master Recovery Codes are auction-specific, not system-wide.
 
+### System Admin Access to Auction Admin Panels
+
+**Feature:** System admins can access the WaitingRoomAdmin panel for ANY auction, not just auctions they created.
+
+**Use Cases:**
+- You're the system admin AND running a specific auction as Auction Master
+- Need to troubleshoot issues in someone else's auction
+- Taking over auction management temporarily
+
+**How to Enable:**
+1. Log in to System Admin with management password
+2. In System Admin settings, enable **"Use Management As Admin"**
+3. This setting persists in your browser
+
+**How It Works:**
+- When enabled, you can access `/management/auction/{auctionId}/waiting-room-admin` for any auction
+- You have full Auction Master controls (pause, resume, end, etc.)
+- Your access is based on system admin credentials, not auction-specific role
+
+**Important Distinctions:**
+
+| Aspect | Regular Auction Master | System Admin as Auction Master |
+|--------|------------------------|--------------------------------|
+| **Access Scope** | Single auction only | All auctions system-wide |
+| **How Granted** | Created auction OR assigned role | System admin setting enabled |
+| **Authentication** | Join code or Master Recovery Code | Management password |
+| **Visible to Participants** | Yes, listed as Auction Master | Yes, functions identically |
+| **Can Lose Access** | Yes, if browser session lost | No, re-login with admin password |
+
+**Best Practice:**
+- If you're running YOUR OWN auction: Join as regular participant first, then use system admin access as backup
+- If you're troubleshooting SOMEONE ELSE'S auction: Use system admin access directly
+- Document when you use system admin access for audit purposes
+
+**Security Note:** Only grant system admin password to trusted individuals, as it provides access to ALL auctions.
+
 ---
 
 ## Managing Multiple Auctions
