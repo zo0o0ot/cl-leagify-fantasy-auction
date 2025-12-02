@@ -45,11 +45,11 @@ body {
 }
 
 footer {
-    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-blue) 100%);
+    background: linear-gradient(to right, #064e3b 0%, var(--primary-green) 50%, #10b981 100%);
     color: rgba(255, 255, 255, 0.9);
     align-items: center;
     padding: 10px 10px;
-    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.15);
 }
 
     footer a {
