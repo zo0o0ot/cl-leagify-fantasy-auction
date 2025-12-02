@@ -90,7 +90,7 @@
 
 ### Sharing the Join Code
 1. Share these details with participants:
-   - **Join URL**: `https://your-app.azurestaticapps.net/join`
+   - **Join URL**: `https://jolly-meadow-0b4450210.2.azurestaticapps.net/join`
    - **Join Code**: The 6-character code from auction creation
    - **Instructions**: Enter join code + choose display name
 
