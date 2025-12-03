@@ -56,37 +56,14 @@ This Azure Logic App calls the connection cleanup endpoint every 15 minutes to a
    - **Headers**: (none needed - endpoint is Anonymous)
    - **Body**: (leave empty)
 
-**To get YOUR_FUNCTION_KEY (Azure Static Web Apps):**
+**Why no authentication?**
+The cleanup endpoint uses `AuthorizationLevel.Anonymous` because:
+- It's an internal maintenance operation (no sensitive data exposed)
+- Calling it just triggers connection cleanup (safe to run anytime)
+- Simplifies Logic App configuration (no key management needed)
+- The endpoint only returns cleanup statistics (no private information)
 
-**Option 1: Use Azure Portal**
-1. Go to [Azure Portal](https://portal.azure.com)
-2. Navigate to your **Static Web App** resource
-3. In left menu, click **"APIs"** (under Settings)
-4. Look for function keys in the API configuration
-5. If not visible, continue to Option 2
-
-**Option 2: Get from deployment/environment**
-1. In your Static Web App, go to **"Configuration"**
-2. Look for application settings
-3. Function key might be auto-generated during deployment
-
-**Option 3: Make endpoint Anonymous (Simplest)**
-Since this is an internal maintenance task, you can:
-1. Change `AuthorizationLevel.Function` to `AuthorizationLevel.Anonymous`
-2. Remove the `x-functions-key` header from Logic App
-3. Endpoint becomes publicly accessible (but safe for cleanup operations)
-
-**Recommended: Use Option 3** - Update the code to use `AuthorizationLevel.Anonymous`:
-
-```csharp
-[Function("CleanupIdleConnections")]
-public async Task<HttpResponseData> CleanupIdleConnections(
-    [HttpTrigger(AuthorizationLevel.Anonymous, "post", "get", Route = "system/cleanup-connections")] HttpRequestData req)
-```
-
-**To get YOUR-STATIC-WEB-APP URL:**
-- Your Static Web App URL: `jolly-meadow-0b4450210.2.azurestaticapps.net`
-- Full endpoint: `https://jolly-meadow-0b4450210.2.azurestaticapps.net/api/system/cleanup-connections`
+That's it! No function keys or authentication headers required.
 
 #### Optional: Add Condition for Logging
 
