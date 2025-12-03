@@ -241,6 +241,30 @@
                             Pause Auction
                         </FluentButton>
 
+                        <FluentButton Appearance="Appearance.Accent"
+                                      IconStart="@(new Icons.Regular.Size16.Play())"
+                                      OnClick="@ResumeAuction"
+                                      Disabled="@(auctionStatus != "Paused")"
+                                      Loading="@isProcessing">
+                            Resume Auction
+                        </FluentButton>
+
+                        <FluentButton Appearance="Appearance.Neutral"
+                                      IconStart="@(new Icons.Regular.Size16.Stop())"
+                                      OnClick="@EndAuctionEarly"
+                                      Disabled="@(auctionStatus != "InProgress" && auctionStatus != "Paused")"
+                                      Loading="@isProcessing">
+                            End Auction Early
+                        </FluentButton>
+
+                        <FluentButton Appearance="Appearance.Stealth"
+                                      IconStart="@(new Icons.Regular.Size16.ArrowReset())"
+                                      OnClick="@ResetTestBids"
+                                      Disabled="@(auctionStatus != "Draft")"
+                                      Loading="@isProcessing">
+                            Reset Test Bids
+                        </FluentButton>
+
                         <FluentButton Appearance="Appearance.Neutral"
                                       IconStart="@(new Icons.Regular.Size16.Stop())"
                                       OnClick="@EndBidding"
@@ -512,8 +536,161 @@
             isProcessing = true;
             StateHasChanged();
 
-            Console.WriteLine("Pausing auction...");
-            await Task.Delay(500); // Placeholder for actual API call
+            var managementToken = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(managementToken))
+            {
+                Console.WriteLine("❌ Management token not found - please login to management interface");
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", managementToken);
+
+            var response = await Http.PostAsync($"/api/management/auctions/{AuctionId}/pause", null);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("✓ Auction paused successfully");
+                await LoadPanelData(); // Refresh to show updated status
+            }
+            else
+            {
+                var errorMessage = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"❌ Failed to pause auction: {errorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error pausing auction: {ex.Message}");
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ResumeAuction()
+    {
+        if (session == null || isProcessing) return;
+
+        try
+        {
+            isProcessing = true;
+            StateHasChanged();
+
+            var managementToken = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(managementToken))
+            {
+                Console.WriteLine("❌ Management token not found - please login to management interface");
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", managementToken);
+
+            var response = await Http.PostAsync($"/api/management/auctions/{AuctionId}/resume", null);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("✓ Auction resumed successfully");
+                await LoadPanelData(); // Refresh to show updated status
+            }
+            else
+            {
+                var errorMessage = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"❌ Failed to resume auction: {errorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error resuming auction: {ex.Message}");
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task EndAuctionEarly()
+    {
+        if (session == null || isProcessing) return;
+
+        try
+        {
+            isProcessing = true;
+            StateHasChanged();
+
+            var managementToken = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(managementToken))
+            {
+                Console.WriteLine("❌ Management token not found - please login to management interface");
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", managementToken);
+
+            var response = await Http.PostAsync($"/api/management/auctions/{AuctionId}/end", null);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("✓ Auction ended successfully");
+                await LoadPanelData(); // Refresh to show updated status
+            }
+            else
+            {
+                var errorMessage = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"❌ Failed to end auction: {errorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error ending auction: {ex.Message}");
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ResetTestBids()
+    {
+        if (session == null || isProcessing) return;
+
+        try
+        {
+            isProcessing = true;
+            StateHasChanged();
+
+            var managementToken = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(managementToken))
+            {
+                Console.WriteLine("❌ Management token not found - please login to management interface");
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", managementToken);
+
+            var response = await Http.PostAsync($"/api/management/auctions/{AuctionId}/reset-test-bids", null);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("✓ Test bids reset successfully");
+                await LoadPanelData(); // Refresh to show updated participants
+            }
+            else
+            {
+                var errorMessage = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"❌ Failed to reset test bids: {errorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error resetting test bids: {ex.Message}");
         }
         finally
         {

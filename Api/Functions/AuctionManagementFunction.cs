@@ -593,6 +593,92 @@ public class AuctionManagementFunction
     }
 
     /// <summary>
+    /// Resets all test bids and user readiness flags for a Draft auction.
+    /// Allows Auction Masters to clean up test data before starting the real auction.
+    /// </summary>
+    [Function("ResetTestBids")]
+    public async Task<HttpResponseData> ResetTestBids(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "management/auctions/{auctionId:int}/reset-test-bids")] HttpRequestData req,
+        int auctionId)
+    {
+        try
+        {
+            if (!IsValidAdminRequest(req))
+            {
+                _logger.LogWarning("Unauthorized request to reset test bids for auction {AuctionId}", auctionId);
+                var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
+                await unauthorizedResponse.WriteStringAsync("Unauthorized");
+                return unauthorizedResponse;
+            }
+
+            _logger.LogInformation("Resetting test bids for auction {AuctionId}", auctionId);
+
+            using var scope = _serviceProvider.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<LeagifyAuctionDbContext>();
+
+            // Verify auction exists and is in Draft status
+            var auction = await dbContext.Auctions.FindAsync(auctionId);
+            if (auction == null)
+            {
+                var notFoundResponse = req.CreateResponse(HttpStatusCode.NotFound);
+                await notFoundResponse.WriteStringAsync("Auction not found");
+                return notFoundResponse;
+            }
+
+            if (auction.Status != "Draft")
+            {
+                var badResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await badResponse.WriteStringAsync("Can only reset test bids for Draft auctions");
+                return badResponse;
+            }
+
+            // Delete all test bids for this auction
+            var testBids = dbContext.BidHistories.Where(b => b.AuctionId == auctionId);
+            var testBidCount = await testBids.CountAsync();
+            dbContext.BidHistories.RemoveRange(testBids);
+
+            // Reset user readiness flags
+            var users = await dbContext.Users.Where(u => u.AuctionId == auctionId).ToListAsync();
+            var affectedUsers = 0;
+            foreach (var user in users)
+            {
+                if (user.HasTestedBidding || user.IsReadyToDraft || user.HasPassedOnTestBid)
+                {
+                    user.HasTestedBidding = false;
+                    user.IsReadyToDraft = false;
+                    user.HasPassedOnTestBid = false;
+                    affectedUsers++;
+                }
+            }
+
+            await dbContext.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "Successfully reset test bids for auction {AuctionId}: Deleted {BidCount} bids, reset {UserCount} users",
+                auctionId, testBidCount, affectedUsers);
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(new
+            {
+                Success = true,
+                Message = "Test bids reset successfully",
+                AuctionId = auctionId,
+                DeletedBids = testBidCount,
+                ResetUsers = affectedUsers,
+                Timestamp = DateTime.UtcNow
+            });
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error resetting test bids for auction {AuctionId}", auctionId);
+            var response = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await response.WriteStringAsync($"Error resetting test bids: {ex.Message}");
+            return response;
+        }
+    }
+
+    /// <summary>
     /// Advanced database diagnostic test to understand schema and constraints.
     /// </summary>
     [Function("TestDatabaseDiagnostic")]
