@@ -31,30 +31,9 @@ public class ConnectionCleanupFunction
     }
 
     /// <summary>
-    /// Timer-triggered function to automatically clean up idle connections every 5 minutes.
-    /// Prevents database from staying active when no users are connected.
-    /// Runs automatically without external scheduling.
-    /// </summary>
-    [Function("AutoCleanupConnections")]
-    public async Task AutoCleanupConnections(
-        [TimerTrigger("0 */5 * * * *")] TimerInfo timerInfo)
-    {
-        _logger.LogInformation("⏰ Automatic idle connection cleanup triggered at {Time}", DateTime.UtcNow);
-
-        try
-        {
-            await PerformCleanup();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "❌ Error during automatic connection cleanup");
-        }
-    }
-
-    /// <summary>
-    /// HTTP-triggered function to manually clean up idle connections.
-    /// Can be called for testing or manual cleanup.
-    /// The automatic timer trigger runs this same logic every 5 minutes.
+    /// HTTP-triggered function to clean up idle connections.
+    /// Called by Azure Logic App every 5 minutes to automatically clean up idle connections.
+    /// Can also be called manually for testing or immediate cleanup.
     /// </summary>
     [Function("CleanupIdleConnections")]
     public async Task<HttpResponseData> CleanupIdleConnections(
