@@ -1,10 +1,18 @@
 # Auction Control Features - Testing Guide
 
 ## Overview
-Testing guide for Task 7.2 auction control features: Pause, Resume, End Early, and Reset Test Bids.
+Testing guide for Phase 7 production readiness features:
+- **Task 7.1:** SignalR Connection Management (automatic cleanup) - ✅ **IMPLEMENTED**
+- **Task 7.2:** Auction Control Features (Pause, Resume, End Early, Reset Test Bids) - ✅ **IMPLEMENTED**
 
-**Deployment Date:** December 2, 2025
-**Features Added:** Pause/Resume/End/Reset controls for safe auction testing
+**Deployment Date:** December 2, 2025 (Task 7.1) / December 3, 2025 (Task 7.2)
+**Implementation Status:** All endpoints and UI controls complete and deployed
+
+**Features Available:**
+- ✅ Automatic connection cleanup (every 5 min) - prevents database 24/7 costs
+- ✅ Pause/Resume/End/Reset controls - enables safe auction testing
+- ✅ Auction Master Panel UI buttons - status-based control visibility
+- ✅ Management token authentication - secure admin operations
 
 ---
 
@@ -24,6 +32,137 @@ Testing guide for Task 7.2 auction control features: Pause, Resume, End Early, a
 ---
 
 ## Test Scenarios
+
+### Test 0: SignalR Connection Cleanup (Task 7.1)
+
+**Purpose:** Verify automatic connection cleanup prevents database from staying active 24/7
+
+**Prerequisites:**
+- Deployment complete with timer trigger enabled
+- Access to Azure Portal / Application Insights logs
+- Management admin token for API access
+
+#### Test 0.1: Manual Connection Cleanup
+
+**Steps:**
+1. Join an auction as a test user
+2. Note the connection in the waiting room
+3. Close the browser WITHOUT clicking "Leave Auction"
+4. Wait 2 minutes for detection
+5. Call manual cleanup endpoint:
+   ```bash
+   curl -X POST https://jolly-meadow-0b4450210.2.azurestaticapps.net/api/system/cleanup-connections
+   ```
+
+**Expected Results:**
+✅ User is marked as `IsConnected = false`
+✅ `ConnectionId` is cleared (set to null)
+✅ Response shows cleanup count:
+```json
+{
+  "Success": true,
+  "CleanedConnections": 1,
+  "ZombieConnections": 0,
+  "Timestamp": "2025-12-02T20:45:00Z"
+}
+```
+✅ Waiting room admin panel shows user as disconnected
+
+#### Test 0.2: Automatic Timer Trigger
+
+**Steps:**
+1. Wait for timer trigger to run (max 5 minutes)
+2. Check Application Insights logs for:
+   - "⏰ Automatic idle connection cleanup triggered"
+   - "✅ Cleaned up X idle connections"
+   - "📊 Connection Stats"
+
+**Expected Results:**
+✅ Timer trigger runs every 5 minutes
+✅ Logs show automatic cleanup activity
+✅ Statistics show database can auto-pause when no connections:
+   ```
+   "📊 Connection Stats: 0/50 users connected | 0 active auctions | Database can auto-pause: YES ✅"
+   ```
+
+#### Test 0.3: Connection Statistics API
+
+**Steps:**
+1. Call statistics endpoint with management token:
+   ```bash
+   curl https://jolly-meadow-0b4450210.2.azurestaticapps.net/api/admin/connection-statistics \
+     -H "X-Management-Token: $MANAGEMENT_PASSWORD"
+   ```
+
+**Expected Results:**
+✅ Response includes connection metrics:
+```json
+{
+  "TotalUsers": 50,
+  "ConnectedUsers": 2,
+  "IdleConnections": 1,
+  "ZombieConnections": 0,
+  "ActiveAuctions": 1,
+  "CanAutoPause": false,
+  "IdleTimeoutMinutes": 10,
+  "ZombieTimeoutMinutes": 30,
+  "AuctionBreakdown": [
+    {
+      "AuctionId": 52,
+      "ConnectedUsers": 2,
+      "OldestActivity": "2025-12-02T20:30:00Z"
+    }
+  ]
+}
+```
+
+#### Test 0.4: Idle Timeout (10 Minutes)
+
+**Steps:**
+1. Join auction as test user
+2. Don't interact for 11 minutes
+3. Check connection status
+
+**Expected Results:**
+✅ After 10+ minutes of inactivity, automatic cleanup runs
+✅ User is marked as disconnected
+✅ Logs show: "💤 IDLE User {UserId} - idle for 11.2 minutes"
+
+#### Test 0.5: Zombie Connection Detection (30 Minutes)
+
+**Steps:**
+1. Simulate very old connection (31+ minutes idle)
+2. Wait for cleanup cycle
+
+**Expected Results:**
+✅ Connection identified as zombie
+✅ Logs show: "🧟 ZOMBIE User {UserId} - idle for 32.5 minutes"
+✅ Connection removed
+✅ Statistics show zombie count incremented
+
+#### Test 0.6: Database Auto-Pause Verification
+
+**Steps:**
+1. Ensure all users are disconnected (wait 15+ minutes after last activity)
+2. Check connection statistics
+3. Monitor Azure SQL Database metrics
+
+**Expected Results:**
+✅ `CanAutoPause: true` in statistics
+✅ Database pauses within 5 minutes of last connection cleanup
+✅ No active connections in database metrics
+✅ Significant cost savings visible in Azure billing
+
+**Success Criteria:**
+- [ ] Manual cleanup works on demand
+- [ ] Timer trigger runs every 5 minutes
+- [ ] Idle timeout (10 min) functions correctly
+- [ ] Zombie detection (30 min) identifies old connections
+- [ ] Statistics API provides accurate metrics
+- [ ] Database can auto-pause when no active connections
+- [ ] Logs show connection cleanup activity
+
+---
 
 ### Test 1: Pause Active Auction
 
@@ -441,6 +580,16 @@ WHERE AuctionId = 52;
 
 Before considering testing complete, verify:
 
+**Task 7.1: SignalR Connection Management**
+- [ ] Manual connection cleanup works on demand
+- [ ] Timer trigger runs automatically every 5 minutes
+- [ ] Idle timeout (10 min) disconnects inactive users
+- [ ] Zombie detection (30 min) identifies very old connections
+- [ ] Connection statistics API returns accurate metrics
+- [ ] Database can auto-pause when no active connections
+- [ ] Application Insights logs show cleanup activity
+
+**Task 7.2: Auction Control Features**
 - [ ] Can pause InProgress auction
 - [ ] Can resume Paused auction
 - [ ] Can end InProgress auction early
@@ -450,6 +599,8 @@ Before considering testing complete, verify:
 - [ ] Standard roster creates correct 6 positions with proper slot counts
 - [ ] Invalid transitions properly rejected
 - [ ] Bidding state preserved across pause/resume
+
+**General**
 - [ ] No console errors during any operation
 - [ ] Buttons appear/disappear correctly based on status
 - [ ] Management auth properly enforced
@@ -459,18 +610,37 @@ Before considering testing complete, verify:
 
 ---
 
+## API Endpoints Summary
+
+All endpoints require management token authentication via `X-Management-Token` header:
+
+| Endpoint | Method | Route | Status Required | Description |
+|----------|--------|-------|-----------------|-------------|
+| Pause | POST | `/api/management/auctions/{id}/pause` | InProgress | Freeze bidding |
+| Resume | POST | `/api/management/auctions/{id}/resume` | Paused | Continue auction |
+| End Early | POST | `/api/management/auctions/{id}/end` | InProgress/Paused | Complete auction |
+| Reset Test Bids | POST | `/api/management/auctions/{id}/reset-test-bids` | Draft | Clear test data |
+
+**UI Access:** Auction Master Panel at `/auction/{id}/master-panel`
+
 ## Next Steps After Testing
 
 Once testing is complete:
 
 1. **Document any bugs found** in GitHub issues
-2. **Update DEVELOPMENT-TASKS.md** - Mark Task 7.2 as complete
-3. **Proceed to Task 7.4** - First Full Test Auction with 6-8 participants
-4. **Consider enhancements:**
-   - Add confirmation dialogs for destructive actions (End Early)
-   - Add SignalR broadcasts for real-time status updates
-   - Add audit logging for all control actions
-   - Add "Reason" field for pause/end (optional)
+2. **Update DEVELOPMENT-TASKS.md:**
+   - Mark Task 7.1 as complete (if connection cleanup verified)
+   - Mark Task 7.2 as complete (if auction controls verified)
+3. **Verify cost savings:**
+   - Monitor Azure billing for database auto-pause
+   - Confirm database is not active 24/7
+   - Expected savings: $50-175/month
+4. **Proceed to Task 7.4** - First Full Test Auction with 6-8 participants
+5. **Consider enhancements:**
+   - Add confirmation dialogs for destructive actions (End Early, Reset)
+   - Add SignalR broadcasts for real-time status updates to all participants
+   - Add audit logging for all control actions (already has structured logging)
+   - Add "Reason" field for pause/end (optional notes field)
 
 ---
 
