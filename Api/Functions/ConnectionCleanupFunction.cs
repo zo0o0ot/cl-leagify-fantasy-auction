@@ -37,7 +37,7 @@ public class ConnectionCleanupFunction
     /// </summary>
     [Function("CleanupIdleConnections")]
     public async Task<HttpResponseData> CleanupIdleConnections(
-        [HttpTrigger(AuthorizationLevel.Function, "post", "get", Route = "system/cleanup-connections")] HttpRequestData req)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", "get", Route = "system/cleanup-connections")] HttpRequestData req)
     {
         _logger.LogInformation("🧹 Manual idle connection cleanup triggered at {Time}", DateTime.UtcNow);
 
