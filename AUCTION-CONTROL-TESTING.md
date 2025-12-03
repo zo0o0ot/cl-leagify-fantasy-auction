@@ -9,10 +9,13 @@ Testing guide for Phase 7 production readiness features:
 **Implementation Status:** All endpoints and UI controls complete and deployed
 
 **Features Available:**
-- ✅ Automatic connection cleanup (every 5 min) - prevents database 24/7 costs
+- ✅ Automatic connection cleanup (every 15 min via Azure Logic App) - prevents database 24/7 costs
 - ✅ Pause/Resume/End/Reset controls - enables safe auction testing
 - ✅ Auction Master Panel UI buttons - status-based control visibility
 - ✅ Management token authentication - secure admin operations
+
+**Setup Required:**
+- Azure Logic App must be configured to call cleanup endpoint (see [AZURE-LOGIC-APP-SETUP.md](./AZURE-LOGIC-APP-SETUP.md))
 
 ---
 
@@ -38,7 +41,8 @@ Testing guide for Phase 7 production readiness features:
 **Purpose:** Verify automatic connection cleanup prevents database from staying active 24/7
 
 **Prerequisites:**
-- Deployment complete with timer trigger enabled
+- Deployment complete with cleanup endpoint deployed
+- Azure Logic App configured (see [AZURE-LOGIC-APP-SETUP.md](./AZURE-LOGIC-APP-SETUP.md))
 - Access to Azure Portal / Application Insights logs
 - Management admin token for API access
 
@@ -68,22 +72,28 @@ Testing guide for Phase 7 production readiness features:
 ```
 ✅ Waiting room admin panel shows user as disconnected
 
-#### Test 0.2: Automatic Timer Trigger
+#### Test 0.2: Automatic Azure Logic App Cleanup
 
 **Steps:**
-1. Wait for timer trigger to run (max 5 minutes)
-2. Check Application Insights logs for:
-   - "⏰ Automatic idle connection cleanup triggered"
+1. Verify Azure Logic App is configured and enabled (see [AZURE-LOGIC-APP-SETUP.md](./AZURE-LOGIC-APP-SETUP.md))
+2. Wait for Logic App to run (max 15 minutes)
+3. Check Logic App run history in Azure Portal:
+   - Navigate to Logic App → Overview → Runs history
+   - Verify successful runs every 15 minutes
+4. Check Application Insights logs for:
+   - "🧹 Manual idle connection cleanup triggered"
    - "✅ Cleaned up X idle connections"
    - "📊 Connection Stats"
 
 **Expected Results:**
-✅ Timer trigger runs every 5 minutes
+✅ Logic App runs every 15 minutes (stays in FREE tier)
+✅ HTTP action returns 200 OK status
 ✅ Logs show automatic cleanup activity
 ✅ Statistics show database can auto-pause when no connections:
    ```
    "📊 Connection Stats: 0/50 users connected | 0 active auctions | Database can auto-pause: YES ✅"
    ```
+✅ Logic App cost remains $0.00/month (2,880 actions < 4,000 free tier)
 
 #### Test 0.3: Connection Statistics API
 
@@ -155,12 +165,14 @@ Testing guide for Phase 7 production readiness features:
 
 **Success Criteria:**
 - [ ] Manual cleanup works on demand
-- [ ] Timer trigger runs every 5 minutes
+- [ ] Azure Logic App runs every 15 minutes (verified in Azure Portal)
+- [ ] Logic App HTTP requests succeed (200 OK status)
 - [ ] Idle timeout (10 min) functions correctly
 - [ ] Zombie detection (30 min) identifies old connections
 - [ ] Statistics API provides accurate metrics
 - [ ] Database can auto-pause when no active connections
 - [ ] Logs show connection cleanup activity
+- [ ] Logic App stays within FREE tier (2,880 actions/month)
 
 ---
 
@@ -582,7 +594,9 @@ Before considering testing complete, verify:
 
 **Task 7.1: SignalR Connection Management**
 - [ ] Manual connection cleanup works on demand
-- [ ] Timer trigger runs automatically every 5 minutes
+- [ ] Azure Logic App configured and running every 15 minutes
+- [ ] Logic App HTTP requests succeed (200 OK)
+- [ ] Logic App stays in FREE tier (2,880 actions/month)
 - [ ] Idle timeout (10 min) disconnects inactive users
 - [ ] Zombie detection (30 min) identifies very old connections
 - [ ] Connection statistics API returns accurate metrics
