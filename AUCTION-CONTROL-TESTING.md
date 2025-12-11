@@ -9,10 +9,12 @@ Testing guide for Phase 7 production readiness features:
 **Implementation Status:** All endpoints and UI controls complete and deployed
 
 **Features Available:**
-- ✅ Automatic connection cleanup (every 15 min via Azure Logic App) - prevents database 24/7 costs
+- ✅ Automatic connection cleanup (once per day via Azure Logic App) - handles edge case stale connections
 - ✅ Pause/Resume/End/Reset controls - enables safe auction testing
 - ✅ Auction Master Panel UI buttons - status-based control visibility
 - ✅ Management token authentication - secure admin operations
+
+**Note:** SignalR handles normal disconnects automatically. The daily cleanup is only for edge cases (crashes, network failures).
 
 **Setup Required:**
 - Azure Logic App must be configured to call cleanup endpoint (see [AZURE-LOGIC-APP-SETUP.md](./AZURE-LOGIC-APP-SETUP.md))
@@ -76,24 +78,24 @@ Testing guide for Phase 7 production readiness features:
 
 **Steps:**
 1. Verify Azure Logic App is configured and enabled (see [AZURE-LOGIC-APP-SETUP.md](./AZURE-LOGIC-APP-SETUP.md))
-2. Wait for Logic App to run (max 15 minutes)
+2. Wait for Logic App daily run (typically 3:00 AM UTC)
 3. Check Logic App run history in Azure Portal:
    - Navigate to Logic App → Overview → Runs history
-   - Verify successful runs every 15 minutes
+   - Verify successful runs once per day
 4. Check Application Insights logs for:
    - "🧹 Manual idle connection cleanup triggered"
    - "✅ Cleaned up X idle connections"
    - "📊 Connection Stats"
 
 **Expected Results:**
-✅ Logic App runs every 15 minutes (stays in FREE tier)
+✅ Logic App runs once per day (minimal database impact)
 ✅ HTTP action returns 200 OK status
-✅ Logs show automatic cleanup activity
-✅ Statistics show database can auto-pause when no connections:
-   ```
-   "📊 Connection Stats: 0/50 users connected | 0 active auctions | Database can auto-pause: YES ✅"
-   ```
-✅ Logic App cost remains $0.00/month (2,880 actions < 4,000 free tier)
+✅ Logs show cleanup activity (if any stale connections found)
+✅ Statistics show current connection status
+✅ Logic App cost remains $0.00/month (30 actions << 4,000 free tier)
+✅ Database free tier not exhausted by cleanup operations
+
+**Note:** Production testing showed that running every 15 minutes caused excessive database load and free tier exhaustion. Once-per-day provides adequate cleanup while minimizing impact.
 
 #### Test 0.3: Connection Statistics API
 
@@ -165,14 +167,15 @@ Testing guide for Phase 7 production readiness features:
 
 **Success Criteria:**
 - [ ] Manual cleanup works on demand
-- [ ] Azure Logic App runs every 15 minutes (verified in Azure Portal)
+- [ ] Azure Logic App runs once per day (verified in Azure Portal)
 - [ ] Logic App HTTP requests succeed (200 OK status)
 - [ ] Idle timeout (10 min) functions correctly
 - [ ] Zombie detection (30 min) identifies old connections
 - [ ] Statistics API provides accurate metrics
 - [ ] Database can auto-pause when no active connections
 - [ ] Logs show connection cleanup activity
-- [ ] Logic App stays within FREE tier (2,880 actions/month)
+- [ ] Logic App stays within FREE tier (30 actions/month << 4,000 limit)
+- [ ] Database free tier not exhausted by cleanup operations
 
 ---
 
@@ -594,11 +597,13 @@ Before considering testing complete, verify:
 
 **Task 7.1: SignalR Connection Management**
 - [ ] Manual connection cleanup works on demand
-- [ ] Azure Logic App configured and running every 15 minutes
+- [ ] Azure Logic App configured and running once per day
 - [ ] Logic App HTTP requests succeed (200 OK)
-- [ ] Logic App stays in FREE tier (2,880 actions/month)
-- [ ] Idle timeout (10 min) disconnects inactive users
-- [ ] Zombie detection (30 min) identifies very old connections
+- [ ] Logic App stays in FREE tier (30 actions/month)
+- [ ] Database free tier not exhausted by cleanup operations
+- [ ] SignalR handles normal disconnects automatically (verified)
+- [ ] Idle timeout (10 min) disconnects inactive users (cleanup for edge cases)
+- [ ] Zombie detection (30 min) identifies very old connections (cleanup for edge cases)
 - [ ] Connection statistics API returns accurate metrics
 - [ ] Database can auto-pause when no active connections
 - [ ] Application Insights logs show cleanup activity

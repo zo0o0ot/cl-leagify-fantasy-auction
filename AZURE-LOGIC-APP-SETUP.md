@@ -1,10 +1,11 @@
 # Azure Logic App Setup - Connection Cleanup Scheduler
 
 ## Overview
-This Azure Logic App calls the connection cleanup endpoint every 15 minutes to automatically clean up idle SignalR connections and enable database auto-pause.
+This Azure Logic App calls the connection cleanup endpoint once per day to automatically clean up stale SignalR connections from edge cases (crashes, network failures). SignalR handles normal disconnects automatically.
 
-**Cost**: **FREE** (2,880 actions/month < 4,000 free tier)
-**Savings**: $50-175/month from database auto-pause
+**Cost**: **FREE** (30 actions/month << 4,000 free tier)
+**Database Impact**: Minimal (once-per-day prevents free tier exhaustion)
+**Cleanup Coverage**: Handles edge cases (SignalR handles normal disconnects)
 
 ---
 
@@ -43,7 +44,15 @@ This Azure Logic App calls the connection cleanup endpoint every 15 minutes to a
    - **Frequency**: `Minute`
    - **Time zone**: Your preferred time zone (optional)
 
-**Note**: 15 minutes keeps you in the free tier (2,880 actions/month < 4,000 free). Use 5 minutes for $0.12/month if faster cleanup is needed.
+**IMPORTANT - Recommended Interval: Once Per Day**
+Based on production testing, running every 15 minutes caused excessive database load and contributed to free tier exhaustion.
+
+**Recommended Settings:**
+- **Interval**: `1`
+- **Frequency**: `Day`
+- **Time**: `03:00:00` (3 AM UTC - lowest usage time)
+
+This provides adequate cleanup (30 runs/month) while minimizing database impact. SignalR handles most disconnects automatically; the cleanup is only needed for edge cases (crashes, network failures).
 
 #### Add Action: HTTP
 
