@@ -317,6 +317,8 @@
     private HubConnection? hubConnection;
     private bool isConnectedToSignalR = false;
     private bool isPassingOnBid = false;
+    private System.Threading.Timer? activityHeartbeatTimer;
+    private string? currentSessionToken;
 
     protected override async Task OnInitializedAsync()
     {
@@ -326,6 +328,13 @@
 
     public async ValueTask DisposeAsync()
     {
+        // Stop and dispose the activity heartbeat timer
+        if (activityHeartbeatTimer is not null)
+        {
+            await activityHeartbeatTimer.DisposeAsync();
+            activityHeartbeatTimer = null;
+        }
+
         if (hubConnection is not null)
         {
             await hubConnection.DisposeAsync();
@@ -350,6 +359,9 @@
                 Console.WriteLine("Invalid session for SignalR connection");
                 return;
             }
+
+            // Store session token for activity heartbeat
+            currentSessionToken = session.SessionToken;
 
             Console.WriteLine($"🔌 Initializing SignalR connection for auction {AuctionId}");
 
@@ -504,6 +516,16 @@
             Console.WriteLine("✅ SignalR connected successfully");
             Console.WriteLine($"✅ Listening for auction {AuctionId} messages");
 
+            // Start activity heartbeat timer (every 5 minutes to prevent idle timeout)
+            // The cleanup function marks users idle after 10 minutes, so 5 min interval is safe
+            activityHeartbeatTimer = new System.Threading.Timer(
+                callback: async _ => await SendActivityHeartbeat(),
+                state: null,
+                dueTime: TimeSpan.FromMinutes(5),  // First heartbeat after 5 minutes
+                period: TimeSpan.FromMinutes(5)    // Then every 5 minutes
+            );
+            Console.WriteLine("💓 Activity heartbeat timer started (5 minute interval)");
+
             StateHasChanged();
         }
         catch (Exception ex)
@@ -511,6 +533,38 @@
             Console.WriteLine($"❌ SignalR connection error: {ex.Message}");
             isConnectedToSignalR = false;
             // Don't block the UI if SignalR fails - fall back to polling
+        }
+    }
+
+    /// <summary>
+    /// Sends an activity heartbeat to the server to prevent being marked as idle.
+    /// Called every 5 minutes by the heartbeat timer.
+    /// </summary>
+    private async Task SendActivityHeartbeat()
+    {
+        if (string.IsNullOrEmpty(currentSessionToken))
+        {
+            Console.WriteLine("⚠️ Heartbeat skipped: no session token");
+            return;
+        }
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("/api/signalr/update-activity", new { SessionToken = currentSessionToken });
+
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"💓 Activity heartbeat sent successfully at {DateTime.UtcNow:HH:mm:ss} UTC");
+            }
+            else
+            {
+                Console.WriteLine($"⚠️ Activity heartbeat failed: {response.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            // Don't crash the app if heartbeat fails - just log it
+            Console.WriteLine($"⚠️ Activity heartbeat error: {ex.Message}");
         }
     }
 

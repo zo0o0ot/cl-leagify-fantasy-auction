@@ -630,20 +630,44 @@ Based on the requirement: **School Management → Auction Creation → Join Auct
 
 #### Task 7.1: SignalR Connection Management (COST RISK)
 **Priority:** CRITICAL - Prevents unexpected costs
-**Estimated Effort:** 8-12 hours
+**Estimated Effort:** 8-12 hours (revised: 3-5 hours - most infrastructure already existed)
 **Risk:** Without this, database stays active 24/7 costing $50-175/month
+**Status:** IN PROGRESS (Jan 21, 2026)
 
-- [ ] Implement connection idle timeout (disconnect after 10 min inactive)
-- [ ] Add cleanup for zombie SignalR connections
+- [x] Implement connection idle timeout (disconnect after 10 min inactive)
+- [x] Add cleanup for zombie SignalR connections
+- [x] Add connection monitoring and logging
+- [x] Client-side activity heartbeat (prevents active users being marked idle)
 - [ ] Test that connections properly close when users leave
 - [ ] Verify database auto-pauses when no active connections
-- [ ] Add connection monitoring and logging
 - [ ] Test auto-pause behavior in deployed environment
+
+**Implementation Details (Backend - Already Existed):**
+- ConnectionCleanupFunction.cs: Cleanup infrastructure
+  - 10-minute idle timeout, 30-minute zombie timeout
+  - `POST/GET /api/system/cleanup-connections` - Manual trigger
+  - `GET /api/admin/connection-statistics` - Connection monitoring
+  - Azure Logic App: Scheduled daily at 3 AM UTC
+- SignalRFunction.cs: Activity tracking
+  - `POST /api/signalr/update-activity` - Updates LastActiveDate
+
+**Implementation Details (Client - Added Jan 21, 2026):**
+- WaitingRoom.razor: Activity heartbeat timer
+  - 5-minute interval heartbeat to prevent idle timeout
+  - Calls `/api/signalr/update-activity` with session token
+  - Proper timer disposal on page exit
+  - Console logging for debugging
+
+**Remaining Work:**
+- Deploy and test connection lifecycle in production
+- Verify database auto-pause behavior
+- Document testing results
 
 **Success Criteria:**
 - Database pauses within 5 minutes of last user disconnect
 - No lingering connections after browser close
 - SignalR hub properly cleans up on disconnect
+- Active users NOT marked as idle (heartbeat working)
 
 #### Task 7.2: Auction Control Features ✅
 **Priority:** CRITICAL - Required for safe testing
