@@ -5,6 +5,14 @@
 @inject NavigationManager Navigation
 
 <div class="bidding-panel">
+    @if (isReconnecting)
+    {
+        <FluentMessageBar Intent="MessageIntent.Warning" Style="margin-bottom: 16px;">
+            <FluentIcon Value="@(new Icons.Regular.Size20.Warning())" Slot="start" />
+            Connection lost. Attempting to reconnect to live bidding...
+        </FluentMessageBar>
+    }
+
     <!-- Current Bidding State -->
     @if (isActiveBidding)
     {
@@ -61,7 +69,7 @@
                     <FluentButton Appearance="Appearance.Accent"
                                   IconStart="@(new Icons.Regular.Size20.Money())"
                                   OnClick="PlaceBid"
-                                  Disabled="@(isBidding || bidAmount <= currentHighBid)"
+                                  Disabled="@(isBidding || bidAmount <= currentHighBid || isReconnecting)"
                                   Loading="@isBidding">
                         Place Bid
                     </FluentButton>
@@ -69,7 +77,7 @@
                     <FluentButton Appearance="Appearance.Neutral"
                                   IconStart="@(new Icons.Regular.Size20.DismissCircle())"
                                   OnClick="PassOnSchool"
-                                  Disabled="@isPassing"
+                                  Disabled="@(isPassing || isReconnecting)"
                                   Loading="@isPassing">
                         Pass
                     </FluentButton>
@@ -184,6 +192,7 @@
     private decimal bidAmount = 0;
     private bool isBidding = false;
     private bool isPassing = false;
+    private bool isReconnecting = false;
 
     // Activity feed
     private List<ActivityItem> recentActivity = new();
@@ -260,6 +269,32 @@
                 .WithUrl(Navigation.ToAbsoluteUri($"/api?token={token}"))
                 .WithAutomaticReconnect()
                 .Build();
+
+            hubConnection.Reconnecting += (error) =>
+            {
+                Console.WriteLine($"🔌 SignalR reconnecting: {error?.Message}");
+                isReconnecting = true;
+                InvokeAsync(StateHasChanged);
+                return Task.CompletedTask;
+            };
+
+            hubConnection.Reconnected += async (connectionId) =>
+            {
+                Console.WriteLine($"🔌 SignalR reconnected. ConnectionId: {connectionId}");
+                isReconnecting = false;
+                
+                // Refresh data to catch any missed events
+                await LoadBiddingState();
+                await InvokeAsync(StateHasChanged);
+            };
+
+            hubConnection.Closed += (error) =>
+            {
+                Console.WriteLine($"🔌 SignalR connection closed: {error?.Message}");
+                isReconnecting = false;
+                InvokeAsync(StateHasChanged);
+                return Task.CompletedTask;
+            };
 
             // Subscribe to bidding events
             hubConnection.On<BiddingStartedEvent>("BiddingStarted", (evt) =>

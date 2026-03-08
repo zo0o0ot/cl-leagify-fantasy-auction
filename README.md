@@ -2,33 +2,31 @@
 
 A real-time auction draft web application for fantasy sports, specifically designed for the NFL Draft League. The system allows multiple users to participate in live auctions bidding on college schools, with real-time updates and comprehensive roster management.
 
-## Project Status - Phase 1 Complete ✅
+## Project Status - Phases 1-6 Complete ✅ / Phase 7 In Progress
 
-### Recently Completed (December 2024)
-- **FluentUI Framework Integration**: Restored Microsoft Fluent UI Blazor components with proper MIME configuration
-- **School Management System**: Complete CRUD operations with professional data grid interface
-- **Data Grid with Pagination**: FluentDataGrid with 20 items per page, sortable columns, and modern styling
-- **CSV Import System**: Upload CSV files with automatic logo downloads and school matching
-- **Logo Management**: External URL loading with fallback handling and preview functionality
-- **School Database**: Pre-loaded with 130 schools from template with logo URLs
+### Recently Completed
+- **Phase 1-2 (Foundation & Setup)**: Complete CRUD operations for schools, Fluent UI integration, CSV import with logo downloads, and complete auction setup workflow wizard.
+- **Phase 3-4 (Users & Real-time Base)**: Join auction flows, role-based permissions, robust session management, and foundational SignalR integration.
+- **Phase 5 (Real-time Bidding)**: Turn-based nomination system, real-time bidding via SignalR with budget enforcement, and draft completion with auto-assignment.
+- **Phase 6 (Admin & Monitoring)**: Comprehensive auction management, audit logging, system health dashboard with real-time metrics, and bulk logo uploads.
 
 ### Current Architecture
 - **Frontend**: Blazor WebAssembly (WASM) with Microsoft Fluent UI components
 - **Backend**: Azure Functions within Static Web Apps
-- **Database**: Azure SQL Database (in-memory storage for development)
+- **Database**: Azure SQL Database
 - **Hosting**: Azure Static Web Apps with CI/CD
-- **Real-time**: Azure SignalR Service (planned for Phase 4-5)
+- **Real-time**: Azure SignalR Service (Active)
 
 ### Live Demo
 🔗 **[https://jolly-meadow-0b4450210.2.azurestaticapps.net](https://jolly-meadow-0b4450210.2.azurestaticapps.net)**
 
-Access the school management interface at `/management/schools` to see the completed Phase 1 functionality.
+Access the admin dashboard at `/management/login` and try the participant flow at `/join`.
 
-## Next Steps - Phase 2 Planning
-- System management authentication
-- Core auction entities and configuration  
-- Advanced CSV import with school matching
-- Roster design interface
+## Next Steps - Phase 7: Production Readiness
+- **SignalR Connection Management**: Idle timeouts and zombie connection cleanup to optimize Azure database costs.
+- **Auction Control Features**: Admin controls to pause, resume, and end auctions prematurely.
+- **Network Resilience**: Comprehensive testing of disconnection/reconnection scenarios.
+- **Production Pre-flight**: Security audits, UX polishing based on full test auctions, and preparation for first real draft.
 
 ## Development Commands
 
@@ -52,25 +50,26 @@ git push origin main
 
 ## Key Features Implemented
 
-✅ **School Management**
-- Professional FluentDataGrid with pagination (20 items per page)
-- Full CRUD operations (Create, Read, Update, Delete)
-- CSV import with automatic logo downloads
-- Logo URL management with preview functionality
-- Sortable columns for better data exploration
-- 130 pre-loaded schools with logo assets
+✅ **Core Auction & Real-time Bidding**
+- Turn-based nomination system with automatic advancement
+- Real-time bidding via Azure SignalR with budget enforcement
+- Draft completion system with intelligent auto-assignment
+- Live results export to CSV
 
-✅ **Modern UI Framework**  
+✅ **School & Roster Management**
+- Professional FluentDataGrid with pagination and sortable columns
+- CSV import with automatic logo downloads and fuzzy matching
+- Advanced roster design interface with auto-creation
+- Pre-loaded with 130 schools with logo assets
+
+✅ **Admin & System Monitoring**
+- Comprehensive auction setup wizard and management interface
+- Audit logging and system health dashboard with real-time metrics
+- Granular role assignment (Auction Master, Team Coach, Proxy Coach, Viewer)
+
+✅ **Modern UI Framework & Architecture**  
 - Microsoft Fluent UI Blazor components throughout
-- Consistent design language and professional styling
-- Responsive data grids and forms
-- Modern dialog systems and input controls
-
-✅ **Azure Infrastructure**
-- Deployed on Azure Static Web Apps
-- CI/CD pipeline with GitHub Actions
-- Azure Functions for API endpoints
-- Production-ready hosting environment
+- Deployed on Azure Static Web Apps with Azure Functions API
 
 ## Technology Stack
 
@@ -79,6 +78,7 @@ git push origin main
 - **Microsoft Fluent UI** for professional business interface
 - **Azure Static Web Apps** for deployment and hosting
 - **Azure Functions** for serverless API endpoints
-- **Azure SQL Database** for persistent data storage (planned)
+- **Azure SQL Database** for persistent data storage
+- **Azure SignalR Service** for real-time capabilities
 
 This project follows enterprise development practices with comprehensive documentation, structured task management, and production deployment from day 1.

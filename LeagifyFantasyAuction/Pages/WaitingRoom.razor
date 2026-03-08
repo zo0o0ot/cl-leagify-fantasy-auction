@@ -26,6 +26,14 @@
     }
     else if (auctionData != null && userData != null)
     {
+        @if (isReconnecting)
+        {
+            <FluentMessageBar Intent="MessageIntent.Warning" Style="margin-bottom: 24px;">
+                <FluentIcon Value="@(new Icons.Regular.Size20.Warning())" Slot="start" />
+                Connection lost. Attempting to reconnect...
+            </FluentMessageBar>
+        }
+
         <!-- Waiting Room Header -->
         <div class="waiting-room-header">
             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -316,6 +324,7 @@
 
     private HubConnection? hubConnection;
     private bool isConnectedToSignalR = false;
+    private bool isReconnecting = false;
     private bool isPassingOnBid = false;
     private System.Threading.Timer? activityHeartbeatTimer;
     private string? currentSessionToken;
@@ -370,6 +379,35 @@
                 .WithUrl(Navigation.ToAbsoluteUri("/api/signalr"))
                 .WithAutomaticReconnect()
                 .Build();
+
+            hubConnection.Reconnecting += (error) =>
+            {
+                Console.WriteLine($"🔌 SignalR reconnecting: {error?.Message}");
+                isReconnecting = true;
+                isConnectedToSignalR = false;
+                InvokeAsync(StateHasChanged);
+                return Task.CompletedTask;
+            };
+
+            hubConnection.Reconnected += async (connectionId) =>
+            {
+                Console.WriteLine($"🔌 SignalR reconnected. ConnectionId: {connectionId}");
+                isReconnecting = false;
+                isConnectedToSignalR = true;
+                
+                // Refresh data to catch any missed events
+                await LoadWaitingRoomData();
+                await InvokeAsync(StateHasChanged);
+            };
+
+            hubConnection.Closed += (error) =>
+            {
+                Console.WriteLine($"🔌 SignalR connection closed: {error?.Message}");
+                isReconnecting = false;
+                isConnectedToSignalR = false;
+                InvokeAsync(StateHasChanged);
+                return Task.CompletedTask;
+            };
 
             // Register event handlers BEFORE starting connection
             // Note: First parameter is always auction ID for filtering

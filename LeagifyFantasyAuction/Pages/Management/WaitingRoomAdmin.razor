@@ -29,6 +29,14 @@
     }
     else if (auction != null)
     {
+        @if (isReconnecting)
+        {
+            <FluentMessageBar Intent="MessageIntent.Warning" Style="margin-bottom: 24px;">
+                <FluentIcon Value="@(new Icons.Regular.Size20.Warning())" Slot="start" />
+                Connection lost. Attempting to reconnect...
+            </FluentMessageBar>
+        }
+
         <!-- Header -->
         <div class="admin-header">
             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -301,6 +309,7 @@
 
     private HubConnection? hubConnection;
     private bool isConnectedToSignalR = false;
+    private bool isReconnecting = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -385,6 +394,35 @@
                 .WithUrl(Navigation.ToAbsoluteUri("/api/signalr"))
                 .WithAutomaticReconnect()
                 .Build();
+
+            hubConnection.Reconnecting += (error) =>
+            {
+                Console.WriteLine($"🔌 SignalR reconnecting: {error?.Message}");
+                isReconnecting = true;
+                isConnectedToSignalR = false;
+                InvokeAsync(StateHasChanged);
+                return Task.CompletedTask;
+            };
+
+            hubConnection.Reconnected += async (connectionId) =>
+            {
+                Console.WriteLine($"🔌 SignalR reconnected. ConnectionId: {connectionId}");
+                isReconnecting = false;
+                isConnectedToSignalR = true;
+                
+                // Refresh data to catch any missed events
+                await LoadWaitingRoomStatus();
+                await InvokeAsync(StateHasChanged);
+            };
+
+            hubConnection.Closed += (error) =>
+            {
+                Console.WriteLine($"🔌 SignalR connection closed: {error?.Message}");
+                isReconnecting = false;
+                isConnectedToSignalR = false;
+                InvokeAsync(StateHasChanged);
+                return Task.CompletedTask;
+            };
 
             // Register event handlers BEFORE starting connection
             hubConnection.On<int, string, bool>("ReadinessUpdated", (messageAuctionId, displayName, isReady) =>
