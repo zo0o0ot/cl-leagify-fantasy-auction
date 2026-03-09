@@ -24,6 +24,12 @@
                 </FluentLabel>
 
                 <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
+                    @if (currentSchoolId.HasValue)
+                    {
+                        <img src="/api/schools/@currentSchoolId.Value/logo" alt="@currentSchoolName" 
+                             style="max-width: 120px; max-height: 120px; object-fit: contain; display: block; margin: 0 auto; margin-bottom: 8px;"
+                             onerror="this.style.display='none'" />
+                    }
                     <FluentLabel Typo="Typography.Header" Style="font-size: 24px;">
                         @currentSchoolName
                     </FluentLabel>

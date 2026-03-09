@@ -98,7 +98,7 @@ else
                     @if (!string.IsNullOrEmpty(context.LogoURL))
                     {
                         <img src="@context.LogoURL" alt="@context.Name" 
-                             style="width: 40px; height: 40px; object-fit: contain;"
+                             style="width: 40px; height: 40px; object-fit: contain; display: block; margin: 0 auto;"
                              onerror="this.style.display='none'" />
                     }
                     else
@@ -183,7 +183,7 @@ else
                             <FluentLabel Typo="Typography.Body">Logo Preview</FluentLabel>
                             <FluentStack Style="padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px;">
                                 <img src="@schoolForm.LogoURL" alt="Logo preview" 
-                                     style="max-width: 64px; max-height: 64px;"
+                                     style="max-width: 64px; max-height: 64px; display: block; margin: 0 auto;"
                                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
                                 <FluentMessageBar Intent="MessageIntent.Warning" Style="display: none;">
                                     Unable to load image from URL
