@@ -84,7 +84,7 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
             var auction = new Api.Models.Auction
             {
                 Name = $"DEBUG Test Auction {uniqueId}",
-                JoinCode = $"DEBUG{uniqueId[..6].ToUpper()}",  // 6 chars from GUID
+                JoinCode = $"DBG{uniqueId[..6].ToUpper()}",  // DBG (3) + 6 chars = 9 chars (max 10)
                 MasterRecoveryCode = $"MASTER{uniqueId[^4..].ToUpper()}",  // Last 4 chars of GUID
                 Status = "Draft"
                 // Let EF handle the rest with defaults
