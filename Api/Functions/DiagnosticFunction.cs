@@ -111,7 +111,7 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
         {
             logger.LogError(ex, "Error creating test data");
             var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
-            await errorResponse.WriteStringAsync($"Error creating test data: {ex.Message}");
+            await errorResponse.WriteStringAsync($"Error creating test data: {ex.ToString()}");
             return errorResponse;
         }
     }
