@@ -94,7 +94,7 @@ else
             <FluentDataGrid Items="@schoolsQueryable" Pagination="@pagination" Style="--row-height: 60px;">
                 <PropertyColumn Property="@(s => s.SchoolId)" Title="ID" Sortable="true" />
                 <PropertyColumn Property="@(s => s.Name)" Title="School Name" Sortable="true" />
-                <TemplateColumn Title="Logo">
+                <TemplateColumn Title="Logo" Align="Align.Center">
                     @if (!string.IsNullOrEmpty(context.LogoURL))
                     {
                         <img src="@context.LogoURL" alt="@context.Name" 
