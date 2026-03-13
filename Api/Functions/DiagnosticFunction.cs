@@ -623,4 +623,56 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
             return errorResponse;
         }
     }
+
+    /// <summary>
+    /// Dump the raw Teams table for a specific auction to diagnose missing teams issue
+    /// </summary>
+    [Function("GetAuctionTeamsDiagnostic")]
+    public async Task<HttpResponseData> GetAuctionTeamsDiagnostic(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "diagnostic/auction/{auctionId:int}/teams-raw")] HttpRequestData req,
+        int auctionId)
+    {
+        // Validate management token
+        var validation = ManagementAuthFunction.ValidateManagementToken(req);
+        if (!validation.IsValid)
+        {
+            var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
+            await unauthorizedResponse.WriteStringAsync("Unauthorized");
+            return unauthorizedResponse;
+        }
+
+        try
+        {
+            var teams = await context.Teams
+                .Where(t => t.AuctionId == auctionId)
+                .Select(t => new
+                {
+                    t.TeamId,
+                    t.AuctionId,
+                    t.TeamName,
+                    t.UserId,
+                    t.Budget,
+                    t.RemainingBudget,
+                    t.NominationOrder,
+                    t.IsActive
+                })
+                .ToListAsync();
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(new
+            {
+                AuctionId = auctionId,
+                TeamCount = teams.Count,
+                Teams = teams
+            });
+            return response;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error getting raw teams for auction {AuctionId}", auctionId);
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync($"Error: {ex.Message}");
+            return errorResponse;
+        }
+    }
 }
