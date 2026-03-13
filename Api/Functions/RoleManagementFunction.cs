@@ -382,38 +382,10 @@ public class RoleManagementFunction(ILoggerFactory loggerFactory, LeagifyAuction
                 }
             }
 
-            // ALWAYS ensure all 6 placeholder teams are available for the dropdown
-            // This prevents the bug where only assigned teams appear in the dropdown
-            var teams = new List<TeamDto>();
-            for (int i = 1; i <= 6; i++)
-            {
-                // Check if this team already exists in the database by NominationOrder (not TeamName)
-                // If there are duplicates, use the FIRST one found
-                var existingTeam = existingTeams.FirstOrDefault(t => t.NominationOrder == i);
-                if (existingTeam != null)
-                {
-                    // Use the existing team data
-                    teams.Add(existingTeam);
-                    _logger.LogInformation("✓ Using existing team for position {Position}: {TeamName} (ID: {TeamId})",
-                        i, existingTeam.TeamName, existingTeam.TeamId);
-                }
-                else
-                {
-                    // Create placeholder team for the dropdown
-                    var placeholderTeam = new TeamDto
-                    {
-                        TeamId = i, // Placeholder ID - will be replaced when team is created
-                        TeamName = $"Team {i}",
-                        Budget = 200m,
-                        NominationOrder = i,
-                        IsActive = true
-                    };
-                    teams.Add(placeholderTeam);
-                    _logger.LogInformation("+ Creating placeholder team for position {Position}: {TeamName}",
-                        i, placeholderTeam.TeamName);
-                }
-            }
-
+            // Return ONLY the actual teams configured for this auction
+            // We no longer want to pad with 6 placeholder teams since the user defines the team count during Setup
+            var teams = existingTeams.ToList();
+            
             _logger.LogInformation("Final team list: {TeamList}",
                 string.Join(", ", teams.Select(t => $"{t.TeamName}(Order:{t.NominationOrder},ID:{t.TeamId})")));
 
