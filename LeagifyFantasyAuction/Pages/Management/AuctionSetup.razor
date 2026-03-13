@@ -379,9 +379,52 @@
             isCompleting = true;
             StateHasChanged();
 
-            // You could add an API call here to mark the auction as configured
-            await Task.Delay(1000); // Simulate API call
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(token)) return;
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+
+            // Fetch team configuration from localStorage created by AuctionConfigStep
+            var savedTeamCountStr = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", $"expectedTeamCount_{AuctionId}");
+            var savedBudgetStr = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", $"budgetPerTeam_{AuctionId}");
+            var savedOrderStr = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", $"nominationOrder_{AuctionId}");
             
+            var expectedTeamCount = int.TryParse(savedTeamCountStr, out int tc) ? tc : 6;
+            var budgetPerTeam = int.TryParse(savedBudgetStr, out int bpt) ? bpt : 200;
+            
+            var nominationOrder = new List<string>();
+            if (!string.IsNullOrEmpty(savedOrderStr))
+            {
+                var orderArray = System.Text.Json.JsonSerializer.Deserialize<string[]>(savedOrderStr);
+                nominationOrder = orderArray?.ToList() ?? new List<string>();
+            }
+            
+            // If we have an order, construct the team payload
+            if (nominationOrder.Any())
+            {
+                var teamsPayload = new
+                {
+                    Teams = nominationOrder.Select((name, index) => new
+                    {
+                        TeamId = 0,
+                        TeamName = name,
+                        Budget = budgetPerTeam,
+                        NominationOrder = index + 1,
+                        IsActive = true
+                    }).ToList()
+                };
+
+                Console.WriteLine($"Submitting {teamsPayload.Teams.Count} teams to the backend config");
+                var response = await Http.PostAsJsonAsync($"/api/management/auctions/{AuctionId}/teams", teamsPayload);
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    await JSRuntime.InvokeVoidAsync("alert", $"Warning: Setup completed, but failed to save Teams: {error}");
+                }
+            }
+
             await JSRuntime.InvokeVoidAsync("alert", "Auction setup completed successfully!");
             Navigation.NavigateTo("/management/auctions");
         }
