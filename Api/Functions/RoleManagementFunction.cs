@@ -70,10 +70,15 @@ public class RoleManagementFunction(ILoggerFactory loggerFactory, LeagifyAuction
                 return await CreateErrorResponse(req, HttpStatusCode.BadRequest, "Invalid role type");
             }
 
-            // For team-based roles, validate team assignment (optional for now)
+            // For team-based roles, validate team assignment
             Team? team = null;
-            if ((roleRequest.Role == "TeamCoach" || roleRequest.Role == "ProxyCoach") && roleRequest.TeamId.HasValue)
+            if (roleRequest.Role == "TeamCoach" || roleRequest.Role == "ProxyCoach")
             {
+                if (!roleRequest.TeamId.HasValue)
+                {
+                    return await CreateErrorResponse(req, HttpStatusCode.BadRequest, "Team assignment is required for Coach roles");
+                }
+
                 // Look up by NominationOrder since that represents the logical team position (1-6)
                 // TeamId from UI represents the desired team number, not the actual database ID
                 team = await context.Teams

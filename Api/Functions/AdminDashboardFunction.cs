@@ -103,11 +103,59 @@ public class AdminDashboardFunction
                 return notFoundResponse;
             }
 
-            // Delete the auction
+            // 1. User roles
+            var userRoles = await _dbContext.UserRoles
+                .Where(ur => ur.User.AuctionId == auctionId)
+                .ToListAsync();
+            _dbContext.UserRoles.RemoveRange(userRoles);
+
+            // 2. BidHistories
+            var bidHistories = await _dbContext.BidHistories
+                .Where(b => b.AuctionId == auctionId)
+                .ToListAsync();
+            _dbContext.BidHistories.RemoveRange(bidHistories);
+
+            // 3. DraftPicks
+            var draftPicks = await _dbContext.DraftPicks
+                .Where(d => d.AuctionId == auctionId)
+                .ToListAsync();
+            _dbContext.DraftPicks.RemoveRange(draftPicks);
+
+            // 4. NominationOrders
+            var nominationOrders = await _dbContext.NominationOrders
+                .Where(n => n.AuctionId == auctionId)
+                .ToListAsync();
+            _dbContext.NominationOrders.RemoveRange(nominationOrders);
+
+            // 5. Teams
+            var teams = await _dbContext.Teams
+                .Where(t => t.AuctionId == auctionId)
+                .ToListAsync();
+            _dbContext.Teams.RemoveRange(teams);
+
+            // 6. Users
+            var users = await _dbContext.Users
+                .Where(u => u.AuctionId == auctionId)
+                .ToListAsync();
+            _dbContext.Users.RemoveRange(users);
+
+            // 7. AuctionSchools
+            var auctionSchools = await _dbContext.AuctionSchools
+                .Where(a => a.AuctionId == auctionId)
+                .ToListAsync();
+            _dbContext.AuctionSchools.RemoveRange(auctionSchools);
+
+            // 8. RosterPositions
+            var rosterPositions = await _dbContext.RosterPositions
+                .Where(r => r.AuctionId == auctionId)
+                .ToListAsync();
+            _dbContext.RosterPositions.RemoveRange(rosterPositions);
+
+            // 9. Delete the auction
             _dbContext.Auctions.Remove(auction);
             await _dbContext.SaveChangesAsync();
 
-            _logger.LogInformation($"Successfully deleted auction {auctionId} ({auction.Name})");
+            _logger.LogInformation($"Successfully deleted auction {auctionId} ({auction.Name}) and all associated records.");
 
             var response = req.CreateResponse(HttpStatusCode.OK);
             await response.WriteStringAsync(JsonSerializer.Serialize(new { success = true, message = $"Auction {auctionId} deleted successfully" }));

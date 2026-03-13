@@ -82,7 +82,7 @@
                             }
                         </FluentLabel>
                         <FluentLabel Style="color: #666; font-size: 14px; margin-top: 4px;">
-                            Your Test Budget: $200 | Remaining: $@GetRemainingTestBudget().ToString("N0")
+                            Your Test Budget: $@((userData?.TestBudget ?? 200m).ToString("N0")) | Remaining: $@GetRemainingTestBudget().ToString("N0")
                         </FluentLabel>
                     </div>
 
@@ -680,7 +680,7 @@
         // Ensure remaining budget accurately accounts for the user's current high bid that hasn't won yet
         var activeBid = testSchool?.CurrentBidderName == userData?.DisplayName ? testSchool.CurrentBid : 0;
         
-        return 200m - spent - activeBid;
+        return (userData?.TestBudget ?? 200m) - spent - activeBid;
     }
 
     private async Task PlaceTestBid(decimal amount)
@@ -831,6 +831,7 @@
         public bool HasTestedBidding { get; set; }
         public bool IsReadyToDraft { get; set; }
         public bool HasPassedOnTestBid { get; set; }
+        public decimal TestBudget { get; set; }
     }
 
     private class TestSchoolData

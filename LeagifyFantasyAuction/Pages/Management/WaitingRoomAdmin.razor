@@ -508,6 +508,16 @@
             isStartingAuction = true;
             StateHasChanged();
 
+            var managementToken = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(managementToken))
+            {
+                errorMessage = "Management token not found";
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", managementToken);
+
             var response = await Http.PostAsync($"/api/auction/{AuctionId}/start", null);
 
             if (response.IsSuccessStatusCode)

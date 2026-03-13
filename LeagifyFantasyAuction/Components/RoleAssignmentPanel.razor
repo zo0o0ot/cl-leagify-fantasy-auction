@@ -146,7 +146,7 @@
                                                       IconStart="@(new Icons.Regular.Size16.PersonAdd())"
                                                       Size="ButtonSize.Small"
                                                       OnClick="@(() => AssignRole(participant.UserId))"
-                                                      Disabled="@(string.IsNullOrEmpty(GetSelectedRole(participant.UserId)))"
+                                                      Disabled="@(string.IsNullOrEmpty(GetSelectedRole(participant.UserId)) || ((GetSelectedRole(participant.UserId) == "TeamCoach" || GetSelectedRole(participant.UserId) == "ProxyCoach") && GetSelectedTeamId(participant.UserId) <= 0))"
                                                       Loading="@(assigningRoles.Contains(participant.UserId))"
                                                       Style="margin-bottom: 4px;">
                                             Assign
