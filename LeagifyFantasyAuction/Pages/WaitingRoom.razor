@@ -82,24 +82,24 @@
                             }
                         </FluentLabel>
                         <FluentLabel Style="color: #666; font-size: 14px; margin-top: 4px;">
-                            Your Test Budget: $200 | Remaining: $@((200 - (userData.HasTestedBidding ? testSchool.CurrentBid : 0)).ToString("N0"))
+                            Your Test Budget: $200 | Remaining: $@GetRemainingTestBudget().ToString("N0")
                         </FluentLabel>
                     </div>
 
                     <div class="bid-buttons" style="margin-top: 16px;">
                         <FluentButton Appearance="Appearance.Accent"
                                       OnClick="@(() => PlaceTestBid(testSchool.CurrentBid + 1))"
-                                      Disabled="@isPlacingBid">
+                                      Disabled="@(isPlacingBid || (testSchool.CurrentBid + 1) > GetRemainingTestBudget())">
                             Bid $@((testSchool.CurrentBid + 1).ToString("N0"))
                         </FluentButton>
                         <FluentButton Appearance="Appearance.Accent"
                                       OnClick="@(() => PlaceTestBid(testSchool.CurrentBid + 5))"
-                                      Disabled="@isPlacingBid">
+                                      Disabled="@(isPlacingBid || (testSchool.CurrentBid + 5) > GetRemainingTestBudget())">
                             Bid $@((testSchool.CurrentBid + 5).ToString("N0"))
                         </FluentButton>
                         <FluentButton Appearance="Appearance.Accent"
                                       OnClick="@(() => PlaceTestBid(testSchool.CurrentBid + 10))"
-                                      Disabled="@isPlacingBid">
+                                      Disabled="@(isPlacingBid || (testSchool.CurrentBid + 10) > GetRemainingTestBudget())">
                             Bid $@((testSchool.CurrentBid + 10).ToString("N0"))
                         </FluentButton>
                         <FluentButton Appearance="Appearance.Neutral"
@@ -671,6 +671,16 @@
             isLoading = false;
             StateHasChanged();
         }
+    }
+
+    private decimal GetRemainingTestBudget()
+    {
+        var spent = wonTestSchools.Sum(w => w.Amount);
+        
+        // Ensure remaining budget accurately accounts for the user's current high bid that hasn't won yet
+        var activeBid = testSchool?.CurrentBidderName == userData?.DisplayName ? testSchool.CurrentBid : 0;
+        
+        return 200m - spent - activeBid;
     }
 
     private async Task PlaceTestBid(decimal amount)

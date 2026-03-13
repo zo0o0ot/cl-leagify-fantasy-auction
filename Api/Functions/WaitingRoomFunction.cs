@@ -295,6 +295,23 @@ public class WaitingRoomFunction
                 return new TestBidResponse { HttpResponse = conflict };
             }
 
+            // Validate user's remaining test budget
+            var wonTestBidsTotal = await _context.BidHistories
+                .Where(b => b.AuctionId == auctionId &&
+                           b.UserId == user.UserId &&
+                           b.BidType == "TestBid" &&
+                           b.IsWinningBid == true)
+                .SumAsync(b => b.BidAmount);
+
+            var remainingTestBudget = 200m - wonTestBidsTotal;
+
+            if (bidRequest.Amount > remainingTestBudget)
+            {
+                var conflict = req.CreateResponse(HttpStatusCode.BadRequest);
+                await conflict.WriteStringAsync($"Bid cannot exceed your remaining test budget of ${remainingTestBudget:0.##}");
+                return new TestBidResponse { HttpResponse = conflict };
+            }
+
             // Validate user hasn't passed (permanent pass - cannot bid again)
             if (user.HasPassedOnTestBid)
             {
