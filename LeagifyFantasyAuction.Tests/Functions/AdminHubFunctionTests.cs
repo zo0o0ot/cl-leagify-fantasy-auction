@@ -1,4 +1,5 @@
 using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -124,7 +125,6 @@ public class AdminHubFunctionTests : IDisposable
         var masterRole = new UserRole
         {
             UserId = auctionMaster.UserId,
-            AuctionId = auction.AuctionId,
             Role = "AuctionMaster",
             AssignedDate = DateTime.UtcNow
         };
@@ -197,7 +197,6 @@ public class AdminHubFunctionTests : IDisposable
         var masterRole = new UserRole
         {
             UserId = auctionMaster.UserId,
-            AuctionId = auction.AuctionId,
             Role = "AuctionMaster",
             AssignedDate = DateTime.UtcNow
         };
@@ -229,7 +228,6 @@ public class AdminHubFunctionTests : IDisposable
         var masterRole = new UserRole
         {
             UserId = auctionMaster.UserId,
-            AuctionId = auction.AuctionId,
             Role = "AuctionMaster",
             AssignedDate = DateTime.UtcNow
         };
@@ -261,7 +259,6 @@ public class AdminHubFunctionTests : IDisposable
         var masterRole = new UserRole
         {
             UserId = auctionMaster.UserId,
-            AuctionId = auction.AuctionId,
             Role = "AuctionMaster",
             AssignedDate = DateTime.UtcNow
         };
@@ -363,7 +360,7 @@ public class AdminHubFunctionTests : IDisposable
 
     private static Mock<HttpRequestData> CreateMockHttpRequest(string? sessionToken, string? body = null)
     {
-        var mockRequest = new Mock<HttpRequestData>(MockBehavior.Strict, Mock.Of<FunctionsHostingContext>());
+        var mockRequest = new Mock<HttpRequestData>(MockBehavior.Strict, Mock.Of<FunctionContext>());
 
         var mockHeaders = new Mock<HttpHeadersCollection>();
 
@@ -392,19 +389,16 @@ public class AdminHubFunctionTests : IDisposable
         {
             var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(body));
             mockRequest.Setup(r => r.Body).Returns(stream);
-            mockRequest.Setup(r => r.ReadAsStringAsync()).ReturnsAsync(body);
         }
 
         // Mock CreateResponse
         mockRequest.Setup(r => r.CreateResponse())
             .Returns(() =>
             {
-                var mockResponse = new Mock<HttpResponseData>(MockBehavior.Strict, Mock.Of<FunctionsHostingContext>());
+                var mockResponse = new Mock<HttpResponseData>(MockBehavior.Strict, Mock.Of<FunctionContext>());
                 mockResponse.SetupProperty(r => r.StatusCode);
                 mockResponse.SetupProperty(r => r.Headers, new HttpHeadersCollection());
-                mockResponse.Setup(r => r.WriteStringAsync(It.IsAny<string>())).Returns(Task.CompletedTask);
-                mockResponse.Setup(r => r.WriteAsJsonAsync(It.IsAny<object>(), It.IsAny<CancellationToken>()))
-                    .Returns(Task.CompletedTask);
+                mockResponse.SetupProperty(r => r.Body, new MemoryStream());
                 return mockResponse.Object;
             });
 
