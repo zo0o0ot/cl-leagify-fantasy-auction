@@ -254,8 +254,22 @@
     {
         try
         {
-            // TODO: Implement auction start logic
-            await JSRuntime.InvokeVoidAsync("alert", "Auction start functionality will be implemented in Phase 5");
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+            
+            var request = new { Status = "InProgress" };
+            var response = await Http.PutAsJsonAsync($"/api/management/auctions/{auctionId}/status", request);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadAuctionDetails();
+            }
+            else
+            {
+                 var error = await response.Content.ReadAsStringAsync();
+                 await JSRuntime.InvokeVoidAsync("alert", $"Error starting auction: {error}");
+            }
         }
         catch (Exception ex)
         {
@@ -267,8 +281,22 @@
     {
         try
         {
-            // TODO: Implement auction pause logic
-            await JSRuntime.InvokeVoidAsync("alert", "Auction pause functionality will be implemented in Phase 5");
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+            
+            var request = new { Status = "Paused" };
+            var response = await Http.PutAsJsonAsync($"/api/management/auctions/{auctionId}/status", request);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadAuctionDetails();
+            }
+            else
+            {
+                 var error = await response.Content.ReadAsStringAsync();
+                 await JSRuntime.InvokeVoidAsync("alert", $"Error pausing auction: {error}");
+            }
         }
         catch (Exception ex)
         {

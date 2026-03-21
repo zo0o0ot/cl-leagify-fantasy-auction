@@ -534,7 +534,7 @@ public class RoleManagementFunction(ILoggerFactory loggerFactory, LeagifyAuction
                     team = new Team
                     {
                         AuctionId = auctionId,
-                        UserId = 1, // Placeholder - will be updated when roles are assigned
+                        UserId = null, // Placeholder - will be updated when roles are assigned
                         TeamName = teamData.TeamName,
                         Budget = teamData.Budget,
                         RemainingBudget = teamData.Budget,

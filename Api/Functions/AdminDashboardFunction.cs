@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Text.Json;
 using LeagifyFantasyAuction.Api.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace LeagifyFantasyAuction.Api.Functions;
 

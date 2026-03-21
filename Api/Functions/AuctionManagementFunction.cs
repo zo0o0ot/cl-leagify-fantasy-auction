@@ -157,6 +157,86 @@ public class AuctionManagementFunction
     }
 
     /// <summary>
+    /// Duplicates an existing auction.
+    /// </summary>
+    /// <param name="req">The HTTP request containing management authentication headers.</param>
+    /// <param name="auctionId">The ID of the auction to duplicate.</param>
+    /// <returns>
+    /// HTTP 201 Created with the duplicated auction object on success.
+    /// HTTP 401 Unauthorized if the management token is invalid or missing.
+    /// HTTP 404 Not Found if the original auction doesn't exist.
+    /// HTTP 500 Internal Server Error if an unexpected error occurs during duplication.
+    /// </returns>
+    [Function("DuplicateAuction")]
+    public async Task<HttpResponseData> DuplicateAuction(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "management/auctions/{auctionId:int}/duplicate")] HttpRequestData req,
+        int auctionId)
+    {
+        try
+        {
+            _logger.LogInformation("=== DUPLICATE AUCTION REQUEST STARTED ===");
+
+            // Validate admin token
+            if (!IsValidAdminRequest(req))
+            {
+                _logger.LogWarning("Unauthorized request to duplicate auction");
+                var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
+                await unauthorizedResponse.WriteStringAsync("Unauthorized");
+                return unauthorizedResponse;
+            }
+
+            _logger.LogInformation("Duplicating auction ID: {AuctionId}", auctionId);
+
+            Auction newAuction;
+            try
+            {
+                newAuction = await _auctionService.DuplicateAuctionAsync(auctionId, null);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Failed to duplicate auction {AuctionId}", auctionId);
+                var notFoundResponse = req.CreateResponse(HttpStatusCode.NotFound);
+                await notFoundResponse.WriteStringAsync(ex.Message);
+                return notFoundResponse;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in DuplicateAuctionAsync - AuctionId: {AuctionId}", auctionId);
+                throw;
+            }
+
+            _logger.LogInformation("Duplicated auction into new ID {NewAuctionId} with join code {JoinCode}", 
+                newAuction.AuctionId, newAuction.JoinCode);
+
+            var response = req.CreateResponse(HttpStatusCode.Created);
+            await response.WriteAsJsonAsync(new AuctionResponseDto
+            {
+                AuctionId = newAuction.AuctionId,
+                Name = newAuction.Name,
+                JoinCode = newAuction.JoinCode,
+                MasterRecoveryCode = newAuction.MasterRecoveryCode,
+                Status = newAuction.Status,
+                CreatedByUserId = newAuction.CreatedByUserId,
+                CreatedDate = newAuction.CreatedDate,
+                StartedDate = newAuction.StartedDate,
+                CompletedDate = newAuction.CompletedDate,
+                ModifiedDate = newAuction.ModifiedDate
+            });
+            
+            response.Headers.Add("Location", $"/api/management/auctions/{newAuction.AuctionId}");
+            _logger.LogInformation("=== DUPLICATE AUCTION REQUEST COMPLETED SUCCESSFULLY ===");
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "=== DUPLICATE AUCTION REQUEST FAILED WITH EXCEPTION ===");
+            var response = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await response.WriteStringAsync($"Error duplicating auction: {ex.Message}");
+            return response;
+        }
+    }
+
+    /// <summary>
     /// Retrieves an auction by its join code.
     /// </summary>
     /// <param name="req">The HTTP request containing query parameters and authentication headers.</param>

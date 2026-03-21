@@ -166,6 +166,8 @@
                                           OnClick="@(() => ManageAuction(auction))" Title="Manage participants and roles" />
                             <FluentButton Appearance="Appearance.Stealth" IconStart="@(new Icons.Regular.Size16.Settings())" 
                                           OnClick="@(() => EditAuction(auction))" Title="Configure auction" />
+                            <FluentButton Appearance="Appearance.Stealth" IconStart="@(new Icons.Regular.Size16.Copy())" 
+                                          OnClick="@(() => DuplicateAuction(auction))" Title="Duplicate auction" />
                             <FluentButton Appearance="Appearance.Stealth" IconStart="@(new Icons.Regular.Size16.Delete())" 
                                           OnClick="@(() => DeleteAuction(auction))" Title="Delete auction" />
                         </ChildContent>
@@ -1245,6 +1247,44 @@
     {
         // Navigate to the new setup wizard instead of opening old dialog
         Navigation.NavigateTo($"/management/auctions/{auction.AuctionId}/setup");
+    }
+
+    private async Task DuplicateAuction(AuctionDto auction)
+    {
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm",
+            $"Are you sure you want to duplicate '{auction.Name}'? This will create a new draft auction with the same roster positions and schools, but no bids or participants.");
+
+        if (!confirmed) return;
+
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                errorMessage = "Authentication token missing. Please log in again.";
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+
+            var response = await Http.PostAsync($"/api/management/auctions/{auction.AuctionId}/duplicate", null);
+
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadAuctions();
+                await JSRuntime.InvokeVoidAsync("alert", $"Successfully duplicated '{auction.Name}'. New draft created.");
+            }
+            else
+            {
+                var errorMsg = await response.Content.ReadAsStringAsync();
+                await JSRuntime.InvokeVoidAsync("alert", $"Error duplicating auction: {errorMsg}");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error: {ex.Message}");
+        }
     }
 
     private async Task DeleteAuction(AuctionDto auction)

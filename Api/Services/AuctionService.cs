@@ -103,6 +103,89 @@ public class AuctionService : IAuctionService
     }
 
     /// <inheritdoc />
+    public async Task<Auction> DuplicateAuctionAsync(int originalAuctionId, int? createdByUserId)
+    {
+        _logger.LogInformation("Duplicating auction {AuctionId} for user {UserId}", originalAuctionId, createdByUserId);
+
+        var originalAuction = await _context.Auctions
+            .Include(a => a.RosterPositions)
+            .Include(a => a.AuctionSchools)
+            .Include(a => a.Teams)
+            .FirstOrDefaultAsync(a => a.AuctionId == originalAuctionId);
+
+        if (originalAuction == null)
+        {
+            throw new InvalidOperationException($"Original auction {originalAuctionId} not found");
+        }
+
+        var joinCode = await GenerateUniqueJoinCodeAsync();
+        var masterRecoveryCode = await GenerateUniqueMasterRecoveryCodeAsync();
+
+        var newAuction = new Auction
+        {
+            Name = $"Copy of {originalAuction.Name}",
+            JoinCode = joinCode,
+            MasterRecoveryCode = masterRecoveryCode,
+            Status = "Draft",
+            CreatedByUserId = createdByUserId,
+            CreatedDate = DateTime.UtcNow,
+            ModifiedDate = DateTime.UtcNow,
+            // Specifically not copying: StartedDate, CompletedDate, CurrentNominatorUserId, CurrentSchoolId, CurrentHighBid, CurrentHighBidderUserId
+        };
+
+        // Copy Roster Positions
+        foreach (var rp in originalAuction.RosterPositions)
+        {
+            newAuction.RosterPositions.Add(new RosterPosition
+            {
+                PositionName = rp.PositionName,
+                SlotsPerTeam = rp.SlotsPerTeam,
+                DisplayOrder = rp.DisplayOrder,
+                ColorCode = rp.ColorCode,
+                IsFlexPosition = rp.IsFlexPosition
+            });
+        }
+
+        // Copy Auction Schools
+        foreach (var aps in originalAuction.AuctionSchools)
+        {
+            newAuction.AuctionSchools.Add(new AuctionSchool
+            {
+                SchoolId = aps.SchoolId,
+                Conference = aps.Conference,
+                LeagifyPosition = aps.LeagifyPosition,
+                ProjectedPoints = aps.ProjectedPoints,
+                NumberOfProspects = aps.NumberOfProspects,
+                SuggestedAuctionValue = aps.SuggestedAuctionValue,
+                IsAvailable = true,
+                IsTestSchool = aps.IsTestSchool,
+                ImportOrder = aps.ImportOrder
+            });
+        }
+
+        // Copy Teams
+        foreach (var team in originalAuction.Teams)
+        {
+            newAuction.Teams.Add(new Team
+            {
+                TeamName = team.TeamName,
+                Budget = team.Budget,
+                RemainingBudget = team.Budget,
+                NominationOrder = team.NominationOrder,
+                IsActive = team.IsActive
+                // specifically not copying UserId
+            });
+        }
+
+        _context.Auctions.Add(newAuction);
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Successfully duplicated auction {OriginalId} into new auction {NewId}", originalAuctionId, newAuction.AuctionId);
+
+        return newAuction;
+    }
+
+    /// <inheritdoc />
     public async Task<Auction?> GetAuctionByJoinCodeAsync(string joinCode)
     {
         if (string.IsNullOrWhiteSpace(joinCode))

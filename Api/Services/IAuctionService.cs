@@ -28,6 +28,19 @@ public interface IAuctionService
     Task<Auction> CreateAuctionAsync(string name, int? createdByUserId);
 
     /// <summary>
+    /// Duplicates an existing auction into a new one.
+    /// </summary>
+    /// <param name="originalAuctionId">The ID of the auction to duplicate.</param>
+    /// <param name="createdByUserId">The ID of the user creating the duplicate auction.</param>
+    /// <returns>A task that represents the asynchronous operation. The task result contains the duplicated auction with generated codes.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when the original auction is not found or when unable to generate unique codes.</exception>
+    /// <remarks>
+    /// Copies basic configuration including roster positions, associated schools, and team structures,
+    /// but does not copy bids, complete users, or draft picks. The duplicated auction is set to "Draft".
+    /// </remarks>
+    Task<Auction> DuplicateAuctionAsync(int originalAuctionId, int? createdByUserId);
+
+    /// <summary>
     /// Retrieves an auction by its unique join code.
     /// </summary>
     /// <param name="joinCode">The join code to search for (case-insensitive).</param>
