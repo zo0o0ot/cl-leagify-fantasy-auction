@@ -597,7 +597,7 @@
                 {
                     AuctionId = AuctionId,
                     PositionName = position,
-                    SlotsPerTeam = count, // Use actual count from imported schools!
+                    SlotsPerTeam = 1, // Default to 1 slot per position based on user preference
                     ColorCode = GetDefaultColor(colorIndex++),
                     IsFlexPosition = position.Equals("Flex", StringComparison.OrdinalIgnoreCase)
                 };
