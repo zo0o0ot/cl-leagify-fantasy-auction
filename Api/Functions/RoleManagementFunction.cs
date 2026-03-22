@@ -109,6 +109,20 @@ public class RoleManagementFunction(ILoggerFactory loggerFactory, LeagifyAuction
                     _logger.LogInformation("Created team {TeamName} with ID {TeamId} for auction {AuctionId}",
                         team.TeamName, team.TeamId, auctionId);
                 }
+
+                // Auto-rename default team name and claim ownership if unowned
+                if (team.TeamName == $"Team {team.NominationOrder}")
+                {
+                    var newName = $"Team {user.DisplayName}";
+                    _logger.LogInformation("Auto-renaming default team name from {OldName} to {NewName}", team.TeamName, newName);
+                    team.TeamName = newName;
+                }
+                
+                if (team.UserId == null)
+                {
+                    _logger.LogInformation("Assigning ownership of Team {TeamId} to User {UserId}", team.TeamId, userId);
+                    team.UserId = userId;
+                }
             }
 
             // Check if user already has this exact role
