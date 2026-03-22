@@ -1,0 +1,208 @@
+@using System.Net.Http.Json
+@using LeagifyFantasyAuction.Models
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+@implements IDialogContentComponent<SchoolNominationDialogData>
+
+<div class="nomination-dialog">
+    <FluentLabel Typo="Typography.Subject" Style="margin-bottom: 16px;">
+        Nominate a School
+    </FluentLabel>
+
+    @if (isLoading)
+    {
+        <div style="display: flex; justify-content: center; padding: 24px;">
+            <FluentProgressRing />
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <FluentMessageBar Intent="MessageIntent.Error">
+            @errorMessage
+        </FluentMessageBar>
+    }
+    else if (!availableSchools.Any())
+    {
+        <FluentMessageBar Intent="MessageIntent.Warning">
+            No remaining schools available to nominate.
+        </FluentMessageBar>
+    }
+    else
+    {
+        <FluentTextField @bind-Value="searchTerm" @bind-Value:after="FilterSchools"
+                         Placeholder="Search schools..."
+                         Style="width: 100%; margin-bottom: 16px;">
+            <FluentIcon Value="@(new Icons.Regular.Size16.Search())" Slot="start" />
+        </FluentTextField>
+
+        <div class="school-list">
+            @foreach (var school in filteredSchools)
+            {
+                <div class="school-card @(selectedSchoolId == school.AuctionSchoolId ? "selected" : "")"
+                     @onclick="() => SelectSchool(school.AuctionSchoolId)">
+                    
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <FluentStack Orientation="Orientation.Vertical" VerticalGap="4">
+                            <FluentLabel Weight="FontWeight.Bold">@school.Name</FluentLabel>
+                            @if (!string.IsNullOrEmpty(school.Conference))
+                            {
+                                <FluentLabel Style="font-size: 12px; color: #666;">@school.Conference</FluentLabel>
+                            }
+                        </FluentStack>
+                        <FluentStack Orientation="Orientation.Vertical" VerticalGap="4" HorizontalAlignment="HorizontalAlignment.End">
+                            <FluentLabel Style="font-size: 12px; color: #666;">Proj. Pts</FluentLabel>
+                            <FluentLabel Weight="FontWeight.Bold" Style="color: #0078d4;">
+                                @school.ProjectedPoints.ToString("F1")
+                            </FluentLabel>
+                        </FluentStack>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<FluentDialogFooter>
+    <FluentButton Appearance="Appearance.Neutral" OnClick="@CancelAsync">Cancel</FluentButton>
+    <FluentButton Appearance="Appearance.Accent" 
+                  Disabled="@(selectedSchoolId == null)"
+                  OnClick="@ConfirmAsync">
+        Nominate
+    </FluentButton>
+</FluentDialogFooter>
+
+@code {
+    [CascadingParameter]
+    public FluentDialog Dialog { get; set; } = default!;
+
+    [Parameter]
+    public SchoolNominationDialogData Content { get; set; } = default!;
+
+    private bool isLoading = true;
+    private string errorMessage = string.Empty;
+    private List<AvailableSchool> availableSchools = new();
+    private List<AvailableSchool> filteredSchools = new();
+    private string searchTerm = string.Empty;
+    private int? selectedSchoolId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAvailableSchools();
+    }
+
+    private async Task LoadAvailableSchools()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = string.Empty;
+
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "auctionToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                errorMessage = "Authentication required";
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Remove("X-Auction-Token");
+            Http.DefaultRequestHeaders.Add("X-Auction-Token", token);
+
+            var response = await Http.GetAsync($"/api/auction/{Content.AuctionId}/available-schools");
+            if (response.IsSuccessStatusCode)
+            {
+                var schools = await response.Content.ReadFromJsonAsync<List<AvailableSchool>>();
+                if (schools != null)
+                {
+                    availableSchools = schools;
+                    filteredSchools = schools;
+                }
+            }
+            else
+            {
+                errorMessage = "Failed to load available schools";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void FilterSchools()
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            filteredSchools = availableSchools;
+        }
+        else
+        {
+            var term = searchTerm.ToLowerInvariant();
+            filteredSchools = availableSchools
+                .Where(s => s.Name.ToLowerInvariant().Contains(term) ||
+                            (s.Conference != null && s.Conference.ToLowerInvariant().Contains(term)))
+                .ToList();
+        }
+    }
+
+    private void SelectSchool(int auctionSchoolId)
+    {
+        selectedSchoolId = auctionSchoolId;
+    }
+
+    private async Task CancelAsync()
+    {
+        await Dialog.CancelAsync();
+    }
+
+    private async Task ConfirmAsync()
+    {
+        if (selectedSchoolId.HasValue)
+        {
+            await Dialog.CloseAsync(selectedSchoolId.Value);
+        }
+    }
+
+    public class AvailableSchool
+    {
+        public int AuctionSchoolId { get; set; }
+        public int SchoolId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string? Conference { get; set; }
+        public decimal ProjectedPoints { get; set; }
+    }
+}
+
+<style>
+    .school-list {
+        max-height: 400px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding-right: 4px;
+    }
+
+    .school-card {
+        padding: 12px;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .school-card:hover {
+        background-color: #f8f9fa;
+        border-color: #c9ccd1;
+    }
+
+    .school-card.selected {
+        border-color: #0078d4;
+        background-color: #e3f2fd;
+        box-shadow: 0 0 0 1px #0078d4;
+    }
+</style>

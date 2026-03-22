@@ -1,0 +1,155 @@
+@using System.Net.Http.Json
+@using Microsoft.FluentUI.AspNetCore.Components
+@using LeagifyFantasyAuction.Models
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@implements IDialogContentComponent<RosterAssignmentDialogData>
+
+<div class="assignment-dialog">
+    <FluentLabel Typo="Typography.Subject" Style="margin-bottom: 16px;">
+        Assign @Content.SchoolName
+    </FluentLabel>
+    
+    <FluentLabel Typo="Typography.Body" Style="margin-bottom: 16px;">
+        Congratulations! You won the bid for <strong>@Content.SchoolName</strong>. 
+        Select a roster position to place this school:
+    </FluentLabel>
+
+    @if (isLoading)
+    {
+        <div style="display: flex; justify-content: center; padding: 24px;">
+            <FluentProgressRing />
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <FluentMessageBar Intent="MessageIntent.Error" Style="margin-bottom: 16px;">
+            @errorMessage
+        </FluentMessageBar>
+    }
+    else if (roster == null || !roster.RosterSlots.Any(s => s.RemainingSlots > 0))
+    {
+        <FluentMessageBar Intent="MessageIntent.Warning" Style="margin-bottom: 16px;">
+            No available roster slots. Proceed to Auto-Assign.
+        </FluentMessageBar>
+    }
+    else
+    {
+        <div class="slots-list">
+            @foreach (var slot in roster.RosterSlots.Where(s => s.RemainingSlots > 0))
+            {
+                <FluentCard Class="@(selectedSlotId == slot.RosterPositionId ? "slot-card selected" : "slot-card")" 
+                            @onclick="() => selectedSlotId = slot.RosterPositionId">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <FluentLabel Weight="FontWeight.Bold">@slot.PositionName</FluentLabel>
+                        <FluentBadge Appearance="Appearance.Neutral">@slot.RemainingSlots left</FluentBadge>
+                    </div>
+                </FluentCard>
+            }
+        </div>
+    }
+</div>
+
+<FluentDialogFooter>
+    <FluentButton Appearance="Appearance.Neutral" OnClick="@AutoAssignAsync">Auto-Assign</FluentButton>
+    <FluentButton Appearance="Appearance.Accent" 
+                  Disabled="@(selectedSlotId == null)"
+                  OnClick="@ConfirmAsync">
+        Assign
+    </FluentButton>
+</FluentDialogFooter>
+
+@code {
+    [CascadingParameter]
+    public FluentDialog Dialog { get; set; } = default!;
+
+    [Parameter]
+    public RosterAssignmentDialogData Content { get; set; } = default!;
+
+    private bool isLoading = true;
+    private string errorMessage = string.Empty;
+    private TeamRoster? roster;
+    private int? selectedSlotId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRoster();
+    }
+
+    private async Task LoadRoster()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = string.Empty;
+
+            var response = await Http.GetAsync($"/api/auction/{Content.AuctionId}/teams/{Content.TeamId}/roster");
+            if (response.IsSuccessStatusCode)
+            {
+                roster = await response.Content.ReadFromJsonAsync<TeamRoster>();
+            }
+            else
+            {
+                errorMessage = "Failed to load roster positions";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task AutoAssignAsync()
+    {
+        await Dialog.CloseAsync(new RosterAssignmentResult { AutoAssign = true });
+    }
+
+    private async Task ConfirmAsync()
+    {
+        if (selectedSlotId.HasValue)
+        {
+            await Dialog.CloseAsync(new RosterAssignmentResult { RosterPositionId = selectedSlotId.Value });
+        }
+    }
+
+    public class TeamRoster
+    {
+        public List<RosterSlot> RosterSlots { get; set; } = new();
+    }
+
+    public class RosterSlot
+    {
+        public int RosterPositionId { get; set; }
+        public string PositionName { get; set; } = string.Empty;
+        public int RemainingSlots { get; set; }
+    }
+}
+
+<style>
+    .slots-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 300px;
+        overflow-y: auto;
+        padding-right: 4px;
+        margin-bottom: 16px;
+    }
+    .slot-card {
+        padding: 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 1px solid transparent;
+    }
+    .slot-card:hover {
+        background-color: #f3f2f1;
+    }
+    .slot-card.selected {
+        border-color: #0078d4;
+        background-color: #e3f2fd;
+    }
+</style>

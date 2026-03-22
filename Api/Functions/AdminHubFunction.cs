@@ -85,6 +85,7 @@ public class AdminHubFunction
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"DEBUG EXCEPTION: {ex}");
             _logger.LogError(ex, "Error requesting reconnection for auction {AuctionId}", auctionId);
             var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
             await errorResponse.WriteStringAsync($"Error: {ex.Message}");

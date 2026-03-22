@@ -60,7 +60,7 @@ public class SvgDownloadServiceTests : IDisposable
 
         // Assert
         result.Should().NotBeNull();
-        result.Should().Be("GeorgiaTech.svg"); // Sanitized filename
+        result.Should().Be("Georgia Tech.svg"); // Sanitized filename
         
         VerifyHttpRequest(svgUrl);
     }
@@ -223,11 +223,11 @@ public class SvgDownloadServiceTests : IDisposable
     }
 
     [Theory]
-    [InlineData("Georgia Tech", "GeorgiaTech.svg")]
-    [InlineData("University of Alabama", "UniversityofAlabama.svg")]
-    [InlineData("Texas A&M", "TexasAM.svg")]
-    [InlineData("Miami (FL)", "MiamiFL.svg")]
-    [InlineData("St. John's", "StJohns.svg")]
+    [InlineData("Georgia Tech", "Georgia Tech.svg")]
+    [InlineData("University of Alabama", "University of Alabama.svg")]
+    [InlineData("Texas A&M", "Texas A&M.svg")]
+    [InlineData("Miami (FL)", "Miami (FL).svg")]
+    [InlineData("St. John's", "St. John's.svg")]
     [InlineData("USC", "USC.svg")]
     public void GetLocalSvgPath_WithVariousSchoolNames_ShouldReturnSanitizedPath(string schoolName, string expectedFileName)
     {
@@ -254,7 +254,7 @@ public class SvgDownloadServiceTests : IDisposable
         var result = await _svgDownloadService.DownloadAndStoreSvgAsync(schoolName, svgUrl);
 
         // Assert
-        result.Should().Be("MiamiFL.svg");
+        result.Should().Be("Miami (FL).svg");
     }
 
     [Theory]
@@ -273,7 +273,7 @@ public class SvgDownloadServiceTests : IDisposable
         var result = await _svgDownloadService.DownloadAndStoreSvgAsync(schoolName, svgUrl);
 
         // Assert
-        result.Should().Be("TestSchool.svg");
+        result.Should().Be("Test School.svg");
     }
 
     [Theory]

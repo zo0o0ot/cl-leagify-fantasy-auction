@@ -85,6 +85,65 @@ public class AuctionHubFunction(LeagifyAuctionDbContext context, ILogger<Auction
     }
 
     /// <summary>
+    /// Gets the list of available (undrafted) schools for the auction.
+    /// Used by users when it is their turn to nominate.
+    /// </summary>
+    [Function("GetAvailableSchools")]
+    public async Task<HttpResponseData> GetAvailableSchools(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "auction/{auctionId}/available-schools")] HttpRequestData req,
+        int auctionId)
+    {
+        _logger.LogInformation("GetAvailableSchools called for auction {AuctionId}", auctionId);
+
+        try
+        {
+            // Verify user authentication
+            var sessionToken = GetSessionToken(req);
+            if (string.IsNullOrEmpty(sessionToken))
+            {
+                return await CreateUnauthorizedResponse(req);
+            }
+
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.SessionToken == sessionToken && u.AuctionId == auctionId);
+
+            if (user == null)
+            {
+                return await CreateUnauthorizedResponse(req);
+            }
+
+            // Get available schools (not yet drafted)
+            var draftedSchoolIds = await _context.DraftPicks
+                .Where(dp => dp.AuctionId == auctionId)
+                .Select(dp => dp.AuctionSchoolId)
+                .ToListAsync();
+
+            var availableSchools = await _context.AuctionSchools
+                .Include(s => s.School)
+                .Where(s => s.AuctionId == auctionId && !draftedSchoolIds.Contains(s.AuctionSchoolId))
+                .OrderByDescending(s => s.ProjectedPoints)
+                .Select(s => new
+                {
+                    AuctionSchoolId = s.AuctionSchoolId,
+                    SchoolId = s.SchoolId,
+                    Name = s.School != null ? s.School.Name : "",
+                    Conference = s.Conference,
+                    ProjectedPoints = s.ProjectedPoints
+                })
+                .ToListAsync();
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(availableSchools);
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting available schools for auction {AuctionId}", auctionId);
+            return await CreateErrorResponse(req, "Failed to get available schools");
+        }
+    }
+
+    /// <summary>
     /// Nominates a school for bidding and automatically places a $1 bid for the nominating user.
     /// Broadcasts nomination event to all auction participants via SignalR.
     /// </summary>

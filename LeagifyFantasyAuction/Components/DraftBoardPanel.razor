@@ -1,0 +1,150 @@
+@using System.Net.Http.Json
+@using Microsoft.FluentUI.AspNetCore.Components
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+
+<div class="draft-board-panel">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <FluentLabel Typo="Typography.Subject">Draft Board</FluentLabel>
+        <FluentButton Appearance="Appearance.Stealth" 
+                      IconStart="@(new Icons.Regular.Size16.ArrowDownload())"
+                      OnClick="@DownloadResults">
+            Export (CSV)
+        </FluentButton>
+    </div>
+
+    @if (isLoading)
+    {
+        <div style="display: flex; justify-content: center; padding: 24px;">
+            <FluentProgressRing />
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <FluentMessageBar Intent="MessageIntent.Error">
+            @errorMessage
+        </FluentMessageBar>
+    }
+    else if (summary != null)
+    {
+        <div style="display: flex; justify-content: space-between; margin-bottom: 16px; font-size: 14px; color: #666;">
+            <div><strong>Completion:</strong> @summary.CompletionPercentage.ToString("0.0")%</div>
+            <div><strong>Slots Filled:</strong> @summary.FilledSlots / @summary.TotalSlots</div>
+        </div>
+
+        <FluentAccordion>
+            @foreach (var team in summary.TeamStandings)
+            {
+                <FluentAccordionItem Heading="@team.Name">
+                    <div slot="end" style="display: flex; gap: 16px; align-items: center;">
+                        <FluentBadge Appearance="Appearance.Neutral">
+                            @team.AssignedSchools / @(summary.TotalSlots / summary.TotalTeams) Slots
+                        </FluentBadge>
+                        <FluentBadge Appearance="Appearance.Accent" Fill="fill">
+                            $@team.CurrentBudget Left
+                        </FluentBadge>
+                    </div>
+
+                    <div style="padding: 12px 0;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <FluentLabel Weight="FontWeight.Bold" Style="color: #0078d4;">
+                                Pts: @team.TotalProjectedPoints.ToString("0.0")
+                            </FluentLabel>
+                            <FluentLabel Weight="FontWeight.Bold" Style="color: #d83b01;">
+                                Spent: $@team.TotalSpent
+                            </FluentLabel>
+                        </div>
+                    </div>
+                </FluentAccordionItem>
+            }
+        </FluentAccordion>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int AuctionId { get; set; }
+
+    private bool isLoading = true;
+    private string errorMessage = string.Empty;
+    private AuctionSummary? summary;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSummary();
+    }
+
+    public async Task RefreshState()
+    {
+        await LoadSummary();
+    }
+
+    private async Task LoadSummary()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = string.Empty;
+
+            var response = await Http.GetAsync($"/api/auction/{AuctionId}/summary");
+            if (response.IsSuccessStatusCode)
+            {
+                summary = await response.Content.ReadFromJsonAsync<AuctionSummary>();
+            }
+            else
+            {
+                errorMessage = "Failed to load draft board";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task DownloadResults()
+    {
+        var exportUrl = $"/api/auction/{AuctionId}/export";
+        await JSRuntime.InvokeVoidAsync("open", exportUrl, "_blank");
+    }
+
+    public class AuctionSummary
+    {
+        public int AuctionId { get; set; }
+        public string AuctionName { get; set; } = string.Empty;
+        public int TotalTeams { get; set; }
+        public int TotalSlots { get; set; }
+        public int FilledSlots { get; set; }
+        public decimal CompletionPercentage { get; set; }
+        public List<TeamStanding> TeamStandings { get; set; } = new();
+    }
+
+    public class TeamStanding
+    {
+        public int TeamId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public decimal CurrentBudget { get; set; }
+        public decimal TotalSpent { get; set; }
+        public decimal TotalProjectedPoints { get; set; }
+        public int SchoolsDrafted { get; set; }
+        public int AssignedSchools { get; set; }
+    }
+}
+
+<style>
+    .draft-board-panel {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        border: 1px solid #e1dfdd;
+        height: 100%;
+        overflow-y: auto;
+    }
+</style>

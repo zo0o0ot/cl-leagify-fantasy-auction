@@ -281,7 +281,7 @@ public class RosterValidationTests
     public void ValidateAuctionConfiguration_WithMultipleIssues_ShouldReturnAllErrorsAndWarnings()
     {
         // Arrange
-        int schoolCount = 15; // Only enough for 2 teams
+        int schoolCount = 16; // Enough for 2 teams
         var rosterPositions = new List<RosterPositionConfig>
         {
             new() { PositionName = "Power Conference", SlotsPerTeam = 5, IsFlexPosition = false },

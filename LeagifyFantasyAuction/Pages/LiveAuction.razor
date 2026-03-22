@@ -1,8 +1,12 @@
 @page "/auction/{auctionId:int}/live"
 @using System.Net.Http.Json
+@using Microsoft.FluentUI.AspNetCore.Components
+@using LeagifyFantasyAuction.Models
+@using LeagifyFantasyAuction.Components
 @inject HttpClient Http
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Navigation
+@inject IDialogService DialogService
 
 <PageTitle>Live Auction - Leagify Fantasy Auction</PageTitle>
 
@@ -24,42 +28,48 @@
     }
     else
     {
-        <FluentCard Style="max-width: 800px; margin: 48px auto; padding: 32px; text-align: center;">
-            <FluentLabel Typo="Typography.PageTitle" Style="margin-bottom: 24px;">
-                🏈 Auction In Progress
-            </FluentLabel>
+        <div style="max-width: 1400px; margin: 0 auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                <FluentLabel Typo="Typography.PageTitle">
+                    🏈 @auctionName
+                </FluentLabel>
+                <FluentButton Appearance="Appearance.Neutral"
+                              OnClick="@(() => Navigation.NavigateTo($"/auction/{AuctionId}/waiting-room"))">
+                    ← Waiting Room
+                </FluentButton>
+            </div>
 
-            <FluentLabel Typo="Typography.Header" Style="color: #0078d4; margin-bottom: 16px;">
-                @auctionName
-            </FluentLabel>
-
-            <div style="background: #e3f2fd; padding: 24px; border-radius: 8px; margin: 24px 0;">
+            <div style="background: #e3f2fd; padding: 16px 24px; border-radius: 8px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
                 <FluentLabel Typo="Typography.Body" Style="font-size: 18px;">
                     👤 Welcome, <strong>@displayName</strong>!
                 </FluentLabel>
+                @if (isAuctionMaster)
+                {
+                    <FluentBadge Appearance="Appearance.Accent">Auction Master</FluentBadge>
+                }
             </div>
 
-            <FluentMessageBar Intent="MessageIntent.Info" Style="margin: 24px 0;">
-                <strong>The live auction feature is coming soon!</strong>
-                <div style="margin-top: 8px;">
-                    The full live bidding experience with real-time nominations, bidding,
-                    and roster management is under development. Check back soon!
+            @if (isAuctionMaster)
+            {
+                <LiveAdminPanel AuctionId="@AuctionId" />
+            }
+
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+                <div class="bidding-column">
+                    @if (userId > 0)
+                    {
+                        <AuctionBiddingPanel @ref="biddingPanel"
+                                             AuctionId="@AuctionId" 
+                                             UserId="@userId" 
+                                             OnRequestNomination="@HandleNominationRequest"
+                                             OnBidWon="@HandleBidWon" />
+                    }
                 </div>
-            </FluentMessageBar>
-
-            <div style="margin-top: 32px;">
-                <FluentLabel Style="color: #666;">
-                    For now, please coordinate with your Auction Master via video call.
-                </FluentLabel>
+                <div class="draft-board-column">
+                    <DraftBoardPanel @ref="draftBoard" AuctionId="@AuctionId" />
+                </div>
             </div>
-
-            <FluentStack Orientation="Orientation.Horizontal" HorizontalAlignment="HorizontalAlignment.Center" Style="margin-top: 24px;">
-                <FluentButton Appearance="Appearance.Neutral"
-                              OnClick="@(() => Navigation.NavigateTo($"/auction/{AuctionId}/waiting-room"))">
-                    ← Back to Waiting Room
-                </FluentButton>
-            </FluentStack>
-        </FluentCard>
+        </div>
     }
 </div>
 
@@ -71,6 +81,11 @@
     private string errorMessage = string.Empty;
     private string auctionName = string.Empty;
     private string displayName = string.Empty;
+    private int userId;
+    private bool isAuctionMaster = false;
+
+    private DraftBoardPanel? draftBoard;
+    private AuctionBiddingPanel? biddingPanel;
 
     protected override async Task OnInitializedAsync()
     {
@@ -84,7 +99,6 @@
             isLoading = true;
             errorMessage = string.Empty;
 
-            // Get session from localStorage
             var sessionJson = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "auctionSession");
             if (string.IsNullOrEmpty(sessionJson))
             {
@@ -100,8 +114,11 @@
             }
 
             displayName = session.DisplayName;
+            userId = session.UserId;
 
-            // Load auction info
+            var mgmtToken = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "managementToken");
+            isAuctionMaster = !string.IsNullOrEmpty(mgmtToken);
+
             var response = await Http.GetAsync($"/api/auction/{AuctionId}");
             if (response.IsSuccessStatusCode)
             {
@@ -127,6 +144,133 @@
         }
     }
 
+    private async Task HandleNominationRequest()
+    {
+        var data = new SchoolNominationDialogData { AuctionId = AuctionId };
+        var dialog = await DialogService.ShowDialogAsync<SchoolNominationDialog>(data, new DialogParameters()
+        {
+            Title = "Nominate a School",
+            PreventDismissOnOverlayClick = true,
+            PreventScroll = true,
+            Width = "500px"
+        });
+
+        var result = await dialog.Result;
+        if (!result.Cancelled && result.Data != null)
+        {
+            var selectedSchoolId = (int)result.Data;
+            await SubmitNomination(selectedSchoolId);
+        }
+    }
+
+    private async Task SubmitNomination(int auctionSchoolId)
+    {
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "auctionToken");
+            if (string.IsNullOrEmpty(token)) return;
+
+            Http.DefaultRequestHeaders.Remove("X-Auction-Token");
+            Http.DefaultRequestHeaders.Add("X-Auction-Token", token);
+
+            var request = new { AuctionSchoolId = auctionSchoolId };
+            var response = await Http.PostAsJsonAsync($"/api/auction/{AuctionId}/nominate", request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                await JSRuntime.InvokeVoidAsync("alert", $"Failed to nominate school: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error: {ex.Message}");
+        }
+    }
+
+    private async Task HandleBidWon((int DraftPickId, string SchoolName, int TeamId) pick)
+    {
+        var data = new RosterAssignmentDialogData 
+        { 
+            AuctionId = AuctionId,
+            DraftPickId = pick.DraftPickId,
+            SchoolName = pick.SchoolName,
+            TeamId = pick.TeamId
+        };
+
+        var dialog = await DialogService.ShowDialogAsync<RosterAssignmentDialog>(data, new DialogParameters()
+        {
+            Title = "Assign Roster Position",
+            PreventDismissOnOverlayClick = true,
+            PreventScroll = true,
+            Width = "400px"
+        });
+
+        var result = await dialog.Result;
+        if (!result.Cancelled && result.Data != null)
+        {
+            var assignmentResult = (RosterAssignmentResult)result.Data;
+            if (assignmentResult.AutoAssign)
+            {
+                await SubmitAutoAssign(pick.DraftPickId);
+            }
+            else if (assignmentResult.RosterPositionId.HasValue)
+            {
+                await SubmitManualAssign(pick.DraftPickId, assignmentResult.RosterPositionId.Value);
+            }
+        }
+        else
+        {
+            // If they dismissed without picking, trigger auto assign
+            await SubmitAutoAssign(pick.DraftPickId);
+        }
+
+        // Refresh the draft board if it exists
+        if (draftBoard != null)
+        {
+            await draftBoard.RefreshState();
+        }
+    }
+
+    private async Task SubmitManualAssign(int draftPickId, int rosterPositionId)
+    {
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "auctionToken");
+            Http.DefaultRequestHeaders.Remove("X-Auction-Token");
+            Http.DefaultRequestHeaders.Add("X-Auction-Token", token);
+
+            var request = new { RosterPositionId = rosterPositionId };
+            var response = await Http.PostAsJsonAsync($"/api/auction/{AuctionId}/draft-picks/{draftPickId}/assign", request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                await JSRuntime.InvokeVoidAsync("alert", $"Assignment failed: {error}");
+            }
+        }
+        catch (Exception) { /* ignored */ }
+    }
+
+    private async Task SubmitAutoAssign(int draftPickId)
+    {
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "auctionToken");
+            Http.DefaultRequestHeaders.Remove("X-Auction-Token");
+            Http.DefaultRequestHeaders.Add("X-Auction-Token", token);
+
+            var response = await Http.PostAsync($"/api/auction/{AuctionId}/draft-picks/{draftPickId}/auto-assign", null);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                await JSRuntime.InvokeVoidAsync("alert", $"Auto-assignment failed: {error}");
+            }
+        }
+        catch (Exception) { /* ignored */ }
+    }
+
     private class UserSession
     {
         public int UserId { get; set; }
@@ -145,9 +289,12 @@
 
 <style>
     .live-auction-container {
-        max-width: 1200px;
+        max-width: 1400px;
         margin: 0 auto;
         padding: 24px;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
     }
 
     .loading-container {
@@ -156,5 +303,11 @@
         align-items: center;
         justify-content: center;
         min-height: 400px;
+    }
+
+    @@media (max-width: 1024px) {
+        div[style*="grid-template-columns"] {
+            grid-template-columns: 1fr !important;
+        }
     }
 </style>

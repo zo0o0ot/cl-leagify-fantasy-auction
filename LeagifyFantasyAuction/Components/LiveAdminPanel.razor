@@ -1,0 +1,73 @@
+@using System.Net.Http.Json
+@using Microsoft.FluentUI.AspNetCore.Components
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+
+<div class="live-admin-panel">
+    <FluentLabel Typo="Typography.Subject" Style="margin-bottom: 16px;">Master Controls</FluentLabel>
+
+    <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" HorizontalGap="12">
+        <FluentButton Appearance="Appearance.Neutral" 
+                      IconStart="@(new Icons.Regular.Size16.Pause())"
+                      OnClick="@PauseAuction">
+            Pause Auction
+        </FluentButton>
+        <FluentButton Appearance="Appearance.Lightweight" 
+                      IconStart="@(new Icons.Regular.Size16.Stop())"
+                      Style="color: #d13438;"
+                      OnClick="@EndCurrentBid">
+            Force End Bid
+        </FluentButton>
+        <FluentButton Appearance="Appearance.Lightweight" 
+                      IconStart="@(new Icons.Regular.Size16.ArrowUndo())"
+                      OnClick="@UndoLastPick">
+            Undo Last Pick
+        </FluentButton>
+    </FluentStack>
+</div>
+
+@code {
+    [Parameter]
+    public int AuctionId { get; set; }
+
+    private async Task PauseAuction()
+    {
+        // For demonstration, pause using placeholder
+        await JSRuntime.InvokeVoidAsync("alert", "Pause auction logic clicked.");
+    }
+    
+    private async Task EndCurrentBid()
+    {
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "managementToken");
+            Http.DefaultRequestHeaders.Remove("X-Management-Token");
+            Http.DefaultRequestHeaders.Add("X-Management-Token", token);
+
+            var response = await Http.PostAsync($"/api/management/auctions/{AuctionId}/end-bid", null);
+            if (!response.IsSuccessStatusCode)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Failed to force end bid.");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error: {ex.Message}");
+        }
+    }
+
+    private async Task UndoLastPick()
+    {
+        await JSRuntime.InvokeVoidAsync("alert", "Undo logic not yet implemented on backend.");
+    }
+}
+
+<style>
+    .live-admin-panel {
+        background: #fdf5f3;
+        border: 1px solid #f9d5d3;
+        border-radius: 8px;
+        padding: 16px 24px;
+        margin-bottom: 24px;
+    }
+</style>

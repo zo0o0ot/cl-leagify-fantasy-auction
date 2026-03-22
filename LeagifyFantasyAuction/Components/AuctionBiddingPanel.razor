@@ -177,6 +177,7 @@
     [Parameter] public int AuctionId { get; set; }
     [Parameter] public int UserId { get; set; }
     [Parameter] public EventCallback OnRequestNomination { get; set; }
+    [Parameter] public EventCallback<(int DraftPickId, string SchoolName, int TeamId)> OnBidWon { get; set; }
 
     // Current bidding state
     private bool isActiveBidding = false;
@@ -336,7 +337,7 @@
                 StateHasChanged();
             });
 
-            hubConnection.On<BiddingCompletedEvent>("BiddingCompleted", (evt) =>
+            hubConnection.On<BiddingCompletedEvent>("BiddingCompleted", async (evt) =>
             {
                 isActiveBidding = false;
                 currentSchoolId = null;
@@ -346,7 +347,13 @@
                 currentHighBidderDisplayName = null;
 
                 AddActivity($"{evt.WinnerDisplayName} won {evt.SchoolName} for ${evt.WinningBid}");
-                StateHasChanged();
+                
+                if (evt.WinnerUserId == UserId)
+                {
+                    await OnBidWon.InvokeAsync((evt.DraftPickId, evt.SchoolName, evt.TeamId));
+                }
+                
+                await InvokeAsync(StateHasChanged);
             });
 
             hubConnection.On<NominationTurnChangedEvent>("NominationTurnChanged", (evt) =>

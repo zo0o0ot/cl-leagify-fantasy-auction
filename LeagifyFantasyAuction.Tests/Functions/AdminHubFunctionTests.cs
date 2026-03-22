@@ -122,6 +122,10 @@ public class AdminHubFunctionTests : IDisposable
         var reconnectingUser = CreateTestUser(auction.AuctionId, "ReconnectingUser", "user-token");
         reconnectingUser.IsReconnectionPending = true;
 
+        await _context.Auctions.AddAsync(auction);
+        await _context.Users.AddRangeAsync(auctionMaster, reconnectingUser);
+        await _context.SaveChangesAsync();
+
         var masterRole = new UserRole
         {
             UserId = auctionMaster.UserId,
@@ -129,8 +133,6 @@ public class AdminHubFunctionTests : IDisposable
             AssignedDate = DateTime.UtcNow
         };
 
-        await _context.Auctions.AddAsync(auction);
-        await _context.Users.AddRangeAsync(auctionMaster, reconnectingUser);
         await _context.UserRoles.AddAsync(masterRole);
         await _context.SaveChangesAsync();
 
@@ -194,15 +196,16 @@ public class AdminHubFunctionTests : IDisposable
         var auction = CreateTestAuction();
         var auctionMaster = CreateTestUser(auction.AuctionId, "MasterUser", "master-token");
 
+        await _context.Auctions.AddAsync(auction);
+        await _context.Users.AddAsync(auctionMaster);
+        await _context.SaveChangesAsync();
+
         var masterRole = new UserRole
         {
             UserId = auctionMaster.UserId,
             Role = "AuctionMaster",
             AssignedDate = DateTime.UtcNow
         };
-
-        await _context.Auctions.AddAsync(auction);
-        await _context.Users.AddAsync(auctionMaster);
         await _context.UserRoles.AddAsync(masterRole);
         await _context.SaveChangesAsync();
 
@@ -225,15 +228,16 @@ public class AdminHubFunctionTests : IDisposable
         var auction = CreateTestAuction();
         var auctionMaster = CreateTestUser(auction.AuctionId, "MasterUser", "master-token");
 
+        await _context.Auctions.AddAsync(auction);
+        await _context.Users.AddAsync(auctionMaster);
+        await _context.SaveChangesAsync();
+
         var masterRole = new UserRole
         {
             UserId = auctionMaster.UserId,
             Role = "AuctionMaster",
             AssignedDate = DateTime.UtcNow
         };
-
-        await _context.Auctions.AddAsync(auction);
-        await _context.Users.AddAsync(auctionMaster);
         await _context.UserRoles.AddAsync(masterRole);
         await _context.SaveChangesAsync();
 
@@ -256,6 +260,10 @@ public class AdminHubFunctionTests : IDisposable
         var auction = CreateTestAuction();
         var auctionMaster = CreateTestUser(auction.AuctionId, "MasterUser", "master-token");
 
+        await _context.Auctions.AddAsync(auction);
+        await _context.Users.AddAsync(auctionMaster);
+        await _context.SaveChangesAsync();
+
         var masterRole = new UserRole
         {
             UserId = auctionMaster.UserId,
@@ -263,8 +271,6 @@ public class AdminHubFunctionTests : IDisposable
             AssignedDate = DateTime.UtcNow
         };
 
-        await _context.Auctions.AddAsync(auction);
-        await _context.Users.AddAsync(auctionMaster);
         await _context.UserRoles.AddAsync(masterRole);
         await _context.SaveChangesAsync();
 
@@ -360,30 +366,23 @@ public class AdminHubFunctionTests : IDisposable
 
     private static Mock<HttpRequestData> CreateMockHttpRequest(string? sessionToken, string? body = null)
     {
-        var mockRequest = new Mock<HttpRequestData>(MockBehavior.Strict, Mock.Of<FunctionContext>());
+        var mockServiceProvider = new Mock<IServiceProvider>();
+        var workerOptions = new WorkerOptions { Serializer = new Azure.Core.Serialization.JsonObjectSerializer(new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }) };
+        var optionsMock = Microsoft.Extensions.Options.Options.Create(workerOptions);
+        mockServiceProvider.Setup(x => x.GetService(typeof(Microsoft.Extensions.Options.IOptions<WorkerOptions>))).Returns(optionsMock);
 
-        var mockHeaders = new Mock<HttpHeadersCollection>();
+        var contextMock = new Mock<FunctionContext>();
+        contextMock.Setup(c => c.InstanceServices).Returns(mockServiceProvider.Object);
 
+        var mockRequest = new Mock<HttpRequestData>(MockBehavior.Strict, contextMock.Object);
+
+        var headers = new HttpHeadersCollection();
         if (sessionToken != null)
         {
-            mockHeaders.Setup(h => h.TryGetValues("X-Auction-Token", out It.Ref<IEnumerable<string>>.IsAny))
-                .Returns((string key, out IEnumerable<string> values) =>
-                {
-                    values = new[] { sessionToken };
-                    return true;
-                });
-        }
-        else
-        {
-            mockHeaders.Setup(h => h.TryGetValues("X-Auction-Token", out It.Ref<IEnumerable<string>>.IsAny))
-                .Returns((string key, out IEnumerable<string> values) =>
-                {
-                    values = Enumerable.Empty<string>();
-                    return false;
-                });
+            headers.Add("X-Auction-Token", sessionToken);
         }
 
-        mockRequest.Setup(r => r.Headers).Returns(mockHeaders.Object);
+        mockRequest.Setup(r => r.Headers).Returns(headers);
 
         if (body != null)
         {
@@ -391,11 +390,10 @@ public class AdminHubFunctionTests : IDisposable
             mockRequest.Setup(r => r.Body).Returns(stream);
         }
 
-        // Mock CreateResponse
         mockRequest.Setup(r => r.CreateResponse())
             .Returns(() =>
             {
-                var mockResponse = new Mock<HttpResponseData>(MockBehavior.Strict, Mock.Of<FunctionContext>());
+                var mockResponse = new Mock<HttpResponseData>(MockBehavior.Strict, contextMock.Object);
                 mockResponse.SetupProperty(r => r.StatusCode);
                 mockResponse.SetupProperty(r => r.Headers, new HttpHeadersCollection());
                 mockResponse.SetupProperty(r => r.Body, new MemoryStream());
