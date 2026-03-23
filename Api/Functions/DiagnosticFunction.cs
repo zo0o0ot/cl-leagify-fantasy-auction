@@ -388,22 +388,57 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
             {
                 logger.LogInformation("Deleting test auction: {AuctionName} (ID: {AuctionId})", auction.Name, auction.AuctionId);
 
-                // Delete related data for this auction
+                // Delete related data for this auction (order matters for FK constraints)
+
+                // 1. User roles (depends on Users)
                 var userRoles = await context.UserRoles
                     .Where(ur => ur.User.AuctionId == auction.AuctionId)
                     .ToListAsync();
                 context.UserRoles.RemoveRange(userRoles);
 
-                var users = await context.Users
-                    .Where(u => u.AuctionId == auction.AuctionId)
+                // 2. BidHistories
+                var bidHistories = await context.BidHistories
+                    .Where(b => b.AuctionId == auction.AuctionId)
                     .ToListAsync();
-                context.Users.RemoveRange(users);
+                context.BidHistories.RemoveRange(bidHistories);
 
+                // 3. DraftPicks
+                var draftPicks = await context.DraftPicks
+                    .Where(d => d.AuctionId == auction.AuctionId)
+                    .ToListAsync();
+                context.DraftPicks.RemoveRange(draftPicks);
+
+                // 4. NominationOrders
+                var nominationOrders = await context.NominationOrders
+                    .Where(n => n.AuctionId == auction.AuctionId)
+                    .ToListAsync();
+                context.NominationOrders.RemoveRange(nominationOrders);
+
+                // 5. Teams
                 var teams = await context.Teams
                     .Where(t => t.AuctionId == auction.AuctionId)
                     .ToListAsync();
                 context.Teams.RemoveRange(teams);
 
+                // 6. Users
+                var users = await context.Users
+                    .Where(u => u.AuctionId == auction.AuctionId)
+                    .ToListAsync();
+                context.Users.RemoveRange(users);
+
+                // 7. AuctionSchools
+                var auctionSchools = await context.AuctionSchools
+                    .Where(a => a.AuctionId == auction.AuctionId)
+                    .ToListAsync();
+                context.AuctionSchools.RemoveRange(auctionSchools);
+
+                // 8. RosterPositions
+                var rosterPositions = await context.RosterPositions
+                    .Where(r => r.AuctionId == auction.AuctionId)
+                    .ToListAsync();
+                context.RosterPositions.RemoveRange(rosterPositions);
+
+                // 9. Delete the auction itself
                 context.Auctions.Remove(auction);
 
                 cleanupSummary.TotalDeleted["Auctions"]++;
@@ -418,7 +453,11 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
                     auction.JoinCode,
                     ParticipantsDeleted = users.Count,
                     TeamsDeleted = teams.Count,
-                    RolesDeleted = userRoles.Count
+                    RolesDeleted = userRoles.Count,
+                    BidHistoriesDeleted = bidHistories.Count,
+                    DraftPicksDeleted = draftPicks.Count,
+                    AuctionSchoolsDeleted = auctionSchools.Count,
+                    RosterPositionsDeleted = rosterPositions.Count
                 });
             }
 
