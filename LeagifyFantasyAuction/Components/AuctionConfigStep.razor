@@ -643,6 +643,10 @@
             await JSRuntime.InvokeVoidAsync("localStorage.setItem", $"budgetPerTeam_{AuctionId}", budgetPerTeam.ToString());
             await JSRuntime.InvokeVoidAsync("localStorage.setItem", $"useManagementAsAdmin_{AuctionId}", useManagementAsAdmin.ToString().ToLower());
 
+            // Save nomination order (team names in order) - critical for team creation in CompleteSetup
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", $"nominationOrder_{AuctionId}",
+                System.Text.Json.JsonSerializer.Serialize(nominationOrder.ToArray()));
+
             // For now, just simulate saving and complete the step
             // TODO: Implement actual API endpoint for saving configuration
             await Task.Delay(500); // Simulate API call
