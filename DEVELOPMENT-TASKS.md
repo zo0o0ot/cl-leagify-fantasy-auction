@@ -632,24 +632,28 @@ Based on the requirement: **School Management → Auction Creation → Join Auct
 **Priority:** CRITICAL - Prevents unexpected costs
 **Estimated Effort:** 8-12 hours (revised: 3-5 hours - most infrastructure already existed)
 **Risk:** Without this, database stays active 24/7 costing $50-175/month
-**Status:** IN PROGRESS (Jan 21, 2026)
+**Status:** IN PROGRESS (Mar 22, 2026) - API verified working
 
 - [x] Implement connection idle timeout (disconnect after 10 min inactive)
 - [x] Add cleanup for zombie SignalR connections
 - [x] Add connection monitoring and logging
 - [x] Client-side activity heartbeat (prevents active users being marked idle)
-- [ ] Test that connections properly close when users leave
-- [ ] Verify database auto-pauses when no active connections
+- [x] Verify cleanup API endpoint working in production (Mar 22, 2026)
+- [ ] Test that connections properly close when users leave (manual browser test needed)
+- [ ] Verify database auto-pauses when no active connections (check Azure portal)
 - [ ] Test auto-pause behavior in deployed environment
 
 **Implementation Details (Backend - Already Existed):**
 - ConnectionCleanupFunction.cs: Cleanup infrastructure
   - 10-minute idle timeout, 30-minute zombie timeout
-  - `POST/GET /api/system/cleanup-connections` - Manual trigger
-  - `GET /api/admin/connection-statistics` - Connection monitoring
+  - `POST/GET /api/system/cleanup-connections` - Manual trigger ✅ VERIFIED WORKING
+  - `GET /api/admin/connection-statistics` - Connection monitoring (requires auth)
   - Azure Logic App: Scheduled daily at 3 AM UTC
 - SignalRFunction.cs: Activity tracking
   - `POST /api/signalr/update-activity` - Updates LastActiveDate
+- AuctionHub.cs: OnDisconnectedAsync handler
+  - Marks user as disconnected immediately when browser closes
+  - Broadcasts disconnection event to admin group
 
 **Implementation Details (Client - Added Jan 21, 2026):**
 - WaitingRoom.razor: Activity heartbeat timer
@@ -658,10 +662,14 @@ Based on the requirement: **School Management → Auction Creation → Join Auct
   - Proper timer disposal on page exit
   - Console logging for debugging
 
+**Testing Script Added (Mar 22, 2026):**
+- `scripts/test-connection-cleanup.sh` - Automated and manual test steps
+- Verified cleanup endpoint returns: `{"Success":true,"CleanedConnections":0,"ZombieConnections":0}`
+
 **Remaining Work:**
-- Deploy and test connection lifecycle in production
-- Verify database auto-pause behavior
-- Document testing results
+- Manual browser test: Join auction, close browser, verify disconnect detected
+- Check Azure portal for database auto-pause behavior after all users disconnect
+- Document final testing results
 
 **Success Criteria:**
 - Database pauses within 5 minutes of last user disconnect
