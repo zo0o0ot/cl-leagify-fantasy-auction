@@ -107,24 +107,13 @@ public class WaitingRoomFunction
                 })
                 .ToListAsync();
 
-            // Get nomination order
-            var nominationOrder = await _context.NominationOrders
-                .Include(n => n.User)
-                .Where(n => n.AuctionId == auctionId)
-                .OrderBy(n => n.OrderPosition)
-                .Select(n => n.User.DisplayName)
+            // Get nomination order - should show TEAM names, not user names
+            // Teams are the primary source of draft order
+            var nominationOrder = await _context.Teams
+                .Where(t => t.AuctionId == auctionId && t.IsActive)
+                .OrderBy(t => t.NominationOrder)
+                .Select(t => t.TeamName ?? $"Team {t.NominationOrder}")
                 .ToListAsync();
-
-            // If no nomination order exists, try to get from Teams
-            if (!nominationOrder.Any())
-            {
-                nominationOrder = await _context.Teams
-                    .Include(t => t.User)
-                    .Where(t => t.AuctionId == auctionId && t.IsActive)
-                    .OrderBy(t => t.NominationOrder)
-                    .Select(t => t.User.DisplayName)
-                    .ToListAsync();
-            }
 
             // Get all participants with their bidding status
             var participants = await _context.Users
@@ -905,6 +894,7 @@ public class WaitingRoomFunction
                 // Broadcast the event again for any participants who missed it
                 var rebroadcastMessage = new SignalRMessageAction("AuctionStarted")
                 {
+                    GroupName = $"auction-{auctionId}",
                     Arguments = new object[] { auctionId, auction.Name }
                 };
 
@@ -932,9 +922,10 @@ public class WaitingRoomFunction
 
             _logger.LogInformation("✅ Auction {AuctionId} started successfully", auctionId);
 
-            // Broadcast AuctionStarted event via SignalR
+            // Broadcast AuctionStarted event via SignalR to all participants in the auction group
             var signalRMessage = new SignalRMessageAction("AuctionStarted")
             {
+                GroupName = $"auction-{auctionId}",
                 Arguments = new object[] { auctionId, auction.Name }
             };
 
