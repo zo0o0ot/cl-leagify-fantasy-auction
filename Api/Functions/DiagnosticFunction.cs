@@ -714,4 +714,90 @@ public class DiagnosticFunction(LeagifyAuctionDbContext context, ILogger<Diagnos
             return errorResponse;
         }
     }
+
+    /// <summary>
+    /// Clean up duplicate teams in an auction by keeping only one team per NominationOrder
+    /// </summary>
+    [Function("CleanupDuplicateTeams")]
+    public async Task<HttpResponseData> CleanupDuplicateTeams(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "diagnostic/auction/{auctionId:int}/cleanup-duplicate-teams")] HttpRequestData req,
+        int auctionId)
+    {
+        // Validate management token
+        var validation = ManagementAuthFunction.ValidateManagementToken(req);
+        if (!validation.IsValid)
+        {
+            var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
+            await unauthorizedResponse.WriteStringAsync("Unauthorized");
+            return unauthorizedResponse;
+        }
+
+        try
+        {
+            logger.LogInformation("Cleaning up duplicate teams for auction {AuctionId}", auctionId);
+
+            // Get all teams for this auction
+            var teams = await context.Teams
+                .Where(t => t.AuctionId == auctionId)
+                .OrderBy(t => t.TeamId) // Keep the first one created
+                .ToListAsync();
+
+            // Group by TeamName and find duplicates
+            var duplicateGroups = teams
+                .GroupBy(t => t.TeamName)
+                .Where(g => g.Count() > 1)
+                .ToList();
+
+            var teamsToDelete = new List<LeagifyFantasyAuction.Api.Models.Team>();
+            var deletedInfo = new List<object>();
+
+            foreach (var group in duplicateGroups)
+            {
+                // Keep the first team (lowest TeamId), delete the rest
+                var teamsInGroup = group.ToList();
+                var teamToKeep = teamsInGroup.First();
+                var teamsToRemove = teamsInGroup.Skip(1).ToList();
+
+                foreach (var team in teamsToRemove)
+                {
+                    // First delete any UserRoles pointing to this team
+                    var userRoles = await context.UserRoles
+                        .Where(ur => ur.TeamId == team.TeamId)
+                        .ToListAsync();
+                    context.UserRoles.RemoveRange(userRoles);
+
+                    teamsToDelete.Add(team);
+                    deletedInfo.Add(new
+                    {
+                        DeletedTeamId = team.TeamId,
+                        DeletedTeamName = team.TeamName,
+                        KeptTeamId = teamToKeep.TeamId,
+                        DeletedUserRoles = userRoles.Count
+                    });
+                }
+            }
+
+            context.Teams.RemoveRange(teamsToDelete);
+            await context.SaveChangesAsync();
+
+            logger.LogInformation("Deleted {Count} duplicate teams from auction {AuctionId}", teamsToDelete.Count, auctionId);
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(new
+            {
+                AuctionId = auctionId,
+                DuplicateGroupsFound = duplicateGroups.Count,
+                TeamsDeleted = teamsToDelete.Count,
+                DeletedTeams = deletedInfo
+            });
+            return response;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error cleaning up duplicate teams for auction {AuctionId}", auctionId);
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync($"Error: {ex.Message}");
+            return errorResponse;
+        }
+    }
 }
