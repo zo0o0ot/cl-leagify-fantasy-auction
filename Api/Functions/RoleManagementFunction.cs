@@ -593,8 +593,10 @@ public class RoleManagementFunction(ILoggerFactory loggerFactory, LeagifyAuction
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error managing teams for auction {AuctionId}", auctionId);
-            return await CreateErrorResponse(req, HttpStatusCode.InternalServerError, "Failed to manage teams");
+            _logger.LogError(ex, "Error managing teams for auction {AuctionId}. Exception: {Message}, Inner: {InnerMessage}",
+                auctionId, ex.Message, ex.InnerException?.Message ?? "none");
+            return await CreateErrorResponse(req, HttpStatusCode.InternalServerError,
+                $"Failed to manage teams: {ex.Message}" + (ex.InnerException != null ? $" Inner: {ex.InnerException.Message}" : ""));
         }
     }
 
