@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using LeagifyFantasyAuction.Api.Data;
 using LeagifyFantasyAuction.Api.Models;
+using LeagifyFantasyAuction.Api.Services;
 using System.Net;
 using System.Text.Json;
 
@@ -13,10 +14,11 @@ namespace LeagifyFantasyAuction.Api.Functions;
 /// Azure Function handling real-time auction operations including nominations and bidding.
 /// Coordinates turn-based nominations with automatic bid placement and SignalR broadcasts.
 /// </summary>
-public class AuctionHubFunction(LeagifyAuctionDbContext context, ILogger<AuctionHubFunction> logger)
+public class AuctionHubFunction(LeagifyAuctionDbContext context, ILogger<AuctionHubFunction> logger, IBiddingService biddingService)
 {
     private readonly LeagifyAuctionDbContext _context = context;
     private readonly ILogger<AuctionHubFunction> _logger = logger;
+    private readonly IBiddingService _biddingService = biddingService;
 
     /// <summary>
     /// Gets the current bidding state for an auction.
@@ -576,7 +578,8 @@ public class AuctionHubFunction(LeagifyAuctionDbContext context, ILogger<Auction
 
     /// <summary>
     /// Allows a user to pass on bidding for the current school.
-    /// Records pass in bid history for audit purposes.
+    /// Records pass in bid history and automatically completes bidding if all eligible
+    /// bidders have passed or cannot afford to outbid the current high bid.
     /// </summary>
     [Function("PassOnSchool")]
     public async Task<MultiResponse> PassOnSchool(
@@ -631,6 +634,17 @@ public class AuctionHubFunction(LeagifyAuctionDbContext context, ILogger<Auction
                 };
             }
 
+            // Prevent high bidder from passing (they already have the winning bid)
+            if (auction.CurrentHighBidderUserId == user.UserId)
+            {
+                return new MultiResponse
+                {
+                    HttpResponse = await CreateBadRequestResponse(req, "You are the current high bidder and cannot pass")
+                };
+            }
+
+            var schoolName = auction.CurrentSchool?.School?.Name ?? "Unknown School";
+
             // Record the pass in bid history
             var bidHistory = new BidHistory
             {
@@ -648,36 +662,116 @@ public class AuctionHubFunction(LeagifyAuctionDbContext context, ILogger<Auction
             _logger.LogInformation("User {UserId} passed on school {SchoolId} in auction {AuctionId}",
                 user.UserId, auction.CurrentSchoolId, auctionId);
 
-            var response = req.CreateResponse(HttpStatusCode.OK);
-            await response.WriteAsJsonAsync(new
-            {
-                Message = "Pass recorded",
-                SchoolName = auction.CurrentSchool?.School?.Name
-            });
+            // Check if bidding should end (all eligible bidders have passed or can't afford)
+            var biddingStatus = await _biddingService.CheckBiddingStatusAsync(auctionId);
+
+            var signalRMessages = new List<SignalRMessageAction>();
 
             // Broadcast pass event
-            var signalRMessages = new[]
+            signalRMessages.Add(new SignalRMessageAction
             {
-                new SignalRMessageAction
+                Target = "UserPassed",
+                GroupName = $"auction-{auctionId}",
+                Arguments = new object[]
                 {
-                    Target = "UserPassed",
-                    GroupName = $"auction-{auctionId}",
-                    Arguments = new object[]
+                    new
                     {
-                        new
-                        {
-                            UserId = user.UserId,
-                            DisplayName = user.DisplayName,
-                            SchoolName = auction.CurrentSchool?.School?.Name
-                        }
+                        UserId = user.UserId,
+                        DisplayName = user.DisplayName,
+                        SchoolName = schoolName
                     }
                 }
-            };
+            });
+
+            if (biddingStatus.ShouldEndBidding)
+            {
+                _logger.LogInformation("All eligible bidders have passed or can't afford in auction {AuctionId}, completing bidding automatically", auctionId);
+
+                // Complete bidding automatically
+                var completionResult = await _biddingService.CompleteBiddingAsync(auctionId);
+
+                if (completionResult.Success)
+                {
+                    // Broadcast school won event
+                    signalRMessages.Add(new SignalRMessageAction
+                    {
+                        Target = "SchoolWon",
+                        GroupName = $"auction-{auctionId}",
+                        Arguments = new object[]
+                        {
+                            new
+                            {
+                                DraftPickId = completionResult.DraftPickId,
+                                SchoolName = completionResult.SchoolName,
+                                WinningBid = completionResult.WinningBid,
+                                WinnerUserId = completionResult.WinnerUserId,
+                                WinnerDisplayName = completionResult.WinnerDisplayName,
+                                TeamId = completionResult.TeamId,
+                                TeamName = completionResult.TeamName,
+                                NextNominatorUserId = completionResult.NextNominatorUserId,
+                                NextNominatorDisplayName = completionResult.NextNominatorDisplayName,
+                                IsAuctionComplete = completionResult.IsAuctionComplete
+                            }
+                        }
+                    });
+
+                    // Broadcast turn change if auction continues
+                    if (!completionResult.IsAuctionComplete && completionResult.NextNominatorUserId != null)
+                    {
+                        signalRMessages.Add(new SignalRMessageAction
+                        {
+                            Target = "NominationTurnChanged",
+                            GroupName = $"auction-{auctionId}",
+                            Arguments = new object[]
+                            {
+                                new
+                                {
+                                    CurrentNominatorUserId = completionResult.NextNominatorUserId,
+                                    CurrentNominatorDisplayName = completionResult.NextNominatorDisplayName
+                                }
+                            }
+                        });
+                    }
+
+                    var response = req.CreateResponse(HttpStatusCode.OK);
+                    await response.WriteAsJsonAsync(new
+                    {
+                        Message = "Pass recorded, bidding completed",
+                        SchoolName = completionResult.SchoolName,
+                        BiddingCompleted = true,
+                        Winner = completionResult.WinnerDisplayName,
+                        WinningBid = completionResult.WinningBid,
+                        TeamName = completionResult.TeamName
+                    });
+
+                    return new MultiResponse
+                    {
+                        HttpResponse = response,
+                        SignalRMessages = signalRMessages.ToArray()
+                    };
+                }
+                else
+                {
+                    _logger.LogWarning("Failed to auto-complete bidding in auction {AuctionId}: {Error}",
+                        auctionId, completionResult.ErrorMessage);
+                }
+            }
+
+            // Return simple pass response if bidding continues
+            var passResponse = req.CreateResponse(HttpStatusCode.OK);
+            await passResponse.WriteAsJsonAsync(new
+            {
+                Message = "Pass recorded",
+                SchoolName = schoolName,
+                BiddingCompleted = false,
+                EligibleBiddersRemaining = biddingStatus.EligibleBidders
+                    .Count(b => !b.HasPassed && !b.IsAutoPassed && b.UserId != biddingStatus.HighBidderUserId)
+            });
 
             return new MultiResponse
             {
-                HttpResponse = response,
-                SignalRMessages = signalRMessages
+                HttpResponse = passResponse,
+                SignalRMessages = signalRMessages.ToArray()
             };
         }
         catch (Exception ex)

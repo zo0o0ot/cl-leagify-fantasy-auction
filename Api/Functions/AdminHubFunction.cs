@@ -6,6 +6,7 @@ using System.Net;
 using System.Text.Json;
 using LeagifyFantasyAuction.Api.Data;
 using LeagifyFantasyAuction.Api.Models;
+using LeagifyFantasyAuction.Api.Services;
 using Microsoft.Azure.Functions.Worker.Extensions.SignalRService;
 
 namespace LeagifyFantasyAuction.Api.Functions;
@@ -18,11 +19,13 @@ public class AdminHubFunction
 {
     private readonly LeagifyAuctionDbContext _context;
     private readonly ILogger<AdminHubFunction> _logger;
+    private readonly IBiddingService _biddingService;
 
-    public AdminHubFunction(LeagifyAuctionDbContext context, ILogger<AdminHubFunction> logger)
+    public AdminHubFunction(LeagifyAuctionDbContext context, ILogger<AdminHubFunction> logger, IBiddingService biddingService)
     {
         _context = context;
         _logger = logger;
+        _biddingService = biddingService;
     }
 
     /// <summary>
@@ -199,7 +202,8 @@ public class AdminHubFunction
     }
 
     /// <summary>
-    /// Manually end current bidding (Auction Master only).
+    /// Manually end current bidding and award school to high bidder (Auction Master only).
+    /// Creates a DraftPick, deducts budget, clears bidding state, and advances the turn.
     /// </summary>
     [Function("EndCurrentBid")]
     public async Task<AdminActionResponse> EndCurrentBid(
@@ -210,43 +214,96 @@ public class AdminHubFunction
         {
             _logger.LogInformation("End bidding request for auction {AuctionId}", auctionId);
 
-            // Validate Auction Master authentication
-            var admin = await ValidateAuctionMaster(req, auctionId);
-            if (admin == null)
+            // Validate Auction Master authentication (or management token)
+            var managementToken = GetManagementToken(req);
+            User? admin = null;
+
+            if (string.IsNullOrEmpty(managementToken))
             {
-                var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
-                return new AdminActionResponse { HttpResponse = unauthorizedResponse };
+                admin = await ValidateAuctionMaster(req, auctionId);
+                if (admin == null)
+                {
+                    var unauthorizedResponse = req.CreateResponse(HttpStatusCode.Unauthorized);
+                    return new AdminActionResponse { HttpResponse = unauthorizedResponse };
+                }
             }
 
-            _logger.LogInformation("Auction Master {AdminName} manually ended bidding for auction {AuctionId}",
-                admin.DisplayName, auctionId);
+            // Complete the bidding using the service
+            var result = await _biddingService.CompleteBiddingAsync(auctionId);
 
-            // Broadcast to all auction participants
-            var signalRMessage = new SignalRMessageAction("BiddingEnded")
+            if (!result.Success)
+            {
+                var errorResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await errorResponse.WriteStringAsync(result.ErrorMessage ?? "Failed to complete bidding");
+                return new AdminActionResponse { HttpResponse = errorResponse };
+            }
+
+            var endedBy = admin?.DisplayName ?? "Management";
+            _logger.LogInformation("Auction Master {AdminName} manually ended bidding for auction {AuctionId}: {SchoolName} won by {Winner} for ${Amount}",
+                endedBy, auctionId, result.SchoolName, result.WinnerDisplayName, result.WinningBid);
+
+            var signalRMessages = new List<SignalRMessageAction>();
+
+            // Broadcast school won event
+            signalRMessages.Add(new SignalRMessageAction("SchoolWon")
             {
                 GroupName = $"auction-{auctionId}",
                 Arguments = new object[]
                 {
                     new
                     {
-                        EndedBy = admin.DisplayName,
+                        DraftPickId = result.DraftPickId,
+                        SchoolName = result.SchoolName,
+                        WinningBid = result.WinningBid,
+                        WinnerUserId = result.WinnerUserId,
+                        WinnerDisplayName = result.WinnerDisplayName,
+                        TeamId = result.TeamId,
+                        TeamName = result.TeamName,
+                        NextNominatorUserId = result.NextNominatorUserId,
+                        NextNominatorDisplayName = result.NextNominatorDisplayName,
+                        IsAuctionComplete = result.IsAuctionComplete,
+                        EndedBy = endedBy,
                         EndedAt = DateTime.UtcNow,
                         Reason = "Manual end by Auction Master"
                     }
                 }
-            };
+            });
+
+            // Broadcast turn change if auction continues
+            if (!result.IsAuctionComplete && result.NextNominatorUserId != null)
+            {
+                signalRMessages.Add(new SignalRMessageAction("NominationTurnChanged")
+                {
+                    GroupName = $"auction-{auctionId}",
+                    Arguments = new object[]
+                    {
+                        new
+                        {
+                            CurrentNominatorUserId = result.NextNominatorUserId,
+                            CurrentNominatorDisplayName = result.NextNominatorDisplayName
+                        }
+                    }
+                });
+            }
 
             var response = req.CreateResponse(HttpStatusCode.OK);
             await response.WriteAsJsonAsync(new
             {
                 Success = true,
-                Message = "Bidding ended successfully"
+                Message = "Bidding ended and school awarded",
+                DraftPickId = result.DraftPickId,
+                SchoolName = result.SchoolName,
+                WinningBid = result.WinningBid,
+                WinnerDisplayName = result.WinnerDisplayName,
+                TeamName = result.TeamName,
+                NextNominatorDisplayName = result.NextNominatorDisplayName,
+                IsAuctionComplete = result.IsAuctionComplete
             });
 
             return new AdminActionResponse
             {
                 HttpResponse = response,
-                SignalRMessages = new[] { signalRMessage }
+                SignalRMessages = signalRMessages.ToArray()
             };
         }
         catch (Exception ex)
@@ -256,6 +313,15 @@ public class AdminHubFunction
             await errorResponse.WriteStringAsync($"Error: {ex.Message}");
             return new AdminActionResponse { HttpResponse = errorResponse };
         }
+    }
+
+    private static string? GetManagementToken(HttpRequestData req)
+    {
+        if (req.Headers.TryGetValues("X-Management-Token", out var values))
+        {
+            return values.FirstOrDefault();
+        }
+        return null;
     }
 
     // Helper methods

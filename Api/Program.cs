@@ -46,6 +46,7 @@ var host = new HostBuilder()
         services.AddScoped<ICsvImportService, CsvImportService>();
         services.AddScoped<IAuctionService, AuctionService>();
         services.AddScoped<IAuctionCsvImportService, AuctionCsvImportService>();
+        services.AddScoped<IBiddingService, BiddingService>();
     })
     .Build();
 

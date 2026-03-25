@@ -7,6 +7,7 @@ using FluentAssertions;
 using LeagifyFantasyAuction.Api.Data;
 using LeagifyFantasyAuction.Api.Functions;
 using LeagifyFantasyAuction.Api.Models;
+using LeagifyFantasyAuction.Api.Services;
 using System.Net;
 
 namespace LeagifyFantasyAuction.Tests.Functions;
@@ -19,6 +20,7 @@ public class AdminHubFunctionTests : IDisposable
 {
     private readonly LeagifyAuctionDbContext _context;
     private readonly Mock<ILogger<AdminHubFunction>> _mockLogger;
+    private readonly Mock<IBiddingService> _mockBiddingService;
     private readonly AdminHubFunction _function;
     private readonly DbContextOptions<LeagifyAuctionDbContext> _options;
 
@@ -31,7 +33,8 @@ public class AdminHubFunctionTests : IDisposable
 
         _context = new LeagifyAuctionDbContext(_options);
         _mockLogger = new Mock<ILogger<AdminHubFunction>>();
-        _function = new AdminHubFunction(_context, _mockLogger.Object);
+        _mockBiddingService = new Mock<IBiddingService>();
+        _function = new AdminHubFunction(_context, _mockLogger.Object, _mockBiddingService.Object);
     }
 
     public void Dispose()
@@ -254,7 +257,7 @@ public class AdminHubFunctionTests : IDisposable
     }
 
     [Fact]
-    public async Task EndCurrentBid_WithValidAuctionMaster_ShouldBroadcastMessage()
+    public async Task EndCurrentBid_WithValidAuctionMaster_ShouldCompleteAndBroadcast()
     {
         // Arrange
         var auction = CreateTestAuction();
@@ -274,6 +277,22 @@ public class AdminHubFunctionTests : IDisposable
         await _context.UserRoles.AddAsync(masterRole);
         await _context.SaveChangesAsync();
 
+        // Setup mock bidding service to return success
+        _mockBiddingService.Setup(s => s.CompleteBiddingAsync(It.IsAny<int>()))
+            .ReturnsAsync(new CompleteBiddingResult
+            {
+                Success = true,
+                DraftPickId = 1,
+                SchoolName = "Test School",
+                WinningBid = 10.00m,
+                WinnerUserId = auctionMaster.UserId,
+                WinnerDisplayName = "MasterUser",
+                TeamId = 1,
+                TeamName = "Team 1",
+                NextNominatorUserId = null,
+                IsAuctionComplete = false
+            });
+
         var mockRequest = CreateMockHttpRequest("master-token");
 
         // Act
@@ -284,11 +303,11 @@ public class AdminHubFunctionTests : IDisposable
         result.HttpResponse.Should().NotBeNull();
         result.HttpResponse!.StatusCode.Should().Be(HttpStatusCode.OK);
         result.SignalRMessages.Should().NotBeNull();
-        result.SignalRMessages.Should().HaveCount(1);
+        result.SignalRMessages.Should().HaveCountGreaterThanOrEqualTo(1);
 
-        // Verify SignalR message
+        // Verify SignalR message contains SchoolWon
         var signalRMsg = result.SignalRMessages![0];
-        signalRMsg.Target.Should().Be("BiddingEnded");
+        signalRMsg.Target.Should().Be("SchoolWon");
         signalRMsg.GroupName.Should().Be($"auction-{auction.AuctionId}");
     }
 
@@ -332,6 +351,46 @@ public class AdminHubFunctionTests : IDisposable
         result.Should().NotBeNull();
         result.HttpResponse.Should().NotBeNull();
         result.HttpResponse!.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task EndCurrentBid_WithNoActiveBidding_ShouldReturnBadRequest()
+    {
+        // Arrange
+        var auction = CreateTestAuction();
+        var auctionMaster = CreateTestUser(auction.AuctionId, "MasterUser", "master-token");
+
+        await _context.Auctions.AddAsync(auction);
+        await _context.Users.AddAsync(auctionMaster);
+        await _context.SaveChangesAsync();
+
+        var masterRole = new UserRole
+        {
+            UserId = auctionMaster.UserId,
+            Role = "AuctionMaster",
+            AssignedDate = DateTime.UtcNow
+        };
+
+        await _context.UserRoles.AddAsync(masterRole);
+        await _context.SaveChangesAsync();
+
+        // Setup mock bidding service to return failure (no active bidding)
+        _mockBiddingService.Setup(s => s.CompleteBiddingAsync(It.IsAny<int>()))
+            .ReturnsAsync(new CompleteBiddingResult
+            {
+                Success = false,
+                ErrorMessage = "No active bidding to complete"
+            });
+
+        var mockRequest = CreateMockHttpRequest("master-token");
+
+        // Act
+        var result = await _function.EndCurrentBid(mockRequest.Object, auction.AuctionId);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.HttpResponse.Should().NotBeNull();
+        result.HttpResponse!.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     // Helper methods
