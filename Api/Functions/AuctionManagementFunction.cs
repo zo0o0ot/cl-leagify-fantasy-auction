@@ -1082,6 +1082,42 @@ public class AuctionManagementFunction
         }
     }
 
+    /// <summary>
+    /// Manual migration application endpoint to fix Teams.UserId column (make nullable for placeholder teams).
+    /// </summary>
+    [Function("ApplyTeamUserIdMigrationFix")]
+    public async Task<HttpResponseData> ApplyTeamUserIdMigrationFix(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "management/apply-team-userid-fix")] HttpRequestData req)
+    {
+        try
+        {
+            _logger.LogInformation("Applying migration fix for Teams.UserId column...");
+
+            using var scope = _serviceProvider.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<LeagifyAuctionDbContext>();
+
+            // Execute the specific SQL to make UserId nullable on Teams table
+            var sql = "ALTER TABLE [Teams] ALTER COLUMN [UserId] int NULL";
+
+            _logger.LogInformation("Executing SQL: {Sql}", sql);
+
+            await dbContext.Database.ExecuteSqlRawAsync(sql);
+
+            _logger.LogInformation("Teams.UserId migration fix applied successfully");
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteStringAsync("✅ Migration fix applied successfully! Teams.UserId column is now nullable.");
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Teams.UserId migration fix failed: {Message}", ex.Message);
+            var response = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await response.WriteStringAsync($"❌ Migration fix failed: {ex.Message}\nStack Trace: {ex.StackTrace}");
+            return response;
+        }
+    }
+
     [Function("GetAllAuctions")]
     public async Task<HttpResponseData> GetAllAuctions(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "management/auctions")] HttpRequestData req)
