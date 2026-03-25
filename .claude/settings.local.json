@@ -40,7 +40,8 @@
       "Bash(then echo \"Password is set in environment\")",
       "Bash(else echo \"No password in environment\")",
       "Bash(grep:*)",
-      "Bash(jq:*)"
+      "Bash(jq:*)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": []

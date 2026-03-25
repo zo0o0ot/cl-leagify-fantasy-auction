@@ -1118,6 +1118,55 @@ public class AuctionManagementFunction
         }
     }
 
+    /// <summary>
+    /// Manual migration to add ProxyAlias column to UserRoles table.
+    /// </summary>
+    [Function("ApplyProxyAliasMigration")]
+    public async Task<HttpResponseData> ApplyProxyAliasMigration(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "management/apply-proxy-alias-migration")] HttpRequestData req)
+    {
+        try
+        {
+            _logger.LogInformation("Applying migration to add ProxyAlias column to UserRoles...");
+
+            using var scope = _serviceProvider.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<LeagifyAuctionDbContext>();
+
+            // Check if column already exists
+            var checkSql = @"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                            WHERE TABLE_NAME = 'UserRoles' AND COLUMN_NAME = 'ProxyAlias'";
+            var exists = await dbContext.Database.ExecuteSqlRawAsync(checkSql);
+
+            // Add the column
+            var sql = "ALTER TABLE [UserRoles] ADD [ProxyAlias] nvarchar(50) NULL";
+
+            _logger.LogInformation("Executing SQL: {Sql}", sql);
+
+            await dbContext.Database.ExecuteSqlRawAsync(sql);
+
+            _logger.LogInformation("ProxyAlias migration applied successfully");
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteStringAsync("✅ Migration applied successfully! ProxyAlias column added to UserRoles.");
+            return response;
+        }
+        catch (Exception ex)
+        {
+            // If column already exists, that's fine
+            if (ex.Message.Contains("already exists") || ex.Message.Contains("duplicate column"))
+            {
+                var okResponse = req.CreateResponse(HttpStatusCode.OK);
+                await okResponse.WriteStringAsync("✅ ProxyAlias column already exists.");
+                return okResponse;
+            }
+
+            _logger.LogError(ex, "ProxyAlias migration failed: {Message}", ex.Message);
+            var response = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await response.WriteStringAsync($"❌ Migration failed: {ex.Message}\nStack Trace: {ex.StackTrace}");
+            return response;
+        }
+    }
+
     [Function("GetAllAuctions")]
     public async Task<HttpResponseData> GetAllAuctions(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "management/auctions")] HttpRequestData req)

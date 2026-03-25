@@ -13,7 +13,13 @@ public class UserRole
     [Required]
     [MaxLength(20)]
     public string Role { get; set; } = string.Empty; // AuctionMaster, TeamCoach, ProxyCoach, Viewer
-    
+
+    /// <summary>
+    /// Optional custom alias for Proxy Coach roles (e.g., "Cyber-Ross")
+    /// </summary>
+    [MaxLength(50)]
+    public string? ProxyAlias { get; set; }
+
     public DateTime AssignedDate { get; set; } = DateTime.UtcNow;
 
     // Navigation properties

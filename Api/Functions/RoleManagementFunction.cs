@@ -140,14 +140,16 @@ public class RoleManagementFunction(ILoggerFactory loggerFactory, LeagifyAuction
                 UserId = userId,
                 TeamId = roleRequest.TeamId,
                 Role = roleRequest.Role,
+                ProxyAlias = roleRequest.Role == "ProxyCoach" ? roleRequest.ProxyAlias : null,
                 AssignedDate = DateTime.UtcNow
             };
 
             context.UserRoles.Add(userRole);
             await context.SaveChangesAsync();
 
-            _logger.LogInformation("Successfully assigned role {Role} to user {UserId} in auction {AuctionId}", 
-                roleRequest.Role, userId, auctionId);
+            _logger.LogInformation("Successfully assigned role {Role} to user {UserId} in auction {AuctionId}{ProxyAlias}",
+                roleRequest.Role, userId, auctionId,
+                string.IsNullOrEmpty(userRole.ProxyAlias) ? "" : $" (ProxyAlias: {userRole.ProxyAlias})");
 
             var response = req.CreateResponse(HttpStatusCode.OK);
             await response.WriteAsJsonAsync(new AssignRoleResponse
@@ -157,6 +159,7 @@ public class RoleManagementFunction(ILoggerFactory loggerFactory, LeagifyAuction
                 Role = roleRequest.Role,
                 TeamId = roleRequest.TeamId,
                 TeamName = team?.TeamName,
+                ProxyAlias = userRole.ProxyAlias,
                 AssignedDate = userRole.AssignedDate
             });
 
@@ -641,8 +644,13 @@ public class AssignRoleRequest
 {
     [Required]
     public string Role { get; set; } = string.Empty;
-    
+
     public int? TeamId { get; set; }
+
+    /// <summary>
+    /// Optional custom alias for Proxy Coach roles (e.g., "Cyber-Ross")
+    /// </summary>
+    public string? ProxyAlias { get; set; }
 }
 
 /// <summary>
@@ -655,6 +663,7 @@ public class AssignRoleResponse
     public string Role { get; set; } = string.Empty;
     public int? TeamId { get; set; }
     public string? TeamName { get; set; }
+    public string? ProxyAlias { get; set; }
     public DateTime AssignedDate { get; set; }
 }
 

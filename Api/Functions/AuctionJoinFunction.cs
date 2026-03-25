@@ -223,6 +223,7 @@ public class AuctionJoinFunction(ILoggerFactory loggerFactory, LeagifyAuctionDbC
                         Role = ur.Role,
                         TeamId = ur.TeamId,
                         TeamName = ur.Team != null ? ur.Team.TeamName : null,
+                        ProxyAlias = ur.ProxyAlias,
                         AssignedDate = ur.AssignedDate
                     }).ToList()
                 })
@@ -430,5 +431,6 @@ public class RoleDto
     public string Role { get; set; } = string.Empty;
     public int? TeamId { get; set; }
     public string? TeamName { get; set; }
+    public string? ProxyAlias { get; set; }
     public DateTime AssignedDate { get; set; }
 }

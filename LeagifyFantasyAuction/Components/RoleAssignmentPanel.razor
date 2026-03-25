@@ -54,12 +54,17 @@
                                                 @* Use different colors: Blue for Team Coach (own team), Orange for Proxy Coach *@
                                                 var isProxy = teamRole.Role == "ProxyCoach";
                                                 var bgColor = isProxy ? "#e67e22" : "#0078d4";
-                                                var roleLabel = isProxy ? "Proxy for" : "Coach";
+                                                @* Show ProxyAlias if available (e.g., "Cyber-Ross"), otherwise show team name *@
+                                                var displayName = isProxy && !string.IsNullOrEmpty(teamRole.ProxyAlias)
+                                                    ? teamRole.ProxyAlias
+                                                    : teamRole.TeamName;
+                                                var roleLabel = isProxy ? "Proxy" : "Coach";
                                                 <FluentBadge Appearance="Appearance.Accent"
                                                              BackgroundColor="@bgColor"
                                                              Color="white"
-                                                             Style="font-size: 12px; font-weight: bold; margin: 2px;">
-                                                    <span style="font-size: 10px; opacity: 0.9;">@roleLabel:</span> @teamRole.TeamName
+                                                             Style="font-size: 12px; font-weight: bold; margin: 2px;"
+                                                             Title="@(isProxy ? $"Drafting for {teamRole.TeamName}" : "")">
+                                                    <span style="font-size: 10px; opacity: 0.9;">@roleLabel:</span> @displayName
                                                     <FluentButton Appearance="Appearance.Stealth"
                                                                   IconStart="@(new Icons.Regular.Size12.Dismiss())"
                                                                   Style="margin-left: 4px; min-width: auto; padding: 0 4px; color: white;"
@@ -141,6 +146,16 @@
                                                 }
                                             </select>
                                         }
+
+                                        @if (GetSelectedRole(participant.UserId) == "ProxyCoach")
+                                        {
+                                            <input type="text"
+                                                   placeholder="Proxy alias (e.g., Cyber-Ross)"
+                                                   value="@GetProxyAlias(participant.UserId)"
+                                                   @onchange="@(e => SetProxyAlias(participant.UserId, e.Value?.ToString() ?? string.Empty))"
+                                                   class="proxy-alias-input"
+                                                   style="margin-top: 4px; padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; width: 180px;" />
+                                        }
                                     </div>
                                 </td>
                                 
@@ -212,6 +227,7 @@
     private readonly List<string> roleOptions = new() { "AuctionMaster", "TeamCoach", "ProxyCoach", "Viewer" };
     private readonly Dictionary<int, string> selectedRoles = new();
     private readonly Dictionary<int, int> selectedTeamIds = new();
+    private readonly Dictionary<int, string> proxyAliases = new();
     private readonly HashSet<int> assigningRoles = new();
     private readonly HashSet<int> deletingUsers = new();
 
@@ -371,7 +387,8 @@
             var request = new AssignRoleRequest
             {
                 Role = role,
-                TeamId = (role == "TeamCoach" || role == "ProxyCoach") && selectedTeamIds.TryGetValue(userId, out var teamId) ? teamId : null
+                TeamId = (role == "TeamCoach" || role == "ProxyCoach") && selectedTeamIds.TryGetValue(userId, out var teamId) ? teamId : null,
+                ProxyAlias = role == "ProxyCoach" && proxyAliases.TryGetValue(userId, out var alias) ? alias : null
             };
 
             var response = await Http.PostAsJsonAsync($"/api/management/auctions/{AuctionId}/users/{userId}/roles", request);
@@ -387,6 +404,7 @@
                 // Clear selections for this user
                 selectedRoles.Remove(userId);
                 selectedTeamIds.Remove(userId);
+                proxyAliases.Remove(userId);
 
                 // Refresh data to show updated roles
                 await LoadData();
@@ -618,6 +636,20 @@
         }
     }
 
+    private string GetProxyAlias(int userId) => proxyAliases.TryGetValue(userId, out var alias) ? alias : string.Empty;
+
+    private void SetProxyAlias(int userId, string alias)
+    {
+        if (string.IsNullOrEmpty(alias))
+        {
+            proxyAliases.Remove(userId);
+        }
+        else
+        {
+            proxyAliases[userId] = alias;
+        }
+    }
+
     private string GetTeamName(int teamId)
     {
         return availableTeams.FirstOrDefault(t => t.TeamId == teamId)?.TeamName ?? $"Team {teamId}";
@@ -689,6 +721,7 @@
         public string Role { get; set; } = string.Empty;
         public int? TeamId { get; set; }
         public string? TeamName { get; set; }
+        public string? ProxyAlias { get; set; }
         public DateTime AssignedDate { get; set; }
     }
 
@@ -705,6 +738,7 @@
     {
         public string Role { get; set; } = string.Empty;
         public int? TeamId { get; set; }
+        public string? ProxyAlias { get; set; }
     }
 
     private class ManageTeamsResponse
