@@ -245,7 +245,7 @@ public class AdminHubFunction
             var signalRMessages = new List<SignalRMessageAction>();
 
             // Broadcast school won event
-            signalRMessages.Add(new SignalRMessageAction("SchoolWon")
+            signalRMessages.Add(new SignalRMessageAction("BiddingCompleted")
             {
                 GroupName = $"auction-{auctionId}",
                 Arguments = new object[]

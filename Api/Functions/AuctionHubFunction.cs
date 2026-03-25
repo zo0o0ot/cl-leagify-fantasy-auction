@@ -695,7 +695,7 @@ public class AuctionHubFunction(LeagifyAuctionDbContext context, ILogger<Auction
                     // Broadcast school won event
                     signalRMessages.Add(new SignalRMessageAction
                     {
-                        Target = "SchoolWon",
+                        Target = "BiddingCompleted",
                         GroupName = $"auction-{auctionId}",
                         Arguments = new object[]
                         {

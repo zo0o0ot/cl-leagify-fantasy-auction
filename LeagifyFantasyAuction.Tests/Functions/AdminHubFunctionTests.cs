@@ -305,9 +305,9 @@ public class AdminHubFunctionTests : IDisposable
         result.SignalRMessages.Should().NotBeNull();
         result.SignalRMessages.Should().HaveCountGreaterThanOrEqualTo(1);
 
-        // Verify SignalR message contains SchoolWon
+        // Verify SignalR message contains BiddingCompleted
         var signalRMsg = result.SignalRMessages![0];
-        signalRMsg.Target.Should().Be("SchoolWon");
+        signalRMsg.Target.Should().Be("BiddingCompleted");
         signalRMsg.GroupName.Should().Be($"auction-{auction.AuctionId}");
     }
 
