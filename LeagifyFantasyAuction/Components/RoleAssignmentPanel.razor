@@ -51,11 +51,15 @@
                                         <div class="team-assignments">
                                             @foreach (var teamRole in teamRoles)
                                             {
-                                                <FluentBadge Appearance="Appearance.Accent" 
-                                                             BackgroundColor="#0078d4"
+                                                @* Use different colors: Blue for Team Coach (own team), Orange for Proxy Coach *@
+                                                var isProxy = teamRole.Role == "ProxyCoach";
+                                                var bgColor = isProxy ? "#e67e22" : "#0078d4";
+                                                var roleLabel = isProxy ? "Proxy for" : "Coach";
+                                                <FluentBadge Appearance="Appearance.Accent"
+                                                             BackgroundColor="@bgColor"
                                                              Color="white"
                                                              Style="font-size: 12px; font-weight: bold; margin: 2px;">
-                                                    @teamRole.TeamName
+                                                    <span style="font-size: 10px; opacity: 0.9;">@roleLabel:</span> @teamRole.TeamName
                                                     <FluentButton Appearance="Appearance.Stealth"
                                                                   IconStart="@(new Icons.Regular.Size12.Dismiss())"
                                                                   Style="margin-left: 4px; min-width: auto; padding: 0 4px; color: white;"
